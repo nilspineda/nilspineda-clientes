@@ -1,31 +1,129 @@
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { supabase } from '../lib/supabaseClient'
+import { formatDate } from './dateUtils'
 
-export async function generateInvoicePDF({ paymentId, userName, serviceName, amount, date, status }) {
-  const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([600, 400]);
+export async function generateInvoicePDF(payment, user, service) {
+  const pdfDoc = await PDFDocument.create()
+  const page = pdfDoc.addPage()
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+
+  const { width, height } = page.getSize()
   
-  const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  
-  page.drawText('Comprobante de Pago', {
+  page.drawText('FACTURA', {
     x: 50,
-    y: 350,
+    y: height - 60,
     size: 24,
-    font: helveticaBold,
-    color: rgb(0.06, 0.09, 0.16),
-  });
+    font: fontBold,
+    color: rgb(0, 0.53, 0.71),
+  })
 
-  page.drawText(`ID Pago: ${paymentId}`, { x: 50, y: 310, size: 12, font: helveticaFont, color: rgb(0.4, 0.4, 0.4) });
-  page.drawText(`Fecha: ${new Date(date).toLocaleDateString()}`, { x: 50, y: 290, size: 12, font: helveticaFont });
-  
-  page.drawText(`Cliente: ${userName}`, { x: 50, y: 240, size: 14, font: helveticaBold });
-  page.drawText(`Servicio: ${serviceName}`, { x: 50, y: 220, size: 12, font: helveticaFont });
-  
-  page.drawText(`Monto Pagado: $${amount}`, { x: 50, y: 170, size: 16, font: helveticaBold, color: rgb(0.1, 0.6, 0.3) });
-  page.drawText(`Estado: ${status.toUpperCase()}`, { x: 50, y: 150, size: 12, font: helveticaFont });
-  
-  page.drawText('SaaS Platform - Gracias por tu suscripción', { x: 50, y: 50, size: 10, font: helveticaFont, color: rgb(0.6, 0.6, 0.6) });
+  page.drawText(`ID: ${payment.id.slice(0, 8)}`, {
+    x: 50,
+    y: height - 85,
+    size: 10,
+    font: font,
+  })
 
-  const pdfBytes = await pdfDoc.save();
-  return pdfBytes;
+  page.drawText('Datos del Cliente:', {
+    x: 50,
+    y: height - 120,
+    size: 12,
+    font: fontBold,
+  })
+
+  page.drawText(`Nombre: ${user?.name || 'N/A'}`, {
+    x: 50,
+    y: height - 140,
+    size: 11,
+    font: font,
+  })
+
+  page.drawText(`Email: ${user?.email || 'N/A'}`, {
+    x: 50,
+    y: height - 155,
+    size: 11,
+    font: font,
+  })
+
+  page.drawText('Detalles del Servicio:', {
+    x: 50,
+    y: height - 190,
+    size: 12,
+    font: fontBold,
+  })
+
+  page.drawText(`Servicio: ${service?.name || 'N/A'}`, {
+    x: 50,
+    y: height - 210,
+    size: 11,
+    font: font,
+  })
+
+  page.drawText(`Monto: $${payment.amount}`, {
+    x: 50,
+    y: height - 225,
+    size: 11,
+    font: font,
+  })
+
+  page.drawText(`Fecha de pago: ${formatDate(payment.payment_date)}`, {
+    x: 50,
+    y: height - 240,
+    size: 11,
+    font: font,
+  })
+
+  page.drawText(`Estado: ${payment.status}`, {
+    x: 50,
+    y: height - 255,
+    size: 11,
+    font: font,
+  })
+
+  page.drawText(`Metodo: ${payment.payment_method || 'No especificado'}`, {
+    x: 50,
+    y: height - 270,
+    size: 11,
+    font: font,
+  })
+
+  page.drawText('------------------------------------------------', {
+    x: 50,
+    y: height - 300,
+    size: 10,
+    font: font,
+  })
+
+  page.drawText('Gracias por su preferencia!', {
+    x: 50,
+    y: height - 320,
+    size: 10,
+    font: font,
+    color: rgb(0.4, 0.4, 0.4),
+  })
+
+  const pdfBytes = await pdfDoc.save()
+  const blob = new Blob([pdfBytes], { type: 'application/pdf' })
+  return blob
+}
+
+export async function uploadInvoicePDF(paymentId, blob) {
+  const fileName = `invoice_${paymentId}.pdf`
+  const arrayBuffer = await blob.arrayBuffer()
+  
+  const { data, error } = await supabase.storage
+    .from('invoices')
+    .upload(fileName, arrayBuffer, {
+      contentType: 'application/pdf',
+      upsert: true,
+    })
+
+  if (error) throw error
+
+  const { data: urlData } = supabase.storage
+    .from('invoices')
+    .getPublicUrl(fileName)
+
+  return urlData.publicUrl
 }

@@ -6,6 +6,9 @@ create table public.profiles (
   id uuid references auth.users on delete cascade not null primary key,
   name text not null,
   whatsapp text,
+  email text,
+  dominio text,
+  active boolean default true,
   role text default 'user' check (role in ('admin', 'user')),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -15,7 +18,7 @@ create table public.services (
   id uuid default uuid_generate_v4() primary key,
   name text not null,
   description text,
-  price numeric not null,
+  price numeric,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -24,6 +27,7 @@ create table public.user_services (
   id uuid default uuid_generate_v4() primary key,
   user_id uuid references public.profiles(id) on delete cascade not null,
   service_id uuid references public.services(id) on delete cascade not null,
+  price numeric,
   status text default 'pending' check (status in ('active', 'pending', 'expired', 'warning')),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   expires_at timestamp with time zone
@@ -48,12 +52,40 @@ create table public.review_links (
   url text not null
 );
 
+-- SETTINGS
+create table public.settings (
+  id uuid default uuid_generate_v4() primary key,
+  key text unique not null,
+  value text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Insert default settings
+insert into public.settings (key, value) values 
+  ('whatsapp_support', '5491154123456'),
+  ('google_review_url', 'https://g.page/r/CX5jIkitMOE2EBM/review')
+on conflict (key) do nothing;
+
+-- TICKETS
+create table public.tickets (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  subject text not null,
+  description text,
+  status text default 'open' check (status in ('open', 'pending', 'closed')),
+  priority text default 'medium' check (priority in ('low', 'medium', 'high')),
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
 -- RLS
 alter table public.profiles enable row level security;
 alter table public.services enable row level security;
 alter table public.user_services enable row level security;
 alter table public.payments enable row level security;
 alter table public.review_links enable row level security;
+alter table public.settings enable row level security;
+alter table public.tickets enable row level security;
 
 -- POLICIES: PROFILES
 create policy "Users can view their own profile" on public.profiles for select using ( auth.uid() = id );
@@ -86,6 +118,20 @@ create policy "Admin can do all on review links" on public.review_links for all 
   exists (select 1 from profiles where id = auth.uid() and role = 'admin')
 );
 
+-- POLICIES: SETTINGS
+create policy "Everyone can read settings" on public.settings for select using ( true );
+create policy "Admin can do all on settings" on public.settings for all using (
+  exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+);
+
+-- POLICIES: TICKETS
+create policy "Users can view their own tickets" on public.tickets for select using ( auth.uid() = user_id );
+create policy "Users can create tickets" on public.tickets for insert with check ( auth.uid() = user_id );
+create policy "Users can update their own tickets" on public.tickets for update using ( auth.uid() = user_id );
+create policy "Admin can do all on tickets" on public.tickets for all using (
+  exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+);
+
 -- TRIGGER FOR NEW USERS
 create or replace function public.handle_new_user()
 returns trigger
@@ -93,8 +139,8 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id, name, role)
-  values (new.id, coalesce(new.raw_user_meta_data->>'name', 'User'), 'user');
+  insert into public.profiles (id, name, role, active)
+  values (new.id, coalesce(new.raw_user_meta_data->>'name', 'User'), 'user', true);
   return new;
 end;
 $$;
