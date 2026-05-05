@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import { formatDate } from '../../utils/dateUtils'
+import Modal from '../../components/Modal'
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([])
@@ -312,70 +313,91 @@ export default function AdminUsers() {
         </button>
       </div>
 
-      {showForm && (
-        <div className="bg-card-bg rounded-2xl border border-border-dark p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">
-            {editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}
-          </h2>
-          <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
+      <Modal
+        isOpen={showForm}
+        onClose={resetForm}
+        title={editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}
+        size="md"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Nombre</label>
             <input
               type="text"
-              placeholder="Nombre"
+              placeholder="Nombre completo"
               value={formData.name}
               onChange={e => setFormData({...formData, name: e.target.value})}
               required
-              className="px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             />
-            <input
-              type="text"
-              placeholder="WhatsApp"
-              value={formData.whatsapp}
-              onChange={e => setFormData({...formData, whatsapp: e.target.value})}
-              className="px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-            />
-            <input
-              type="text"
-              placeholder="Dominio (ej: dominio.com)"
-              value={formData.dominio}
-              onChange={e => setFormData({...formData, dominio: e.target.value})}
-              className="px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
             <input
               type="email"
-              placeholder="Email"
+              placeholder="correo@ejemplo.com"
               value={formData.email}
               onChange={e => setFormData({...formData, email: e.target.value})}
               required
-              className="px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             />
-            {!editingUser && (
+          </div>
+
+          {!editingUser && (
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Contraseña</label>
               <input
                 type="password"
                 placeholder="Contraseña"
                 value={formData.password}
                 onChange={e => setFormData({...formData, password: e.target.value})}
                 required
-                className="px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
               />
-            )}
-            <div className="md:col-span-2 flex gap-2">
-              <button
-                type="submit"
-                className="bg-primary text-white px-4 py-3 rounded-xl hover:bg-primary-light transition-colors"
-              >
-                {editingUser ? 'Guardar' : 'Crear'}
-              </button>
-              <button
-                type="button"
-                onClick={resetForm}
-                className="px-4 py-3 border border-border-dark rounded-xl text-gray-400 hover:bg-card-hover hover:text-white transition-colors"
-              >
-                Cancelar
-              </button>
             </div>
-          </form>
-        </div>
-      )}
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">WhatsApp</label>
+              <input
+                type="text"
+                placeholder="+54 9 11..."
+                value={formData.whatsapp}
+                onChange={e => setFormData({...formData, whatsapp: e.target.value})}
+                className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Dominio</label>
+              <input
+                type="text"
+                placeholder="dominio.com"
+                value={formData.dominio}
+                onChange={e => setFormData({...formData, dominio: e.target.value})}
+                className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 pt-4">
+            <button
+              type="submit"
+              className="flex-1 bg-primary text-white px-6 py-3 rounded-xl hover:bg-primary-light transition-colors font-medium"
+            >
+              {editingUser ? 'Guardar Cambios' : 'Crear Usuario'}
+            </button>
+            <button
+              type="button"
+              onClick={resetForm}
+              className="flex-1 px-6 py-3 border border-border-dark rounded-xl text-gray-400 hover:bg-card-hover hover:text-white transition-colors font-medium"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       <div className="bg-card-bg rounded-2xl border border-border-dark overflow-hidden">
         <div className="overflow-x-auto">

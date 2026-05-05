@@ -2,6 +2,7 @@
 import { supabase } from '../../lib/supabaseClient'
 import { formatDate } from '../../utils/dateUtils'
 import { generateInvoicePDF, uploadInvoicePDF } from '../../utils/pdfGenerator'
+import Modal from '../../components/Modal'
 
 export default function AdminPayments() {
   const [payments, setPayments] = useState([])

@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import { getDaysRemaining, getServiceStatus } from '../../utils/dateUtils'
+import Modal from '../../components/Modal'
 
 export default function AdminAssignments() {
   const [assignments, setAssignments] = useState([])
@@ -91,49 +92,69 @@ export default function AdminAssignments() {
         </button>
       </div>
 
-      {showForm && (
-        <div className="bg-card-bg rounded-2xl border border-border-dark p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Asignar Servicio a Usuario</h2>
-          <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
+      <Modal
+        isOpen={showForm}
+        onClose={resetForm}
+        title="Asignar Servicio a Usuario"
+        size="md"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Usuario</label>
             <select
               value={formData.user_id}
               onChange={e => setFormData({...formData, user_id: e.target.value})}
               required
-              className="px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             >
               <option value="">Seleccionar usuario</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Servicio</label>
             <select
               value={formData.service_id}
               onChange={e => setFormData({...formData, service_id: e.target.value})}
               required
-              className="px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             >
               <option value="">Seleccionar servicio</option>
               {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
-            <input
-              type="number"
-              placeholder="Precio mensual"
-              value={formData.price}
-              onChange={e => setFormData({...formData, price: e.target.value})}
-              className="px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-            />
-            <input
-              type="date"
-              value={formData.expires_at}
-              onChange={e => setFormData({...formData, expires_at: e.target.value})}
-              className="px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-            />
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                className="bg-primary text-white px-4 py-3 rounded-xl hover:bg-primary-light transition-colors"
-              >
-                Asignar
-              </button>
-              <button
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Precio mensual</label>
+              <input
+                type="number"
+                placeholder="0.00"
+                value={formData.price}
+                onChange={e => setFormData({...formData, price: e.target.value})}
+                className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Fecha de vencimiento</label>
+              <input
+                type="date"
+                value={formData.expires_at}
+                onChange={e => setFormData({...formData, expires_at: e.target.value})}
+                className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 pt-4">
+            <button
+              type="submit"
+              className="flex-1 bg-primary text-white px-6 py-3 rounded-xl hover:bg-primary-light transition-colors font-medium"
+            >
+              Asignar Servicio
+            </button>
+            <button
                 type="button"
                 onClick={resetForm}
                 className="px-4 py-3 border border-border-dark rounded-xl text-gray-400 hover:bg-card-hover hover:text-white transition-colors"
