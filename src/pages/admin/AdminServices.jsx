@@ -108,64 +108,45 @@ export default function AdminServices() {
         </button>
       </div>
 
-      <Modal
-        isOpen={showForm}
-        onClose={resetForm}
-        title={editingService ? "Editar Servicio" : "Nuevo Servicio"}
-        size="md"
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Nombre del servicio</label>
+      {showForm && (
+        <div className="bg-card-bg rounded-2xl border border-border-dark p-6">
+          <h2 className="text-lg font-semibold text-[#1b524b] mb-4">
+            {editingService ? "Editar Servicio" : "Nuevo Servicio"}
+          </h2>
+          <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
             <input
               type="text"
               placeholder="Nombre del servicio"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               required
-              className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              className="px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-[#1b524b] placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Precio (opcional)</label>
             <input
               type="number"
-              placeholder="0.00"
+              placeholder="Precio (opcional)"
               value={formData.price}
-              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-              className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              onChange={(e) =>
+                setFormData({ ...formData, price: e.target.value })
+              }
+              className="px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-[#1b524b] placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Descripción</label>
-            <textarea
-              placeholder="Descripción del servicio"
+            <input
+              type="text"
+              placeholder="Descripción"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={3}
-              className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-none"
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
+              className="px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-[#1b524b] placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none md:col-span-2"
             />
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 pt-4">
-            <button
-              type="submit"
-              className="flex-1 bg-primary text-white px-6 py-3 rounded-xl hover:bg-primary-light transition-colors font-medium"
-            >
-              {editingService ? "Guardar Cambios" : "Crear Servicio"}
-            </button>
-            <button
-              type="button"
-              onClick={resetForm}
-              className="flex-1 px-6 py-3 border border-border-dark rounded-xl text-gray-400 hover:bg-card-hover hover:text-white transition-colors font-medium"
-            >
-              Cancelar
-            </button>
-          </div>
-        </form>
-      </Modal>
+            <div className="md:col-span-2 flex gap-2">
+              <button
+                type="submit"
+                className="bg-primary text-[#1b524b] px-4 py-3 rounded-xl hover:bg-primary-light transition-colors"
+              >
                 {editingService ? "Guardar" : "Crear"}
               </button>
               <button
