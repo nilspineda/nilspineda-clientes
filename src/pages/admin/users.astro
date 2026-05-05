@@ -1,0 +1,86 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getSupabase } from '../../lib/supabase';
+
+const supabase = getSupabase(Astro.cookies);
+const { data: { user }, error } = await supabase.auth.getUser();
+
+if (error || !user) return Astro.redirect("/login");
+
+const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+if (profile?.role !== 'admin') return Astro.redirect('/dashboard');
+
+// Handle Form Submission (Edit profile)
+let message = null;
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const id = formData.get('id')?.toString();
+  const name = formData.get('name')?.toString();
+  const whatsapp = formData.get('whatsapp')?.toString();
+  const role = formData.get('role')?.toString();
+
+  if (id && name && role) {
+    const { error: updateError } = await supabase.from('profiles').update({ name, whatsapp, role }).eq('id', id);
+    if (updateError) message = { type: 'error', text: updateError.message };
+    else message = { type: 'success', text: 'Usuario actualizado correctamente.' };
+  }
+}
+
+// Fetch Users
+const { data: users } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+---
+
+<AdminLayout title="Usuarios | Admin" currentPath="/admin/users">
+  <div class="mb-8 flex justify-between items-end">
+    <div>
+      <h1 class="text-3xl font-bold text-slate-900 tracking-tight">Usuarios</h1>
+      <p class="text-slate-500 mt-2">Gestiona los perfiles y roles de los usuarios.</p>
+    </div>
+  </div>
+
+  {message && (
+    <div class={`mb-6 p-4 text-sm rounded-xl border ${message.type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-red-50 text-red-800 border-red-200'}`}>
+      {message.text}
+    </div>
+  )}
+
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+    <table class="w-full text-left text-sm text-slate-600">
+      <thead class="bg-slate-50 text-slate-700 text-xs uppercase font-semibold border-b border-slate-200">
+        <tr>
+          <th class="px-6 py-4">Nombre / WhatsApp</th>
+          <th class="px-6 py-4">Rol</th>
+          <th class="px-6 py-4">Fecha Registro</th>
+          <th class="px-6 py-4 text-right">Acciones</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-200">
+        {users && users.length > 0 ? users.map(u => (
+          <tr class="hover:bg-slate-50">
+            <td class="px-6 py-4">
+              <form method="POST" class="flex flex-col gap-2" id={`form-${u.id}`}>
+                <input type="hidden" name="id" value={u.id} />
+                <input type="text" name="name" value={u.name} class="px-2 py-1 border border-slate-200 rounded text-sm w-full" placeholder="Nombre" />
+                <input type="text" name="whatsapp" value={u.whatsapp || ''} class="px-2 py-1 border border-slate-200 rounded text-sm w-full" placeholder="WhatsApp (opcional)" />
+              </form>
+            </td>
+            <td class="px-6 py-4">
+              <select name="role" form={`form-${u.id}`} class="px-2 py-1 border border-slate-200 rounded text-sm bg-white">
+                <option value="user" selected={u.role === 'user'}>Usuario</option>
+                <option value="admin" selected={u.role === 'admin'}>Admin</option>
+              </select>
+            </td>
+            <td class="px-6 py-4">{new Date(u.created_at).toLocaleDateString()}</td>
+            <td class="px-6 py-4 text-right">
+              <button type="submit" form={`form-${u.id}`} class="text-blue-600 hover:text-blue-800 font-medium">Guardar</button>
+            </td>
+          </tr>
+        )) : (
+          <tr>
+            <td colspan="4" class="px-6 py-8 text-center text-slate-500">No hay usuarios.</td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+</AdminLayout>

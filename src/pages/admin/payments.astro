@@ -1,0 +1,210 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getSupabase } from '../../lib/supabase';
+import { generateInvoicePDF } from '../../utils/pdfGenerator';
+import { addMonths } from 'date-fns';
+
+const supabase = getSupabase(Astro.cookies);
+const { data: { user }, error } = await supabase.auth.getUser();
+
+if (error || !user) return Astro.redirect("/login");
+
+const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+if (profile?.role !== 'admin') return Astro.redirect('/dashboard');
+
+let message = null;
+
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const user_id = formData.get('user_id')?.toString();
+  const service_id = formData.get('service_id')?.toString();
+  const amount = parseFloat(formData.get('amount')?.toString() || '0');
+  const payment_method = formData.get('payment_method')?.toString();
+
+  if (user_id && service_id && amount > 0) {
+    // 1. Insert Payment
+    const { data: payment, error: paymentError } = await supabase
+      .from('payments')
+      .insert([{ user_id, service_id, amount, payment_method, status: 'paid' }])
+      .select()
+      .single();
+
+    if (paymentError) {
+      message = { type: 'error', text: paymentError.message };
+    } else {
+      // 2. Fetch User and Service details for PDF
+      const { data: u } = await supabase.from('profiles').select('name').eq('id', user_id).single();
+      const { data: s } = await supabase.from('services').select('name').eq('id', service_id).single();
+
+      // 3. Generate PDF
+      try {
+        const pdfBytes = await generateInvoicePDF({
+          paymentId: payment.id,
+          userName: u.name,
+          serviceName: s.name,
+          amount,
+          date: payment.payment_date,
+          status: 'paid'
+        });
+
+        // 4. Upload to Storage
+        const fileName = `${user_id}/${payment.id}.pdf`;
+        const { error: uploadError } = await supabase.storage
+          .from('invoices')
+          .upload(fileName, pdfBytes, { contentType: 'application/pdf', upsert: true });
+
+        if (!uploadError) {
+          // Update Payment with invoice URL
+          const { data: publicUrlData } = supabase.storage.from('invoices').getPublicUrl(fileName);
+          await supabase.from('payments').update({ invoice_url: publicUrlData.publicUrl }).eq('id', payment.id);
+        }
+
+        // 5. Update user_services to Active + add 1 month
+        const { data: assignment } = await supabase
+          .from('user_services')
+          .select('*')
+          .eq('user_id', user_id)
+          .eq('service_id', service_id)
+          .single();
+
+        if (assignment) {
+          const currentDate = assignment.expires_at ? new Date(assignment.expires_at) : new Date();
+          const newExpiresAt = addMonths(currentDate, 1);
+          await supabase.from('user_services').update({ 
+            status: 'active', 
+            expires_at: newExpiresAt.toISOString() 
+          }).eq('id', assignment.id);
+        }
+
+        message = { type: 'success', text: 'Pago registrado y factura generada correctamente.' };
+      } catch (err) {
+        message = { type: 'error', text: 'Error generando PDF: ' + err.message };
+      }
+    }
+  }
+}
+
+// Fetch Users and Services for dropdowns
+const { data: users } = await supabase.from('profiles').select('id, name').order('name');
+const { data: services } = await supabase.from('services').select('id, name, price').order('name');
+
+// Fetch Payments History
+const { data: payments } = await supabase.from('payments')
+  .select(`
+    id, amount, payment_date, payment_method, status, invoice_url,
+    user:profiles(id, name),
+    service:services(id, name)
+  `)
+  .order('payment_date', { ascending: false });
+---
+
+<AdminLayout title="Pagos | Admin" currentPath="/admin/payments">
+  <div class="mb-8 flex justify-between items-end">
+    <div>
+      <h1 class="text-3xl font-bold text-slate-900 tracking-tight">Pagos y Facturación</h1>
+      <p class="text-slate-500 mt-2">Registra pagos, genera facturas PDF y renueva servicios automáticamente.</p>
+    </div>
+  </div>
+
+  {message && (
+    <div class={`mb-6 p-4 text-sm rounded-xl border ${message.type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-red-50 text-red-800 border-red-200'}`}>
+      {message.text}
+    </div>
+  )}
+
+  <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+    <div class="xl:col-span-1">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sticky top-6">
+        <h2 class="text-lg font-bold text-slate-900 mb-4">Registrar Pago</h2>
+        <form method="POST" class="space-y-4">
+          
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Usuario</label>
+            <select name="user_id" required class="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none">
+              <option value="" disabled selected>Selecciona un usuario</option>
+              {users?.map(u => <option value={u.id}>{u.name}</option>)}
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Servicio</label>
+            <select name="service_id" required class="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none">
+              <option value="" disabled selected>Selecciona un servicio</option>
+              {services?.map(s => <option value={s.id}>{s.name} - ${s.price}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Monto Pagado ($)</label>
+            <input type="number" step="0.01" name="amount" required class="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Método de Pago</label>
+            <select name="payment_method" class="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none">
+              <option value="Transferencia">Transferencia</option>
+              <option value="Efectivo">Efectivo</option>
+              <option value="Tarjeta">Tarjeta</option>
+              <option value="Paypal">Paypal</option>
+            </select>
+          </div>
+
+          <div class="pt-2 text-xs text-slate-500 bg-blue-50 p-3 rounded-lg border border-blue-100 mb-4">
+            <span class="font-semibold text-blue-800">Nota:</span> Al registrar el pago, se generará el PDF automáticamente, se marcará el servicio como Activo y se sumará 1 mes a su fecha de vencimiento.
+          </div>
+
+          <button type="submit" class="w-full py-2.5 px-4 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+            Registrar y Generar PDF
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="xl:col-span-2">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-600 min-w-[600px]">
+          <thead class="bg-slate-50 text-slate-700 text-xs uppercase font-semibold border-b border-slate-200">
+            <tr>
+              <th class="px-6 py-4">Fecha / ID</th>
+              <th class="px-6 py-4">Usuario / Servicio</th>
+              <th class="px-6 py-4">Monto / Método</th>
+              <th class="px-6 py-4 text-right">Factura</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200">
+            {payments && payments.length > 0 ? payments.map(p => (
+              <tr class="hover:bg-slate-50">
+                <td class="px-6 py-4">
+                  <div class="font-medium text-slate-900">{new Date(p.payment_date).toLocaleDateString()}</div>
+                  <div class="text-slate-400 text-xs truncate max-w-[100px]" title={p.id}>{p.id.split('-')[0]}...</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="font-medium text-slate-900">{p.user?.name}</div>
+                  <div class="text-slate-500 text-xs">{p.service?.name}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="font-medium text-slate-900">${p.amount}</div>
+                  <div class="text-slate-500 text-xs">{p.payment_method}</div>
+                </td>
+                <td class="px-6 py-4 text-right">
+                  {p.invoice_url ? (
+                    <a href={p.invoice_url} target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                      PDF
+                    </a>
+                  ) : (
+                    <span class="text-slate-400 text-xs">No disp.</span>
+                  )}
+                </td>
+              </tr>
+            )) : (
+              <tr>
+                <td colspan="4" class="px-6 py-8 text-center text-slate-500">No hay pagos registrados.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</AdminLayout>

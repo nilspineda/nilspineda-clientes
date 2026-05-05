@@ -1,0 +1,18 @@
+---
+const { status } = Astro.props;
+
+const statusConfig = {
+  active: { text: "Activo", class: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+  pending: { text: "Pendiente", class: "bg-amber-100 text-amber-800 border-amber-200" },
+  warning: { text: "Por Vencer", class: "bg-orange-100 text-orange-800 border-orange-200" },
+  expired: { text: "Vencido", class: "bg-rose-100 text-rose-800 border-rose-200" },
+  paid: { text: "Pagado", class: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+  failed: { text: "Fallido", class: "bg-rose-100 text-rose-800 border-rose-200" }
+};
+
+const current = statusConfig[status] || { text: status, class: "bg-slate-100 text-slate-800 border-slate-200" };
+---
+
+<span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${current.class}`}>
+  {current.text}
+</span>

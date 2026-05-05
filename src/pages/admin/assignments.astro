@@ -1,0 +1,178 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getSupabase } from '../../lib/supabase';
+import StatusBadge from '../../components/StatusBadge.astro';
+
+const supabase = getSupabase(Astro.cookies);
+const { data: { user }, error } = await supabase.auth.getUser();
+
+if (error || !user) return Astro.redirect("/login");
+
+const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+if (profile?.role !== 'admin') return Astro.redirect('/dashboard');
+
+// Handle Form Submission (Create/Update/Delete Assignment)
+let message = null;
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const action = formData.get('action')?.toString();
+
+  if (action === 'create') {
+    const user_id = formData.get('user_id')?.toString();
+    const service_id = formData.get('service_id')?.toString();
+    const status = formData.get('status')?.toString() || 'pending';
+    const expires_at = formData.get('expires_at')?.toString() || null;
+
+    if (user_id && service_id) {
+      const { error: insertError } = await supabase.from('user_services').insert([{ user_id, service_id, status, expires_at }]);
+      if (insertError) message = { type: 'error', text: insertError.message };
+      else message = { type: 'success', text: 'Servicio asignado al usuario.' };
+    }
+  } else if (action === 'update_status') {
+    const id = formData.get('id')?.toString();
+    const status = formData.get('status')?.toString();
+    const expires_at = formData.get('expires_at')?.toString() || null;
+
+    if (id && status) {
+      const { error: updateError } = await supabase.from('user_services').update({ status, expires_at }).eq('id', id);
+      if (updateError) message = { type: 'error', text: updateError.message };
+      else message = { type: 'success', text: 'Asignación actualizada.' };
+    }
+  } else if (action === 'delete') {
+    const id = formData.get('id')?.toString();
+    if (id) {
+      const { error: deleteError } = await supabase.from('user_services').delete().eq('id', id);
+      if (deleteError) message = { type: 'error', text: deleteError.message };
+      else message = { type: 'success', text: 'Asignación eliminada.' };
+    }
+  }
+}
+
+// Fetch Users and Services for dropdowns
+const { data: users } = await supabase.from('profiles').select('id, name').order('name');
+const { data: services } = await supabase.from('services').select('id, name').order('name');
+
+// Fetch Assignments
+const { data: assignments } = await supabase.from('user_services')
+  .select(`
+    id, status, created_at, expires_at,
+    user:profiles(id, name),
+    service:services(id, name)
+  `)
+  .order('created_at', { ascending: false });
+---
+
+<AdminLayout title="Asignaciones | Admin" currentPath="/admin/assignments">
+  <div class="mb-8 flex justify-between items-end">
+    <div>
+      <h1 class="text-3xl font-bold text-slate-900 tracking-tight">Asignaciones</h1>
+      <p class="text-slate-500 mt-2">Asigna servicios a los usuarios y controla su vigencia.</p>
+    </div>
+  </div>
+
+  {message && (
+    <div class={`mb-6 p-4 text-sm rounded-xl border ${message.type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-red-50 text-red-800 border-red-200'}`}>
+      {message.text}
+    </div>
+  )}
+
+  <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+    <div class="xl:col-span-1">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sticky top-6">
+        <h2 class="text-lg font-bold text-slate-900 mb-4">Nueva Asignación</h2>
+        <form method="POST" class="space-y-4">
+          <input type="hidden" name="action" value="create" />
+          
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Usuario</label>
+            <select name="user_id" required class="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none">
+              <option value="" disabled selected>Selecciona un usuario</option>
+              {users?.map(u => <option value={u.id}>{u.name}</option>)}
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Servicio</label>
+            <select name="service_id" required class="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none">
+              <option value="" disabled selected>Selecciona un servicio</option>
+              {services?.map(s => <option value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Estado</label>
+            <select name="status" class="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none">
+              <option value="pending">Pendiente</option>
+              <option value="active">Activo</option>
+              <option value="warning">Por Vencer</option>
+              <option value="expired">Vencido</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Fecha de Vencimiento (opcional)</label>
+            <input type="date" name="expires_at" class="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none" />
+          </div>
+
+          <button type="submit" class="w-full py-2.5 px-4 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+            Asignar Servicio
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="xl:col-span-2">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-600 min-w-[600px]">
+          <thead class="bg-slate-50 text-slate-700 text-xs uppercase font-semibold border-b border-slate-200">
+            <tr>
+              <th class="px-6 py-4">Usuario / Servicio</th>
+              <th class="px-6 py-4">Estado</th>
+              <th class="px-6 py-4">Vencimiento</th>
+              <th class="px-6 py-4 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200">
+            {assignments && assignments.length > 0 ? assignments.map(a => (
+              <tr class="hover:bg-slate-50">
+                <td class="px-6 py-4">
+                  <div class="font-medium text-slate-900">{a.user?.name}</div>
+                  <div class="text-slate-500 text-xs">{a.service?.name}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <form method="POST" class="flex items-center gap-2" id={`form-update-${a.id}`}>
+                    <input type="hidden" name="action" value="update_status" />
+                    <input type="hidden" name="id" value={a.id} />
+                    <select name="status" class="px-2 py-1 border border-slate-200 rounded text-xs bg-white">
+                      <option value="active" selected={a.status === 'active'}>Activo</option>
+                      <option value="pending" selected={a.status === 'pending'}>Pendiente</option>
+                      <option value="warning" selected={a.status === 'warning'}>Por Vencer</option>
+                      <option value="expired" selected={a.status === 'expired'}>Vencido</option>
+                    </select>
+                  </form>
+                </td>
+                <td class="px-6 py-4">
+                  <input type="date" form={`form-update-${a.id}`} name="expires_at" value={a.expires_at ? a.expires_at.split('T')[0] : ''} class="px-2 py-1 border border-slate-200 rounded text-xs bg-white w-32" />
+                </td>
+                <td class="px-6 py-4 text-right">
+                  <div class="flex items-center justify-end gap-3">
+                    <button type="submit" form={`form-update-${a.id}`} class="text-blue-600 hover:text-blue-800 font-medium">Actualizar</button>
+                    <form method="POST" class="inline" onsubmit="return confirm('¿Eliminar asignación?');">
+                      <input type="hidden" name="action" value="delete" />
+                      <input type="hidden" name="id" value={a.id} />
+                      <button type="submit" class="text-red-500 hover:text-red-700 font-medium">X</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            )) : (
+              <tr>
+                <td colspan="4" class="px-6 py-8 text-center text-slate-500">No hay asignaciones registradas.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</AdminLayout>

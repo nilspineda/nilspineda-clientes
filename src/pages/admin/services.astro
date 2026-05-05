@@ -1,0 +1,128 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getSupabase } from '../../lib/supabase';
+
+const supabase = getSupabase(Astro.cookies);
+const { data: { user }, error } = await supabase.auth.getUser();
+
+if (error || !user) {
+  return Astro.redirect("/login");
+}
+
+const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+
+if (profile?.role !== 'admin') {
+  return Astro.redirect('/dashboard');
+}
+
+// Handle Form Submission (Create/Delete)
+let message = null;
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const action = formData.get('action');
+  
+  if (action === 'create') {
+    const name = formData.get('name')?.toString();
+    const description = formData.get('description')?.toString();
+    const price = parseFloat(formData.get('price')?.toString() || '0');
+    
+    if (name && price >= 0) {
+      const { error: insertError } = await supabase.from('services').insert([{ name, description, price }]);
+      if (insertError) message = { type: 'error', text: insertError.message };
+      else message = { type: 'success', text: 'Servicio creado correctamente.' };
+    }
+  } else if (action === 'delete') {
+    const id = formData.get('id')?.toString();
+    if (id) {
+      const { error: deleteError } = await supabase.from('services').delete().eq('id', id);
+      if (deleteError) message = { type: 'error', text: deleteError.message };
+      else message = { type: 'success', text: 'Servicio eliminado.' };
+    }
+  }
+}
+
+// Fetch Services
+const { data: services } = await supabase.from('services').select('*').order('created_at', { ascending: false });
+---
+
+<AdminLayout title="Servicios | Admin" currentPath="/admin/services">
+  <div class="mb-8 flex justify-between items-end">
+    <div>
+      <h1 class="text-3xl font-bold text-slate-900 tracking-tight">Servicios</h1>
+      <p class="text-slate-500 mt-2">Gestiona los servicios que ofreces en la plataforma.</p>
+    </div>
+  </div>
+
+  {message && (
+    <div class={`mb-6 p-4 text-sm rounded-xl border ${message.type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-red-50 text-red-800 border-red-200'}`}>
+      {message.text}
+    </div>
+  )}
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    
+    <div class="lg:col-span-1">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sticky top-6">
+        <h2 class="text-lg font-bold text-slate-900 mb-4">Nuevo Servicio</h2>
+        <form method="POST" class="space-y-4">
+          <input type="hidden" name="action" value="create" />
+          
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Nombre</label>
+            <input type="text" name="name" required class="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none" />
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Descripción</label>
+            <textarea name="description" rows="3" class="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none"></textarea>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Precio ($)</label>
+            <input type="number" step="0.01" name="price" required class="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none" />
+          </div>
+
+          <button type="submit" class="w-full py-2.5 px-4 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+            Crear Servicio
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="lg:col-span-2">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <table class="w-full text-left text-sm text-slate-600">
+          <thead class="bg-slate-50 text-slate-700 text-xs uppercase font-semibold border-b border-slate-200">
+            <tr>
+              <th class="px-6 py-4">Nombre</th>
+              <th class="px-6 py-4">Precio</th>
+              <th class="px-6 py-4 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200">
+            {services && services.length > 0 ? services.map(service => (
+              <tr class="hover:bg-slate-50">
+                <td class="px-6 py-4">
+                  <div class="font-medium text-slate-900">{service.name}</div>
+                  <div class="text-slate-500 text-xs truncate max-w-xs">{service.description}</div>
+                </td>
+                <td class="px-6 py-4 font-semibold text-slate-900">${service.price}</td>
+                <td class="px-6 py-4 text-right">
+                  <form method="POST" class="inline" onsubmit="return confirm('¿Eliminar servicio?');">
+                    <input type="hidden" name="action" value="delete" />
+                    <input type="hidden" name="id" value={service.id} />
+                    <button type="submit" class="text-red-500 hover:text-red-700 font-medium">Eliminar</button>
+                  </form>
+                </td>
+              </tr>
+            )) : (
+              <tr>
+                <td colspan="3" class="px-6 py-8 text-center text-slate-500">No hay servicios registrados.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</AdminLayout>
