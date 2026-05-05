@@ -9,6 +9,7 @@ create table public.profiles (
   email text,
   dominio text,
   active boolean default true,
+  accesos text,
   role text default 'user' check (role in ('admin', 'user')),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );

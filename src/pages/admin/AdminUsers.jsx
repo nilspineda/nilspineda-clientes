@@ -2,6 +2,7 @@
 import { supabase } from '../../lib/supabaseClient'
 import { formatDate } from '../../utils/dateUtils'
 import Modal from '../../components/Modal'
+import AccessEditor from '../../components/AccessEditor'
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([])
@@ -97,6 +98,16 @@ export default function AdminUsers() {
     if (selectedUser?.id === user.id) {
       setSelectedUser({ ...user, active: !user.active })
     }
+  }
+
+  async function handleSaveAccesses(content) {
+    await supabase
+      .from('profiles')
+      .update({ accesos: content })
+      .eq('id', selectedUser.id)
+    
+    setSelectedUser({ ...selectedUser, accesos: content })
+    fetchUsers()
   }
 
   if (loading) {
@@ -287,6 +298,16 @@ export default function AdminUsers() {
                   </div>
                 )}
               </div>
+            </div>
+            </div>
+          </div>
+
+          <div className="bg-card-bg rounded-3xl border border-border-dark overflow-hidden">
+            <div className="p-5 lg:p-6">
+              <AccessEditor 
+                value={selectedUser.accesos} 
+                onChange={handleSaveAccesses} 
+              />
             </div>
           </div>
         </div>
