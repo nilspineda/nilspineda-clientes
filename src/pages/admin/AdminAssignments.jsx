@@ -163,7 +163,7 @@ export default function AdminAssignments() {
               </button>
             </div>
           </form>
-        </div>
+        </Modal>
       )}
 
       <div className="bg-card-bg rounded-2xl border border-border-dark overflow-hidden">
