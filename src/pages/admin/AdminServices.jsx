@@ -109,7 +109,7 @@ export default function AdminServices() {
       </div>
 
       {showForm && (
-        <div className="bg-card-bg rounded-2xl border border-border-dark p-6">
+        <div className="bg-card rounded-2xl border border-border p-6">
           <h2 className="text-lg font-semibold text-[#1b524b] mb-4">
             {editingService ? "Editar Servicio" : "Nuevo Servicio"}
           </h2>
@@ -122,7 +122,7 @@ export default function AdminServices() {
                 setFormData({ ...formData, name: e.target.value })
               }
               required
-              className="px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-[#1b524b] placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              className="px-4 py-3 bg-muted border border-border rounded-xl text-[#1b524b] placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             />
             <input
               type="number"
@@ -131,7 +131,7 @@ export default function AdminServices() {
               onChange={(e) =>
                 setFormData({ ...formData, price: e.target.value })
               }
-              className="px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-[#1b524b] placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              className="px-4 py-3 bg-muted border border-border rounded-xl text-[#1b524b] placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             />
             <input
               type="text"
@@ -140,7 +140,7 @@ export default function AdminServices() {
               onChange={(e) =>
                 setFormData({ ...formData, description: e.target.value })
               }
-              className="px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-[#1b524b] placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none md:col-span-2"
+              className="px-4 py-3 bg-muted border border-border rounded-xl text-[#1b524b] placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none md:col-span-2"
             />
             <div className="md:col-span-2 flex gap-2">
               <button
@@ -152,7 +152,7 @@ export default function AdminServices() {
               <button
                 type="button"
                 onClick={resetForm}
-                className="px-4 py-3 border border-border-dark rounded-xl text-gray-400 hover:bg-card-hover hover:text-[#1b524b] transition-colors"
+                className="px-4 py-3 border border-border rounded-xl text-muted-foreground hover:bg-accent hover:text-[#1b524b] transition-colors"
               >
                 Cancelar
               </button>
@@ -161,10 +161,10 @@ export default function AdminServices() {
         </div>
       )}
 
-      <div className="bg-card-bg rounded-2xl border border-border-dark overflow-hidden">
+      <div className="bg-card rounded-2xl border border-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gradient-to-r from-sidebar-bg to-card-bg border-b border-border-dark">
+            <thead className="bg-gradient-to-r from-sidebar-bg to-card-bg border-b border-border">
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
                   Nombre
@@ -208,7 +208,7 @@ export default function AdminServices() {
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-gray-400">
+                  <td className="px-6 py-4 text-muted-foreground">
                     {service.description || "-"}
                   </td>
                   <td className="px-6 py-4">

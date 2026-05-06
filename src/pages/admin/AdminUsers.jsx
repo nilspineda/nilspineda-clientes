@@ -11,6 +11,7 @@ export default function AdminUsers() {
   const [editingUser, setEditingUser] = useState(null)
   const [selectedUser, setSelectedUser] = useState(null)
   const [userServices, setUserServices] = useState([])
+  const [selectedService, setSelectedService] = useState(null)
   const [formData, setFormData] = useState({ name: '', whatsapp: '', email: '', password: '', dominio: '' })
 
   useEffect(() => {
@@ -18,12 +19,23 @@ export default function AdminUsers() {
   }, [])
 
   async function fetchUsers() {
-    const { data } = await supabase
+    const { data: profiles } = await supabase
       .from('profiles')
       .select('*')
       .order('created_at', { ascending: false })
 
-    setUsers(data || [])
+    if (profiles) {
+      const usersWithAuthEmail = await Promise.all(
+        profiles.map(async (profile) => {
+          const { data: authData } = await supabase.auth.admin.getUserById(profile.id)
+          return {
+            ...profile,
+            email: authData?.user?.email || profile.email
+          }
+        })
+      )
+      setUsers(usersWithAuthEmail)
+    }
     setLoading(false)
   }
 
@@ -121,6 +133,7 @@ export default function AdminUsers() {
   if (selectedUser) {
     return (
       <div className="space-y-6">
+        <>
         <button
           onClick={() => { setSelectedUser(null); setUserServices([]) }}
           className="flex items-center gap-2 text-primary hover:text-primary-light font-medium"
@@ -140,13 +153,13 @@ export default function AdminUsers() {
               <div className="flex items-center gap-2">
                 <span className="text-sm text-primary-light/80">Cliente</span>
               </div>
-              <h1 className="text-3xl lg:text-4xl font-bold text-white">{selectedUser.name}</h1>
+              <h1 className="text-3xl lg:text-4xl font-bold text-foreground">{selectedUser.name}</h1>
               <p className="text-lg text-primary-light/70">
                 {selectedUser.dominio ? `🌐 ${selectedUser.dominio}` : 'Sin dominio registrado'}
               </p>
             </div>
             <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
-              <span className="text-4xl font-bold text-white">
+              <span className="text-4xl font-bold text-foreground">
                 {selectedUser.name?.charAt(0).toUpperCase() || 'U'}
               </span>
             </div>
@@ -154,15 +167,15 @@ export default function AdminUsers() {
 
           <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-white/10">
             <div className="text-center">
-              <p className="text-2xl font-bold text-white">{userServices.filter(s => s.status === 'active').length}</p>
+              <p className="text-2xl font-bold text-foreground">{userServices.filter(s => s.status === 'active').length}</p>
               <p className="text-xs text-primary-light/60">Activos</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-white">{userServices.filter(s => s.status === 'pending').length}</p>
+              <p className="text-2xl font-bold text-foreground">{userServices.filter(s => s.status === 'pending').length}</p>
               <p className="text-xs text-primary-light/60">Pendientes</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-white">{userServices.length}</p>
+              <p className="text-2xl font-bold text-foreground">{userServices.length}</p>
               <p className="text-xs text-primary-light/60">Total</p>
             </div>
           </div>
@@ -170,24 +183,24 @@ export default function AdminUsers() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-card-bg rounded-3xl border border-border-dark overflow-hidden">
-              <div className="flex items-center gap-3 p-5 lg:p-6 border-b border-border-dark">
+            <div className="bg-card rounded-3xl border border-border overflow-hidden">
+              <div className="flex items-center gap-3 p-5 lg:p-6 border-b border-border">
                 <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
                   <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                   </svg>
                 </div>
-                <h2 className="text-lg font-bold text-white">Servicios Contratados</h2>
+                <h2 className="text-lg font-bold text-foreground">Servicios Contratados</h2>
               </div>
               <div className="p-5 lg:p-6">
                 {userServices.length === 0 ? (
                   <div className="text-center py-8">
-                    <p className="text-gray-400 font-medium">No tiene servicios contratados</p>
+                    <p className="text-muted-foreground font-medium">No tiene servicios contratados</p>
                   </div>
                 ) : (
                   <div className="grid gap-4 sm:grid-cols-2">
                     {userServices.map(service => (
-                      <div key={service.id} className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-sidebar-bg to-card-bg border border-border-dark p-5 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
+                      <div key={service.id} className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-muted to-card border border-border p-5 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
                         <div className="absolute top-0 right-0 w-16 h-16 bg-primary/5 rounded-full blur-xl group-hover:bg-primary/10 transition-colors"></div>
                         
                         <div className="relative flex items-start justify-between">
@@ -201,8 +214,8 @@ export default function AdminUsers() {
                                 {service.status === 'active' ? 'Activo' : service.status === 'pending' ? 'Pendiente' : 'Vencido'}
                               </span>
                             </div>
-                            <h3 className="font-bold text-white text-lg mb-1">{service.services?.name}</h3>
-                            <p className="text-sm text-gray-400 line-clamp-2">{service.services?.description}</p>
+                            <h3 className="font-bold text-foreground text-lg mb-1">{service.services?.name}</h3>
+                            <p className="text-sm text-muted-foreground line-clamp-2">{service.services?.description}</p>
                           </div>
                           <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
                             <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -211,15 +224,15 @@ export default function AdminUsers() {
                           </div>
                         </div>
 
-                        <div className="mt-4 pt-4 border-t border-border-dark flex items-center justify-between">
+                        <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
                           <div>
-                            <p className="text-xs text-gray-500">Precio mensual</p>
+                            <p className="text-xs text-muted-foreground">Precio mensual</p>
                             <p className="text-xl font-bold text-primary">${service.price || 0}</p>
                           </div>
                           {service.expires_at && (
                             <div className="text-right">
-                              <p className="text-xs text-gray-500">Vence</p>
-                              <p className="text-sm text-gray-400">{formatDate(service.expires_at)}</p>
+                              <p className="text-xs text-muted-foreground">Vence</p>
+                              <p className="text-sm text-muted-foreground">{formatDate(service.expires_at)}</p>
                             </div>
                           )}
                         </div>
@@ -232,14 +245,14 @@ export default function AdminUsers() {
           </div>
 
           <div className="space-y-6">
-            <div className="bg-card-bg rounded-3xl border border-border-dark overflow-hidden">
-              <div className="flex items-center gap-3 p-5 lg:p-6 border-b border-border-dark">
+            <div className="bg-card rounded-3xl border border-border overflow-hidden">
+              <div className="flex items-center gap-3 p-5 lg:p-6 border-b border-border">
                 <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
                   <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h2 className="text-lg font-bold text-white">Información</h2>
+                <h2 className="text-lg font-bold text-foreground">Información</h2>
               </div>
               <div className="p-5 lg:p-6 space-y-4">
                 {selectedUser.email && (
@@ -254,7 +267,7 @@ export default function AdminUsers() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-blue-400/70 font-medium">Email</p>
-                      <p className="text-sm font-semibold text-white truncate">{selectedUser.email}</p>
+                      <p className="text-sm font-semibold text-foreground truncate">{selectedUser.email}</p>
                     </div>
                     <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -276,7 +289,7 @@ export default function AdminUsers() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-green-400/70 font-medium">WhatsApp</p>
-                      <p className="text-sm font-semibold text-white truncate">{selectedUser.whatsapp}</p>
+                      <p className="text-sm font-semibold text-foreground truncate">{selectedUser.whatsapp}</p>
                     </div>
                     <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -293,7 +306,7 @@ export default function AdminUsers() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-purple-400/70 font-medium">Dominio</p>
-                      <p className="text-sm font-semibold text-white">{selectedUser.dominio}</p>
+                      <p className="text-sm font-semibold text-foreground">{selectedUser.dominio}</p>
                     </div>
                   </div>
                 )}
@@ -302,7 +315,7 @@ export default function AdminUsers() {
             </div>
           </div>
 
-          <div className="bg-card-bg rounded-3xl border border-border-dark overflow-hidden">
+          <div className="bg-card rounded-3xl border border-border overflow-hidden">
             <div className="p-5 lg:p-6">
               <AccessEditor 
                 value={selectedUser.accesos} 
@@ -310,7 +323,7 @@ export default function AdminUsers() {
               />
             </div>
           </div>
-        </div>
+        </>
       </div>
     )
   }
@@ -324,11 +337,11 @@ export default function AdminUsers() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-white">Usuarios</h1>
+          <h1 className="text-2xl font-bold text-foreground">Usuarios</h1>
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="bg-primary text-white px-4 py-2 rounded-xl hover:bg-primary-light transition-colors"
+          className="bg-primary text-foreground px-4 py-2 rounded-xl hover:bg-primary-light transition-colors"
         >
           + Nuevo Usuario
         </button>
@@ -342,62 +355,62 @@ export default function AdminUsers() {
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Nombre</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Nombre</label>
             <input
               type="text"
               placeholder="Nombre completo"
               value={formData.name}
               onChange={e => setFormData({...formData, name: e.target.value})}
               required
-              className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Email</label>
             <input
               type="email"
               placeholder="correo@ejemplo.com"
               value={formData.email}
               onChange={e => setFormData({...formData, email: e.target.value})}
               required
-              className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             />
           </div>
 
           {!editingUser && (
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Contraseña</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Contraseña</label>
               <input
                 type="password"
                 placeholder="Contraseña"
                 value={formData.password}
                 onChange={e => setFormData({...formData, password: e.target.value})}
                 required
-                className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
               />
             </div>
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">WhatsApp</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">WhatsApp</label>
               <input
                 type="text"
                 placeholder="+54 9 11..."
                 value={formData.whatsapp}
                 onChange={e => setFormData({...formData, whatsapp: e.target.value})}
-                className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Dominio</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Dominio</label>
               <input
                 type="text"
                 placeholder="dominio.com"
                 value={formData.dominio}
                 onChange={e => setFormData({...formData, dominio: e.target.value})}
-                className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
               />
             </div>
           </div>
@@ -405,14 +418,14 @@ export default function AdminUsers() {
           <div className="flex flex-col sm:flex-row gap-3 pt-4">
             <button
               type="submit"
-              className="flex-1 bg-primary text-white px-6 py-3 rounded-xl hover:bg-primary-light transition-colors font-medium"
+              className="flex-1 bg-primary text-foreground px-6 py-3 rounded-xl hover:bg-primary-light transition-colors font-medium"
             >
               {editingUser ? 'Guardar Cambios' : 'Crear Usuario'}
             </button>
             <button
               type="button"
               onClick={resetForm}
-              className="flex-1 px-6 py-3 border border-border-dark rounded-xl text-gray-400 hover:bg-card-hover hover:text-white transition-colors font-medium"
+              className="flex-1 px-6 py-3 border border-border rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground transition-colors font-medium"
             >
               Cancelar
             </button>
@@ -420,10 +433,10 @@ export default function AdminUsers() {
         </form>
       </Modal>
 
-      <div className="bg-card-bg rounded-2xl border border-border-dark overflow-hidden">
+      <div className="bg-card rounded-2xl border border-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gradient-to-r from-sidebar-bg to-card-bg border-b border-border-dark">
+            <thead className="bg-gradient-to-r from-muted to-card border-b border-border">
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Nombre</th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Email</th>
@@ -444,16 +457,16 @@ export default function AdminUsers() {
                       <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-bold">
                         {user.name?.charAt(0).toUpperCase()}
                       </div>
-                      <span className="text-white font-semibold">{user.name}</span>
+                      <span className="text-foreground font-semibold">{user.name}</span>
                     </button>
                   </td>
-                  <td className="px-6 py-4 text-gray-400">{user.email || '-'}</td>
+                  <td className="px-6 py-4 text-muted-foreground">{user.email || '-'}</td>
                   <td className="px-6 py-4">
                     <span className="px-3 py-1.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 font-medium text-sm">
                       {user.dominio || '-'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-gray-300">{user.whatsapp || '-'}</td>
+                  <td className="px-6 py-4 text-muted-foreground">{user.whatsapp || '-'}</td>
                   <td className="px-6 py-4">
                     <button
                       onClick={() => toggleUserActive(user)}
@@ -472,13 +485,13 @@ export default function AdminUsers() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleEdit(user)}
-                        className="px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary text-primary hover:text-white font-medium text-sm transition-all"
+                        className="px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary text-primary hover:text-foreground font-medium text-sm transition-all"
                       >
                         Editar
                       </button>
                       <button
                         onClick={() => handleDelete(user.id)}
-                        className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white font-medium text-sm transition-all"
+                        className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-foreground font-medium text-sm transition-all"
                       >
                         Eliminar
                       </button>

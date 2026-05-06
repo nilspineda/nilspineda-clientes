@@ -86,24 +86,24 @@ export default function AdminPayments() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-white">Pagos</h1>
+        <h1 className="text-2xl font-bold text-foreground">Pagos</h1>
         <button
           onClick={() => setShowForm(true)}
-          className="bg-primary text-white px-4 py-2 rounded-xl hover:bg-primary-light transition-colors"
+          className="bg-primary text-foreground px-4 py-2 rounded-xl hover:bg-primary-light transition-colors"
         >
           + Registrar Pago
         </button>
       </div>
 
       {showForm && (
-        <div className="bg-card-bg rounded-2xl border border-border-dark p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Registrar Pago</h2>
+        <div className="bg-card rounded-2xl border border-border p-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Registrar Pago</h2>
           <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
             <select
               value={formData.user_id}
               onChange={e => setFormData({...formData, user_id: e.target.value})}
               required
-              className="px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              className="px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             >
               <option value="">Seleccionar usuario</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
@@ -112,7 +112,7 @@ export default function AdminPayments() {
               value={formData.service_id}
               onChange={e => setFormData({...formData, service_id: e.target.value})}
               required
-              className="px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              className="px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             >
               <option value="">Seleccionar servicio</option>
               {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -123,12 +123,12 @@ export default function AdminPayments() {
               value={formData.amount}
               onChange={e => setFormData({...formData, amount: e.target.value})}
               required
-              className="px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              className="px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             />
             <select
               value={formData.payment_method}
               onChange={e => setFormData({...formData, payment_method: e.target.value})}
-              className="px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              className="px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             >
               <option value="transferencia">Transferencia</option>
               <option value="efectivo">Efectivo</option>
@@ -138,14 +138,14 @@ export default function AdminPayments() {
             <div className="md:col-span-2 flex gap-2">
               <button
                 type="submit"
-                className="bg-primary text-white px-4 py-3 rounded-xl hover:bg-primary-light transition-colors"
+                className="bg-primary text-foreground px-4 py-3 rounded-xl hover:bg-primary-light transition-colors"
               >
                 Registrar
               </button>
               <button
                 type="button"
                 onClick={resetForm}
-                className="px-4 py-3 border border-border-dark rounded-xl text-gray-400 hover:bg-card-hover hover:text-white transition-colors"
+                className="px-4 py-3 border border-border rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
               >
                 Cancelar
               </button>
@@ -154,10 +154,10 @@ export default function AdminPayments() {
         </div>
       )}
 
-      <div className="bg-card-bg rounded-2xl border border-border-dark overflow-hidden">
+      <div className="bg-card rounded-2xl border border-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-sidebar-bg border-b border-border-dark">
+            <thead className="bg-muted border-b border-border">
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-medium text-primary uppercase">Usuario</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-primary uppercase">Dominio</th>
@@ -170,12 +170,12 @@ export default function AdminPayments() {
             </thead>
             <tbody className="divide-y divide-border-dark">
               {payments.map(payment => (
-                <tr key={payment.id} className="hover:bg-card-hover transition-colors">
-                  <td className="px-6 py-4 text-white font-medium">{payment.profiles?.name}</td>
+                <tr key={payment.id} className="hover:bg-accent transition-colors">
+                  <td className="px-6 py-4 text-foreground font-medium">{payment.profiles?.name}</td>
                   <td className="px-6 py-4 text-primary font-medium">{payment.profiles?.dominio || '-'}</td>
                   <td className="px-6 py-4 text-gray-300">{payment.services?.name || '-'}</td>
-                  <td className="px-6 py-4 text-white font-medium">${payment.amount}</td>
-                  <td className="px-6 py-4 text-gray-400">{formatDate(payment.payment_date)}</td>
+                  <td className="px-6 py-4 text-foreground font-medium">${payment.amount}</td>
+                  <td className="px-6 py-4 text-muted-foreground">{formatDate(payment.payment_date)}</td>
                   <td className="px-6 py-4">
                     <span className={`px-3 py-1 rounded-lg text-xs font-medium ${
                       payment.status === 'paid' ? 'bg-green-500/20 text-green-400' :
@@ -195,7 +195,7 @@ export default function AdminPayments() {
                     <select
                       value={payment.status}
                       onChange={e => updateStatus(payment.id, e.target.value)}
-                      className="text-sm bg-sidebar-bg border border-border-dark rounded-lg px-3 py-2 text-white"
+                      className="text-sm bg-muted border border-border rounded-lg px-3 py-2 text-foreground"
                     >
                       <option value="paid">Pagado</option>
                       <option value="pending">Pendiente</option>

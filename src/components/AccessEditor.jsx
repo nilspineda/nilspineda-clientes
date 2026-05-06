@@ -37,8 +37,8 @@ export default function AccessEditor({ value, onChange }) {
             <RenderMarkdown content={value} />
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
-            <svg className="w-12 h-12 mx-auto mb-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="text-center py-8 text-muted-foreground500">
+            <svg className="w-12 h-12 mx-auto mb-3 text-muted-foreground600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
             </svg>
             <p className="font-medium">No hay accesos registrados</p>
@@ -57,14 +57,14 @@ export default function AccessEditor({ value, onChange }) {
           <button
             onClick={() => insertSection('Panel')}
             type="button"
-            className="px-3 py-1.5 text-xs bg-sidebar-bg border border-border-dark rounded-lg text-gray-400 hover:text-white hover:border-primary/50 transition-colors"
+            className="px-3 py-1.5 text-xs bg-muted border border-border rounded-lg text-muted-foreground400 hover:text-white hover:border-primary/50 transition-colors"
           >
             + Sección
           </button>
           <button
             onClick={() => insertLink('Link', 'https://')}
             type="button"
-            className="px-3 py-1.5 text-xs bg-sidebar-bg border border-border-dark rounded-lg text-gray-400 hover:text-white hover:border-primary/50 transition-colors"
+            className="px-3 py-1.5 text-xs bg-muted border border-border rounded-lg text-muted-foreground400 hover:text-white hover:border-primary/50 transition-colors"
           >
             + Link
           </button>
@@ -75,7 +75,7 @@ export default function AccessEditor({ value, onChange }) {
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
         placeholder={`Agrega los accesos y links del cliente...\n\nEjemplo:\n## Panel de Control\n- [Admin](https://admin.dominio.com)\n- [CPanel](https://cpanel.dominio.com:2083)\n\n## Bases de Datos\n- [PHPMyAdmin](https://phpmyadmin.dominio.com)\n- Usuario: admin\n- Contraseña: ********`}
-        className="w-full h-80 px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-mono text-sm resize-none"
+        className="w-full h-80 px-4 py-3 bg-muted border border-border rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-mono text-sm resize-none"
       />
 
       <div className="flex gap-3">
@@ -87,14 +87,14 @@ export default function AccessEditor({ value, onChange }) {
         </button>
         <button
           onClick={() => { setLocalValue(value || ''); setIsEditing(false) }}
-          className="flex-1 px-6 py-3 border border-border-dark rounded-xl text-gray-400 hover:bg-card-hover hover:text-white transition-colors font-medium"
+          className="flex-1 px-6 py-3 border border-border rounded-xl text-muted-foreground400 hover:bg-accent hover:text-white transition-colors font-medium"
         >
           Cancelar
         </button>
       </div>
 
-      <div className="bg-card-bg rounded-xl p-4 border border-border-dark">
-        <p className="text-xs text-gray-500 mb-2">Vista previa:</p>
+      <div className="bg-card rounded-xl p-4 border border-border">
+        <p className="text-xs text-muted-foreground500 mb-2">Vista previa:</p>
         <div className="prose prose-invert max-w-none text-sm">
           <RenderMarkdown content={localValue} />
         </div>
@@ -133,10 +133,10 @@ function RenderMarkdown({ content }) {
           </a>
         )
       }
-      return <p key={index} className="text-gray-300">{line.replace('- ', '')}</p>
+      return <p key={index} className="text-muted-foreground300">{line.replace('- ', '')}</p>
     }
     if (line.trim()) {
-      return <p key={index} className="text-gray-300">{line}</p>
+      return <p key={index} className="text-muted-foreground300">{line}</p>
     }
     return null
   }

@@ -82,11 +82,11 @@ export default function AdminAssignments() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-white">Asignaciones</h1>
+          <h1 className="text-2xl font-bold text-foreground">Asignaciones</h1>
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="bg-primary text-white px-4 py-2 rounded-xl hover:bg-primary-light transition-colors"
+          className="bg-primary text-foreground px-4 py-2 rounded-xl hover:bg-primary-light transition-colors"
         >
           + Asignar Servicio
         </button>
@@ -105,7 +105,7 @@ export default function AdminAssignments() {
               value={formData.user_id}
               onChange={e => setFormData({...formData, user_id: e.target.value})}
               required
-              className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             >
               <option value="">Seleccionar usuario</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
@@ -118,7 +118,7 @@ export default function AdminAssignments() {
               value={formData.service_id}
               onChange={e => setFormData({...formData, service_id: e.target.value})}
               required
-              className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             >
               <option value="">Seleccionar servicio</option>
               {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -133,7 +133,7 @@ export default function AdminAssignments() {
                 placeholder="0.00"
                 value={formData.price}
                 onChange={e => setFormData({...formData, price: e.target.value})}
-                className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
               />
             </div>
             <div>
@@ -142,7 +142,7 @@ export default function AdminAssignments() {
                 type="date"
                 value={formData.expires_at}
                 onChange={e => setFormData({...formData, expires_at: e.target.value})}
-                className="w-full px-4 py-3 bg-sidebar-bg border border-border-dark rounded-xl text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
               />
             </div>
           </div>
@@ -150,14 +150,14 @@ export default function AdminAssignments() {
           <div className="flex flex-col sm:flex-row gap-3 pt-4">
             <button
               type="submit"
-              className="flex-1 bg-primary text-white px-6 py-3 rounded-xl hover:bg-primary-light transition-colors font-medium"
+              className="flex-1 bg-primary text-foreground px-6 py-3 rounded-xl hover:bg-primary-light transition-colors font-medium"
             >
               Asignar Servicio
             </button>
             <button
                 type="button"
                 onClick={resetForm}
-                className="px-4 py-3 border border-border-dark rounded-xl text-gray-400 hover:bg-card-hover hover:text-white transition-colors"
+                className="px-4 py-3 border border-border rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
               >
                 Cancelar
               </button>
@@ -166,10 +166,10 @@ export default function AdminAssignments() {
         </Modal>
       )}
 
-      <div className="bg-card-bg rounded-2xl border border-border-dark overflow-hidden">
+      <div className="bg-card rounded-2xl border border-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gradient-to-r from-sidebar-bg to-card-bg border-b border-border-dark">
+            <thead className="bg-gradient-to-r from-sidebar-bg to-card-bg border-b border-border">
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Usuario</th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Dominio</th>
@@ -191,7 +191,7 @@ export default function AdminAssignments() {
                         <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-bold">
                           {assignment.profiles?.name?.charAt(0).toUpperCase()}
                         </div>
-                        <span className="text-white font-semibold">{assignment.profiles?.name}</span>
+                        <span className="text-foreground font-semibold">{assignment.profiles?.name}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -210,7 +210,7 @@ export default function AdminAssignments() {
                         type="date"
                         value={assignment.expires_at ? assignment.expires_at.split('T')[0] : ''}
                         onChange={e => updateExpiresAt(assignment.id, e.target.value)}
-                        className="text-sm bg-sidebar-bg border border-border-dark rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-primary/50 outline-none"
+                        className="text-sm bg-muted border border-border rounded-xl px-3 py-2 text-foreground focus:ring-2 focus:ring-primary/50 outline-none"
                       />
                     </td>
                     <td className="px-6 py-4">
@@ -228,7 +228,7 @@ export default function AdminAssignments() {
                       <select
                         value={assignment.status}
                         onChange={e => updateStatus(assignment.id, e.target.value)}
-                        className="text-sm bg-sidebar-bg border border-border-dark rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-primary/50 outline-none"
+                        className="text-sm bg-muted border border-border rounded-xl px-3 py-2 text-foreground focus:ring-2 focus:ring-primary/50 outline-none"
                       >
                         <option value="active">Activo</option>
                         <option value="pending">Pendiente</option>
@@ -238,7 +238,7 @@ export default function AdminAssignments() {
                     <td className="px-6 py-4">
                       <button
                         onClick={() => handleDelete(assignment.id)}
-                        className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white font-medium text-sm transition-all"
+                        className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-foreground font-medium text-sm transition-all"
                       >
                         Eliminar
                       </button>

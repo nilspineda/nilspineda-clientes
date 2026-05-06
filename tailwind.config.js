@@ -7,18 +7,50 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#1b524b',
-        'primary-light': '#2a6b62',
-        'primary-dark': '#143d38',
-        background: '#131a22',
-        'sidebar-bg': '#1a2129',
-        'card-bg': '#1e2630',
-        'card-hover': '#282f3a',
-        'border-dark': '#2d3748',
+        primary: {
+          DEFAULT: '#1b524b',
+          light: '#2a6b62',
+          dark: '#143d38',
+          foreground: '#ffffff',
+        },
+        background: '#09090b',
+        foreground: '#fafafa',
+        card: {
+          DEFAULT: '#18181b',
+          foreground: '#fafafa',
+        },
+        popover: {
+          DEFAULT: '#18181b',
+          foreground: '#fafafa',
+        },
+        muted: {
+          DEFAULT: '#27272a',
+          foreground: '#a1a1aa',
+        },
+        accent: {
+          DEFAULT: '#27272a',
+          foreground: '#fafafa',
+        },
+        destructive: {
+          DEFAULT: '#7f1d1d',
+          foreground: '#fafafa',
+        },
+        border: '#27272a',
+        input: '#27272a',
+        ring: '#1b524b',
+        sidebar: {
+          DEFAULT: '#09090b',
+          foreground: '#a1a1aa',
+          accent: '#27272a',
+        },
+        'border-dark': '#27272a',
+        'card-bg': '#18181b',
+        'sidebar-bg': '#09090b',
       },
       borderRadius: {
-        'xl': '12px',
-        '2xl': '16px',
+        lg: '0.5rem',
+        md: 'calc(0.5rem - 2px)',
+        sm: 'calc(0.5rem - 4px)',
       },
     },
   },

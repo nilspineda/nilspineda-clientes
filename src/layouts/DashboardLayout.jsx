@@ -26,27 +26,27 @@ function Sidebar({ onClose }) {
   }
 
   return (
-    <aside className="w-60 h-screen fixed left-0 top-0 bg-sidebar-bg border-r border-border-dark flex flex-col z-50">
-      <div className="p-6 border-b border-border-dark">
-        <Link to={isAdmin ? '/admin' : '/dashboard'} className="text-xl font-bold text-white">
+    <aside className="w-56 h-screen fixed left-0 top-0 bg-sidebar border-r border-border flex flex-col z-50">
+      <div className="p-4 border-b border-border">
+        <Link to={isAdmin ? '/admin' : '/dashboard'} className="text-lg font-semibold text-foreground">
           Nilspineda
         </Link>
-        <p className="text-sm text-gray-400 mt-1">{isAdmin ? 'Panel Admin' : 'Mi Cuenta'}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{isAdmin ? 'Panel Admin' : 'Mi Cuenta'}</p>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-2 space-y-0.5">
         {links.map(link => (
           <Link
             key={link.path}
             to={link.path}
             onClick={onClose}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
               location.pathname === link.path
-                ? 'bg-primary text-white'
-                : 'text-gray-400 hover:bg-card-hover hover:text-white'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground'
             }`}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={link.icon} />
             </svg>
             {link.label}
@@ -54,21 +54,21 @@ function Sidebar({ onClose }) {
         ))}
       </nav>
 
-      <div className="p-4 border-t border-border-dark">
-        <div className="flex items-center gap-3 mb-4 px-2">
-          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold">
+      <div className="p-3 border-t border-border">
+        <div className="flex items-center gap-2 mb-2 px-2">
+          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium">
             {profile?.name?.charAt(0).toUpperCase() || 'U'}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">{profile?.name}</p>
-            <p className="text-xs text-gray-400 truncate">{profile?.dominio || 'Sin dominio'}</p>
+            <p className="text-sm font-medium text-foreground truncate">{profile?.name}</p>
+            <p className="text-xs text-muted-foreground truncate">{profile?.dominio || 'Sin dominio'}</p>
           </div>
         </div>
         <button
           onClick={handleSignOut}
-          className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-400 hover:text-red-400 hover:bg-card-hover rounded-xl transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
           Cerrar sesión
@@ -93,19 +93,19 @@ function BottomNav() {
   const links = isAdmin ? adminLinks : clienteLinks
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-sidebar-bg border-t border-border-dark p-2 z-50 lg:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 bg-sidebar border-t border-border p-2 z-50 lg:hidden">
       <div className="flex justify-around">
         {links.map(link => (
           <Link
             key={link.path}
             to={link.path}
-            className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-colors ${
+            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-md transition-colors ${
               location.pathname === link.path
                 ? 'text-primary'
-                : 'text-gray-400'
+                : 'text-muted-foreground'
             }`}
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={link.icon} />
             </svg>
             <span className="text-xs font-medium">{link.label}</span>
@@ -120,9 +120,9 @@ function MobileMenuButton({ onClick }) {
   return (
     <button
       onClick={onClick}
-      className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-sidebar-bg rounded-xl border border-border-dark"
+      className="lg:hidden fixed top-3 left-3 z-50 p-2 bg-sidebar rounded-md border border-border"
     >
-      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
       </svg>
     </button>
@@ -138,14 +138,14 @@ export default function DashboardLayout() {
 
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
-      <main className="flex-1 lg:ml-60 min-h-screen pb-20 lg:pb-0 flex flex-col">
+      <main className="flex-1 lg:ml-56 min-h-screen pb-20 lg:pb-0 flex flex-col">
         <MobileMenuButton onClick={() => setMobileMenuOpen(true)} />
-        <div className="p-4 lg:p-8 flex-1">
+        <div className="p-4 lg:p-6 flex-1">
           <Outlet />
         </div>
         <Footer />

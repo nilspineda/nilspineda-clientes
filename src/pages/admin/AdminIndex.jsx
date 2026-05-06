@@ -106,8 +106,8 @@ export default function AdminIndex() {
       </div>
 
       {/* Recent Assignments */}
-      <div className="bg-card-bg rounded-3xl border border-border-dark overflow-hidden">
-        <div className="flex items-center gap-3 p-5 lg:p-6 border-b border-border-dark">
+      <div className="bg-card rounded-3xl border border-border overflow-hidden">
+        <div className="flex items-center gap-3 p-5 lg:p-6 border-b border-border">
           <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
             <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -118,7 +118,7 @@ export default function AdminIndex() {
         <div className="p-5 lg:p-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {recentServices.map(item => (
-              <div key={item.id} className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-sidebar-bg to-card-bg border border-border-dark p-5 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
+              <div key={item.id} className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-muted to-card border border-border p-5 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
                 <div className="absolute top-0 right-0 w-16 h-16 bg-primary/5 rounded-full blur-xl group-hover:bg-primary/10 transition-colors"></div>
                 
                 <div className="relative flex items-start justify-between">
@@ -136,7 +136,7 @@ export default function AdminIndex() {
                     }`}></div>
                   </div>
                 </div>
-                <div className="mt-4 pt-4 border-t border-border-dark flex items-center justify-between">
+                <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
                   <span className="text-xs text-gray-500">
                     {new Date(item.created_at).toLocaleDateString()}
                   </span>
@@ -162,7 +162,7 @@ function StatCard({ title, value, icon, color }) {
   const style = colorStyles[color] || colorStyles.blue
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-card-bg to-sidebar-bg border border-border-dark p-6 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 group">
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-card to-muted border border-border p-6 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 group">
       <div className="absolute top-0 right-0 w-20 h-20 bg-primary/5 rounded-full blur-2xl group-hover:bg-primary/10 transition-colors"></div>
       
       <div className="relative">

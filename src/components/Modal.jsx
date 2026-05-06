@@ -1,26 +1,39 @@
-export default function Modal({ isOpen, onClose, title, children, size = 'md' }) {
-  if (!isOpen) return null
+import { useEffect } from 'react'
 
-  const sizeClasses = {
-    sm: 'max-w-md',
-    md: 'max-w-lg',
-    lg: 'max-w-2xl',
-    xl: 'max-w-4xl',
-  }
+const sizeClasses = {
+  sm: 'max-w-sm',
+  md: 'max-w-lg',
+  lg: 'max-w-2xl',
+  xl: 'max-w-4xl',
+}
+
+export default function Modal({ isOpen, onClose, title, children, size = 'md' }) {
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [isOpen])
+
+  if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div 
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm" 
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
       />
       
-      <div className={`relative w-full ${sizeClasses[size]} bg-card-bg rounded-3xl border border-border-dark shadow-2xl max-h-[90vh] overflow-hidden flex flex-col`}>
-        <div className="flex items-center justify-between p-4 lg:p-6 border-b border-border-dark flex-shrink-0">
-          <h2 className="text-lg lg:text-xl font-bold text-white">{title}</h2>
+      <div className={`relative w-full ${sizeClasses[size]} bg-card border border-border rounded-lg shadow-lg animate-in fade-in-0 zoom-in-95 duration-200`}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <h2 className="text-lg font-semibold text-foreground">{title}</h2>
           <button
             onClick={onClose}
-            className="w-10 h-10 rounded-xl bg-sidebar-bg border border-border-dark flex items-center justify-center text-gray-400 hover:text-white hover:border-primary/50 transition-all"
+            className="p-1 text-muted-foreground hover:text-foreground rounded-md hover:bg-muted transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -28,7 +41,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
           </button>
         </div>
         
-        <div className="p-4 lg:p-6 overflow-y-auto flex-1">
+        <div className="p-4 max-h-[70vh] overflow-y-auto">
           {children}
         </div>
       </div>
