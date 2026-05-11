@@ -117,7 +117,7 @@ export default function Login() {
           </div>
 
           <div
-            className={`bg-card border border-border rounded-3xl p-8 shadow-xl shadow-primary/5 transition-all duration-1000 delay-300 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+            className={`bg-card border border-border rounded-3xl p-6 lg:p-8 shadow-xl shadow-primary/5 transition-all duration-1000 delay-300 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
           >
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (

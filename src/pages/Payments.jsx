@@ -93,15 +93,15 @@ export default function Payments() {
                   >
                     <div className="flex items-center gap-4 min-w-0">
                     <div
-                      className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
+                      className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center ${
                         payment.status === "paid"
                           ? "bg-gradient-to-br from-green-500/20 to-green-600/10"
                           : "bg-gradient-to-br from-yellow-500/20 to-yellow-600/10"
                       }`}
                     >
                       {payment.status === "paid" ? (
-                        <svg
-                          className="w-7 h-7 text-green-400"
+                          <svg
+                            className="w-6 h-6 sm:w-7 sm:h-7 text-green-400"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -114,8 +114,8 @@ export default function Payments() {
                           />
                         </svg>
                       ) : (
-                        <svg
-                          className="w-7 h-7 text-yellow-400"
+                          <svg
+                            className="w-6 h-6 sm:w-7 sm:h-7 text-yellow-400"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -152,7 +152,7 @@ export default function Payments() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-white">
+                    <p className="text-xl sm:text-2xl font-bold text-white">
                       {formatCurrency(payment.amount)}
                     </p>
                     <p className="text-xs text-gray-500 capitalize">

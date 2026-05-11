@@ -298,7 +298,7 @@ export default function AdminPayments() {
             placeholder="Buscar cliente..."
             value={searchClient}
             onChange={(e) => setSearchClient(e.target.value)}
-            className="px-4 py-2 bg-muted border border-border rounded-xl text-foreground text-sm w-48"
+            className="px-4 py-2 bg-muted border border-border rounded-xl text-foreground text-sm w-full sm:w-48"
           />
           <select
             value={filterStatus}

@@ -573,7 +573,7 @@ export default function AdminUsers() {
                                 {service.expires_at &&
                                   daysRemaining !== null && (
                                     <div
-                                      className={`mt-2 flex items-center justify-center w-16 h-16 rounded-full text-lg font-bold ${
+                                      className={`mt-2 flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full text-sm sm:text-lg font-bold ${
                                         daysRemaining >= 20
                                           ? "bg-green-500/20 text-green-400 border-2 border-green-500/30"
                                           : daysRemaining >= 7

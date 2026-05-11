@@ -165,7 +165,7 @@ export default function Dashboard() {
   if (profile?.status === "suspended") {
     return (
       <div className="min-h-[80vh] flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-8">
+        <div className="text-center max-w-md mx-auto p-6 sm:p-8">
           <div className="w-32 h-32 mx-auto mb-8 rounded-full bg-gradient-to-br from-red-500/20 to-red-600/10 flex items-center justify-center border border-red-500/30">
             <svg
               className="w-16 h-16 text-red-400"

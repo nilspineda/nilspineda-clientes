@@ -258,7 +258,7 @@ export default function AdminAssignments() {
         </form>
       </Modal>
 
-      <div className="bg-card rounded-2xl border border-border overflow-hidden">
+      <div className="bg-card rounded-3xl border border-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gradient-to-r from-sidebar-bg to-card-bg border-b border-border">
