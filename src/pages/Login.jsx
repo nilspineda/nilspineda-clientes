@@ -40,8 +40,8 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex">
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary-dark to-[#0f2926]">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-[#131a22]to-[#071816]">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-xl -translate-y-1/2 translate-x-1/2"></div>
           <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary-light/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/20 rounded-full blur-3xl"></div>
         </div>
@@ -49,24 +49,13 @@ export default function Login() {
         <div
           className={`relative z-10 flex flex-col items-center justify-center w-full p-12 text-center transition-all duration-1000 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
         >
-          <div className="w-28 h-28 bg-white/10 backdrop-blur-sm rounded-3xl flex items-center justify-center mb-8 shadow-2xl">
-            <svg
-              className="w-14 h-14 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-              />
-            </svg>
-          </div>
-          <h1 className="text-5xl font-bold text-white mb-4 tracking-tight">
-            <img src={logo} alt="Logo Nils pineda" />
-          </h1>
+          <a href="nilspineda.com" target="_blank" rel="noopener noreferrer">
+            <img
+              src={logo}
+              className="w-80 text-white mx-auto"
+              alt="Logo Nils pineda"
+            />
+          </a>
           <p className="text-xl text-white/70 max-w-md leading-relaxed">
             Gestión de servicios para clientes
           </p>
