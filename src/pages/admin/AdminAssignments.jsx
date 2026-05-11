@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { normalizeUrl } from "../../utils/formatUtils";
+import { notify } from "../../utils/notify";
 import { getDaysRemaining, getServiceStatus } from "../../utils/dateUtils";
 import Modal from "../../components/Modal";
 
@@ -26,10 +27,12 @@ export default function AdminAssignments() {
     const [assignmentsRes, usersRes, servicesRes] = await Promise.all([
       supabase
         .from("user_services")
-        .select("*, services(*), profiles!inner(id, name, dominio)")
+        .select(
+          "*, services(id, name, type), profiles!inner(id, name)",
+        )
         .order("created_at", { ascending: false }),
       supabase.from("profiles").select("id, name").eq("role", "user"),
-      supabase.from("services").select("*"),
+      supabase.from("services").select("id, name, type"),
     ]);
 
     setAssignments(assignmentsRes.data || []);
@@ -103,10 +106,10 @@ export default function AdminAssignments() {
         .eq("id", id);
       if (error) throw error;
       fetchData();
-      alert("Asignación eliminada correctamente");
+      notify("Asignación eliminada correctamente", "success");
     } catch (error) {
       console.error("Error eliminando asignación:", error);
-      alert("Error al eliminar asignación");
+      notify("Error al eliminar asignación", "error");
     }
   }
 

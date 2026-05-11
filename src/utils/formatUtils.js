@@ -24,3 +24,20 @@ export function normalizeWhatsapp(raw) {
   // Fallback: return cleaned (caller can decide)
   return cleaned;
 }
+
+export function formatWhatsapp(raw) {
+  const cleaned = normalizeWhatsapp(raw);
+  if (!cleaned) return null;
+
+  // Colombian formatting for country code 57
+  if (cleaned.startsWith("57")) {
+    const rest = cleaned.slice(2);
+    const p1 = rest.slice(0, 3);
+    const p2 = rest.slice(3, 6);
+    const p3 = rest.slice(6);
+    return `+57 ${[p1, p2, p3].filter(Boolean).join(" ")}`;
+  }
+
+  // Generic: show +<digits>
+  return `+${cleaned}`;
+}

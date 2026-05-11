@@ -1,32 +1,47 @@
 ﻿import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import { notify } from "../../utils/notify";
 import Modal from "../../components/Modal";
 
 const SERVICE_TYPES = [
-  { value: 'dominio', label: 'Dominio', color: 'bg-blue-500/20 text-blue-400' },
-  { value: 'hosting', label: 'Hosting', color: 'bg-purple-500/20 text-purple-400' },
-  { value: 'correo', label: 'Correo', color: 'bg-yellow-500/20 text-yellow-400' },
-  { value: 'membresia', label: 'Membresía', color: 'bg-green-500/20 text-green-400' },
-  { value: 'personalizado', label: 'Personalizado', color: 'bg-gray-500/20 text-gray-400' },
+  { value: "dominio", label: "Dominio", color: "bg-blue-500/20 text-blue-400" },
+  {
+    value: "hosting",
+    label: "Hosting",
+    color: "bg-purple-500/20 text-purple-400",
+  },
+  {
+    value: "correo",
+    label: "Correo",
+    color: "bg-yellow-500/20 text-yellow-400",
+  },
+  {
+    value: "membresia",
+    label: "Membresía",
+    color: "bg-green-500/20 text-green-400",
+  },
+  {
+    value: "personalizado",
+    label: "Personalizado",
+    color: "bg-gray-500/20 text-gray-400",
+  },
 ];
 
 function getTypeInfo(type) {
-  return SERVICE_TYPES.find(t => t.value === type) || SERVICE_TYPES[4];
+  return SERVICE_TYPES.find((t) => t.value === type) || SERVICE_TYPES[4];
 }
 
 export default function AdminServices() {
-  const [services, setServices] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [showModal, setShowModal] = useState(false)
-  const [editingService, setEditingService] = useState(null)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [serviceUsage, setServiceUsage] = useState({})
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingService, setEditingService] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [serviceUsage, setServiceUsage] = useState({});
   const [formData, setFormData] = useState({
     name: "",
-    price: "",
-    type: 'dominio',
-    owner: 0,
-  })
+    type: "dominio",
+  });
 
   useEffect(() => {
     fetchServices();
@@ -34,34 +49,35 @@ export default function AdminServices() {
 
   async function fetchServices() {
     const [servicesRes, usageRes] = await Promise.all([
-      supabase.from("services").select("*").order("created_at", { ascending: false }),
-      supabase.from("user_services").select("service_id")
-    ])
+      supabase
+        .from("services")
+        .select("id, name, price, type, description, created_at")
+        .order("created_at", { ascending: false }),
+      supabase.from("user_services").select("service_id"),
+    ]);
 
-    const counts = {}
-    ;(usageRes.data || []).forEach(s => {
-      if (s.service_id) counts[s.service_id] = (counts[s.service_id] || 0) + 1
-    })
-    setServiceUsage(counts)
+    const counts = {};
+    (usageRes.data || []).forEach((s) => {
+      if (s.service_id) counts[s.service_id] = (counts[s.service_id] || 0) + 1;
+    });
+    setServiceUsage(counts);
 
-    setServices(servicesRes.data || [])
-    setLoading(false)
+    setServices(servicesRes.data || []);
+    setLoading(false);
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
 
-    if (!formData.name || formData.name.trim() === '') {
-      alert('El nombre del servicio es requerido');
+    if (!formData.name || formData.name.trim() === "") {
+      notify("El nombre del servicio es requerido", "error");
       return;
     }
 
     try {
       const payload = {
         name: formData.name.trim(),
-        price: formData.price ? parseFloat(formData.price) : null,
         type: formData.type,
-        owner: formData.owner,
       };
 
       if (editingService) {
@@ -70,48 +86,46 @@ export default function AdminServices() {
           .update(payload)
           .eq("id", editingService.id);
         if (error) throw error;
-        alert('Servicio actualizado correctamente');
+        notify("Servicio actualizado correctamente", "success");
       } else {
         const { error } = await supabase.from("services").insert(payload);
         if (error) throw error;
-        alert('Servicio creado correctamente');
+        notify("Servicio creado correctamente", "success");
       }
 
       fetchServices();
       resetForm();
     } catch (error) {
-      console.error('Error guardando servicio:', error);
-      alert('Error al guardar servicio: ' + error.message);
+      console.error("Error guardando servicio:", error);
+      notify("Error al guardar servicio: " + error.message, "error");
     }
   }
 
   function resetForm() {
     setShowModal(false);
     setEditingService(null);
-    setFormData({ name: "", price: "", type: 'dominio', owner: 0 });
+    setFormData({ name: "", type: "dominio" });
   }
 
   function handleEdit(service) {
     setEditingService(service);
     setFormData({
       name: service.name,
-      price: service.price || "",
-      type: service.type || 'dominio',
-      owner: service.owner ?? 0,
+      type: service.type || "dominio",
     });
     setShowModal(true);
   }
 
   async function handleDelete(id) {
-    if (!confirm('¿Estás seguro de eliminar este servicio?')) return
+    if (!confirm("¿Estás seguro de eliminar este servicio?")) return;
     try {
-      const { error } = await supabase.from('services').delete().eq('id', id)
-      if (error) throw error
-      fetchServices()
-      alert('Servicio eliminado correctamente')
+      const { error } = await supabase.from("services").delete().eq("id", id);
+      if (error) throw error;
+      fetchServices();
+      notify("Servicio eliminado correctamente", "success");
     } catch (error) {
-      console.error('Error eliminando servicio:', error)
-      alert('Error al eliminar servicio')
+      console.error("Error eliminando servicio:", error);
+      notify("Error al eliminar servicio", "error");
     }
   }
 
@@ -122,6 +136,13 @@ export default function AdminServices() {
       </div>
     );
   }
+
+  const filteredServices = services.filter(
+    (s) =>
+      !searchTerm ||
+      s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.type?.toLowerCase().includes(searchTerm.toLowerCase()),
+  );
 
   return (
     <div className="space-y-6">
@@ -143,8 +164,12 @@ export default function AdminServices() {
             </svg>
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Servicios Base</h1>
-            <p className="text-sm text-muted-foreground">Tipos de servicio para asignar a clientes</p>
+            <h1 className="text-2xl font-bold text-foreground">
+              Servicios Base
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {filteredServices.length} servicios
+            </p>
           </div>
         </div>
         <button
@@ -160,7 +185,7 @@ export default function AdminServices() {
           type="text"
           placeholder="Buscar servicios..."
           value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
+          onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full sm:w-64 px-4 py-2 bg-muted border border-border rounded-xl text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
         />
       </div>
@@ -180,7 +205,9 @@ export default function AdminServices() {
               type="text"
               placeholder="Ej: Hosting Basic, Dominio .com"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               required
               className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             />
@@ -192,48 +219,17 @@ export default function AdminServices() {
             </label>
             <select
               value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, type: e.target.value })
+              }
               className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             >
-              {SERVICE_TYPES.map(type => (
-                <option key={type.value} value={type.value}>{type.label}</option>
+              {SERVICE_TYPES.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
               ))}
             </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Precio de referencia
-            </label>
-            <input
-              type="number"
-              placeholder="0"
-              value={formData.price}
-              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-              className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              ¿Quién paga?
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className={`flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${formData.owner === 0 ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted'}`}>
-                <input type="radio" name="owner" value={0} checked={formData.owner === 0} onChange={() => setFormData({ ...formData, owner: 0 })} className="hidden" />
-                <svg className="w-5 h-5" style={{ color: formData.owner === 0 ? 'var(--primary)' : 'var(--muted-foreground)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-                </svg>
-                <span className="font-medium text-sm" style={{ color: formData.owner === 0 ? 'var(--foreground)' : 'var(--muted-foreground)' }}>Lo administro</span>
-              </label>
-              <label className={`flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${formData.owner === 1 ? 'border-green-500 bg-green-500/10' : 'border-border hover:bg-muted'}`}>
-                <input type="radio" name="owner" value={1} checked={formData.owner === 1} onChange={() => setFormData({ ...formData, owner: 1 })} className="hidden" />
-                <svg className="w-5 h-5" style={{ color: formData.owner === 1 ? '#10b981' : 'var(--muted-foreground)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                <span className="font-medium text-sm" style={{ color: formData.owner === 1 ? 'var(--foreground)' : 'var(--muted-foreground)' }}>Cliente paga</span>
-              </label>
-            </div>
           </div>
 
           <div className="flex gap-3 pt-4">
@@ -266,10 +262,7 @@ export default function AdminServices() {
                   Tipo
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
-                  Precio
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
-                  Pago
+                  Clientes
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
                   Acciones
@@ -279,8 +272,12 @@ export default function AdminServices() {
             <tbody className="divide-y divide-border-dark">
               {services.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
-                    No hay servicios creados. Haz clic en "Nuevo Servicio" para comenzar.
+                  <td
+                    colSpan={4}
+                    className="px-6 py-12 text-center text-muted-foreground"
+                  >
+                    No hay servicios creados. Haz clic en "Nuevo Servicio" para
+                    comenzar.
                   </td>
                 </tr>
               ) : (
@@ -314,20 +311,15 @@ export default function AdminServices() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${typeInfo.color}`}>
+                        <span
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${typeInfo.color}`}
+                        >
                           {typeInfo.label}
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="px-3 py-1.5 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 font-bold">
-                          ${service.price || 0}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                          service.owner === 1 ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'
-                        }`}>
-                          {service.owner === 1 ? 'Cliente paga' : 'Lo administro'}
+                        <span className="px-3 py-1.5 rounded-lg bg-gray-500/10 text-gray-400 font-medium text-sm">
+                          {serviceUsage[service.id] || 0} clientes
                         </span>
                       </td>
                       <td className="px-6 py-4">

@@ -31,7 +31,6 @@ export default function AdminIndex() {
   const [showNewUser, setShowNewUser] = useState(false);
   const [showNewService, setShowNewService] = useState(false);
   const [showNewPayment, setShowNewPayment] = useState(false);
-  const [showNewAssignment, setShowNewAssignment] = useState(false);
   const [showClientModal, setShowClientModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
   const [clientPayments, setClientPayments] = useState([]);
@@ -40,7 +39,6 @@ export default function AdminIndex() {
     email: "",
     password: "",
     whatsapp: "",
-    dominio: "",
   });
   const [serviceForm, setServiceForm] = useState({
     name: "",
@@ -53,13 +51,6 @@ export default function AdminIndex() {
     amount: "",
     payment_date: "",
     payment_method: "transfer",
-  });
-  const [assignmentForm, setAssignmentForm] = useState({
-    user_id: "",
-    service_id: "",
-    price: "",
-    expires_at: "",
-    url_dominio: "",
   });
   const [users, setUsers] = useState([]);
   const [services, setServices] = useState([]);
@@ -81,7 +72,7 @@ export default function AdminIndex() {
       await Promise.all([
         supabase.from("profiles").select("id", { count: "exact", head: true }),
         supabase.from("services").select("id", { count: "exact", head: true }),
-        supabase.from("user_services").select("*").eq("status", "active"),
+        supabase.from("user_services").select("id").eq("status", "active"),
         supabase.from("payments").select("amount").eq("status", "paid"),
       ]);
     const totalRevenue =
@@ -130,11 +121,6 @@ export default function AdminIndex() {
     setClientPayments(data || []);
   }
 
-  async function openClientModal(client) {
-    setSelectedClient(client);
-    setShowClientModal(true);
-  }
-
   function getTypeBadge(type) {
     const colors = {
       dominio: "bg-blue-500/20 text-blue-400",
@@ -180,8 +166,8 @@ export default function AdminIndex() {
 
   async function fetchDataForForms() {
     const [usersRes, servicesRes] = await Promise.all([
-      supabase.from("profiles").select("*"),
-      supabase.from("services").select("*"),
+      supabase.from("profiles").select("id, name"),
+      supabase.from("services").select("id, name, type"),
     ]);
     setUsers(usersRes.data || []);
     setServices(servicesRes.data || []);
@@ -196,10 +182,9 @@ export default function AdminIndex() {
     });
     if (!error && data.user) {
       const normalizedWhatsapp = normalizeWhatsapp(userForm.whatsapp);
-      const normalizedDominio = normalizeUrl(userForm.dominio);
       await supabase
         .from("profiles")
-        .update({ whatsapp: normalizedWhatsapp, dominio: normalizedDominio })
+        .update({ whatsapp: normalizedWhatsapp })
         .eq("id", data.user.id);
       setShowNewUser(false);
       setUserForm({
@@ -207,7 +192,6 @@ export default function AdminIndex() {
         email: "",
         password: "",
         whatsapp: "",
-        dominio: "",
       });
       fetchStats();
       fetchDataForForms();
@@ -216,13 +200,11 @@ export default function AdminIndex() {
 
   async function handleCreateService(e) {
     e.preventDefault();
-    await supabase
-      .from("services")
-      .insert({
-        name: serviceForm.name,
-        price: serviceForm.price ? parseFloat(serviceForm.price) : null,
-        owner: serviceForm.owner,
-      });
+    await supabase.from("services").insert({
+      name: serviceForm.name,
+      price: serviceForm.price ? parseFloat(serviceForm.price) : null,
+      owner: serviceForm.owner,
+    });
     setShowNewService(false);
     setServiceForm({ name: "", price: "", owner: 0 });
     fetchStats();
@@ -231,16 +213,14 @@ export default function AdminIndex() {
 
   async function handleCreatePayment(e) {
     e.preventDefault();
-    await supabase
-      .from("payments")
-      .insert({
-        user_id: paymentForm.user_id,
-        service_id: paymentForm.service_id,
-        amount: paymentForm.amount ? parseFloat(paymentForm.amount) : null,
-        payment_date: paymentForm.payment_date || new Date().toISOString(),
-        payment_method: paymentForm.payment_method,
-        status: "paid",
-      });
+    await supabase.from("payments").insert({
+      user_id: paymentForm.user_id,
+      service_id: paymentForm.service_id,
+      amount: paymentForm.amount ? parseFloat(paymentForm.amount) : null,
+      payment_date: paymentForm.payment_date || new Date().toISOString(),
+      payment_method: paymentForm.payment_method,
+      status: "paid",
+    });
     setShowNewPayment(false);
     setPaymentForm({
       user_id: "",
@@ -251,36 +231,6 @@ export default function AdminIndex() {
     });
     fetchStats();
   }
-
-  async function handleCreateAssignment(e) {
-    e.preventDefault();
-    const url = normalizeUrl(assignmentForm.url_dominio);
-    await supabase
-      .from("user_services")
-      .insert({
-        user_id: assignmentForm.user_id || null,
-        service_id: assignmentForm.service_id || null,
-        price: assignmentForm.price ? parseFloat(assignmentForm.price) : null,
-        expires_at: assignmentForm.expires_at || null,
-        url_dominio: url || null,
-        status: assignmentForm.expires_at ? "active" : "pending",
-      });
-    setShowNewAssignment(false);
-    setAssignmentForm({
-      user_id: "",
-      service_id: "",
-      price: "",
-      expires_at: "",
-      url_dominio: "",
-    });
-    fetchStats();
-  }
-
-  const openClientDetails = (profile) => {
-    setSelectedClient(profile);
-    setClientModalTab("details");
-    setShowClientModal(true);
-  };
 
   const allUserServices = allServices;
 
@@ -342,12 +292,6 @@ export default function AdminIndex() {
           icon="M12 4v16m8-8H4"
           color="green"
           onClick={() => setShowNewPayment(true)}
-        />
-        <QuickActionBtn
-          label="Nueva Asignación"
-          icon="M12 4v16m8-8H4"
-          color="blue"
-          onClick={() => setShowNewAssignment(true)}
         />
       </div>
 
@@ -514,7 +458,7 @@ export default function AdminIndex() {
                     >
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => openClientDetails(item.profiles)}
+                          onClick={() => openClientModal(item.profiles)}
                           className="flex items-center gap-2 hover:opacity-80 transition-opacity text-left"
                         >
                           <div
@@ -543,7 +487,7 @@ export default function AdminIndex() {
                             color: "#3b82f6",
                           }}
                         >
-                          {item.url_dominio || item.profiles?.dominio || "-"}
+                          {item.url_dominio || "-"}
                         </span>
                       </td>
                       <td
@@ -670,22 +614,18 @@ export default function AdminIndex() {
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded-lg text-sm font-medium transition-all"
                       >
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.124 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                        <svg
+                          className="w-4 h-4"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.124 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
                         </svg>
                         {selectedClient.whatsapp}
                       </a>
                     ) : (
                       <p className="text-[var(--muted-foreground)]">-</p>
                     )}
-                  </div>
-                  <div className="card p-4 bg-[var(--muted)]/50">
-                    <p className="text-sm font-medium text-[var(--muted-foreground)] mb-1">
-                      Dominio Principal
-                    </p>
-                    <p className="font-semibold text-[var(--foreground)]">
-                      {selectedClient.dominio || "-"}
-                    </p>
                   </div>
                 </div>
               </div>
@@ -871,22 +811,6 @@ export default function AdminIndex() {
                   value={userForm.whatsapp}
                   onChange={(e) =>
                     setUserForm({ ...userForm, whatsapp: e.target.value })
-                  }
-                  className="input"
-                />
-              </div>
-              <div>
-                <label
-                  className="block text-sm font-medium mb-2"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  Dominio
-                </label>
-                <input
-                  type="text"
-                  value={userForm.dominio}
-                  onChange={(e) =>
-                    setUserForm({ ...userForm, dominio: e.target.value })
                   }
                   className="input"
                 />
@@ -1156,138 +1080,6 @@ export default function AdminIndex() {
             <button
               type="button"
               onClick={() => setShowNewPayment(false)}
-              className="flex-1 btn-secondary"
-            >
-              Cancelar
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      <Modal
-        isOpen={showNewAssignment}
-        onClose={() => setShowNewAssignment(false)}
-        title="Nueva Asignación"
-        size="md"
-      >
-        <form onSubmit={handleCreateAssignment} className="space-y-4">
-          <div>
-            <label
-              className="block text-sm font-medium mb-2"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              Cliente (opcional)
-            </label>
-            <select
-              value={assignmentForm.user_id}
-              onChange={(e) =>
-                setAssignmentForm({
-                  ...assignmentForm,
-                  user_id: e.target.value,
-                })
-              }
-              className="input"
-            >
-              <option value="">Seleccionar cliente</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label
-              className="block text-sm font-medium mb-2"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              Servicio (opcional)
-            </label>
-            <select
-              value={assignmentForm.service_id}
-              onChange={(e) =>
-                setAssignmentForm({
-                  ...assignmentForm,
-                  service_id: e.target.value,
-                })
-              }
-              className="input"
-            >
-              <option value="">Seleccionar servicio</option>
-              {services.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label
-              className="block text-sm font-medium mb-2"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              URL del Dominio
-            </label>
-            <input
-              type="url"
-              value={assignmentForm.url_dominio}
-              onChange={(e) =>
-                setAssignmentForm({
-                  ...assignmentForm,
-                  url_dominio: e.target.value,
-                })
-              }
-              placeholder="https://dominio.com"
-              className="input"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label
-                className="block text-sm font-medium mb-2"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                Precio mensual
-              </label>
-              <input
-                type="number"
-                value={assignmentForm.price}
-                onChange={(e) =>
-                  setAssignmentForm({
-                    ...assignmentForm,
-                    price: e.target.value,
-                  })
-                }
-                className="input"
-              />
-            </div>
-            <div>
-              <label
-                className="block text-sm font-medium mb-2"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                Vencimiento
-              </label>
-              <input
-                type="date"
-                value={assignmentForm.expires_at}
-                onChange={(e) =>
-                  setAssignmentForm({
-                    ...assignmentForm,
-                    expires_at: e.target.value,
-                  })
-                }
-                className="input"
-              />
-            </div>
-          </div>
-          <div className="flex gap-3 pt-4">
-            <button type="submit" className="flex-1 btn-primary">
-              Crear Asignación
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowNewAssignment(false)}
               className="flex-1 btn-secondary"
             >
               Cancelar

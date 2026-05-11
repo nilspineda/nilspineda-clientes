@@ -136,34 +136,68 @@ function InitialContentPlugin({ content }) {
   const [editor] = useLexicalComposerContext()
 
   useEffect(() => {
-    if (content) {
+    if (content && editor) {
       editor.update(() => {
         const root = $getRoot()
         root.clear()
-        const paragraph = $createParagraphNode()
-        paragraph.append($createTextNode(content))
-        root.append(paragraph)
+        if (content.trim()) {
+          const paragraph = $createParagraphNode()
+          const lines = content.split('\n')
+          lines.forEach((line, index) => {
+            const textNode = $createTextNode(line)
+            paragraph.append(textNode)
+            if (index < lines.length - 1) {
+              paragraph.append($createTextNode('\n'))
+            }
+          })
+          root.append(paragraph)
+        } else {
+          root.append($createParagraphNode())
+        }
       })
     }
-  }, [])
+  }, [content, editor])
 
+  return null
+}
+
+function EditorRefPlugin({ setEditorRef }) {
+  const [editor] = useLexicalComposerContext()
+  useEffect(() => {
+    setEditorRef(editor)
+  }, [editor, setEditorRef])
   return null
 }
 
 export default function LexicalEditor({ value, onChange }) {
   const [isEditing, setIsEditing] = useState(false)
   const [localValue, setLocalValue] = useState(value || '')
+  const [editorRef, setEditorRef] = useState(null)
 
   const handleSave = useCallback(() => {
-    onChange(localValue)
+    if (editorRef) {
+      editorRef.getEditorState().read(() => {
+        const root = $getRoot()
+        const children = root.getChildren()
+        const text = children.map(child => {
+          if (child.getTextContent) {
+            return child.getTextContent()
+          }
+          return ''
+        }).join('\n')
+        onChange(text)
+      })
+    } else {
+      onChange(localValue)
+    }
     setIsEditing(false)
-  }, [localValue, onChange])
+  }, [editorRef, localValue, onChange])
 
   const handleChange = useCallback((editorState) => {
     editorState.read(() => {
       const root = $getRoot()
       const children = root.getChildren()
-      const text = children.map(child => child.getText()).join('\n')
+      const text = children.map(child => child.getTextContent()).join('\n')
       setLocalValue(text)
     })
   }, [])
@@ -173,6 +207,7 @@ export default function LexicalEditor({ value, onChange }) {
     theme,
     onError: (error) => console.error(error),
     nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, LinkNode],
+    editorState: null,
   }
 
   if (!isEditing) {
@@ -220,7 +255,8 @@ export default function LexicalEditor({ value, onChange }) {
         />
         <HistoryPlugin />
         <OnChangePlugin onChange={handleChange} />
-        <InitialContentPlugin content={value} />
+        <InitialContentPlugin content={isEditing ? localValue : value} />
+        <EditorRefPlugin setEditorRef={setEditorRef} />
       </LexicalComposer>
 
       <div className="flex gap-3">

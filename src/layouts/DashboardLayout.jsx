@@ -151,7 +151,7 @@ function SidebarContent() {
               className="text-xs truncate"
               style={{ color: "var(--sidebar-foreground)" }}
             >
-              {profile?.dominio || "Sin dominio"}
+              {profile?.name || "Cliente"}
             </p>
           </div>
         </div>
@@ -556,7 +556,7 @@ export default function DashboardLayout() {
                 className="text-xs truncate"
                 style={{ color: "var(--sidebar-foreground)" }}
               >
-                {profile?.dominio || "Sin dominio"}
+                {profile?.name || "Cliente"}
               </p>
             </div>
           </div>

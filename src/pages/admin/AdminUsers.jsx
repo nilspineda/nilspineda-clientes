@@ -1,9 +1,15 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { normalizeWhatsapp, normalizeUrl } from "../../utils/formatUtils";
+import {
+  normalizeWhatsapp,
+  formatWhatsapp,
+  normalizeUrl,
+} from "../../utils/formatUtils";
+import { notify } from "../../utils/notify";
 import { formatDate } from "../../utils/dateUtils";
 import Modal from "../../components/Modal";
 import AccessEditor from "../../components/AccessEditor";
+import LexicalEditor from "../../components/LexicalEditor";
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -17,10 +23,12 @@ export default function AdminUsers() {
   const [editingService, setEditingService] = useState(null);
   const [showAccessModal, setShowAccessModal] = useState(false);
   const [accessingService, setAccessingService] = useState(null);
+  const [accessEditMode, setAccessEditMode] = useState(false);
   const [showSendCreds, setShowSendCreds] = useState(false);
   const [newUserWhatsapp, setNewUserWhatsapp] = useState("");
+  const [baseServices, setBaseServices] = useState([]);
   const [serviceForm, setServiceForm] = useState({
-    name: "",
+    service_id: "",
     price: "",
     owner: 0,
     expires_at: "",
@@ -37,13 +45,22 @@ export default function AdminUsers() {
 
   useEffect(() => {
     fetchUsers();
+    fetchBaseServices();
   }, []);
+
+  async function fetchBaseServices() {
+    const { data } = await supabase
+      .from("services")
+      .select("id, name, type")
+      .order("name");
+    setBaseServices(data || []);
+  }
 
   async function fetchUsers() {
     try {
       const { data: profiles, error } = await supabase
         .from("profiles")
-        .select("*")
+        .select("id, name, whatsapp, email, status, created_at, role")
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -78,7 +95,7 @@ export default function AdminUsers() {
     setSelectedUser(user);
     const { data } = await supabase
       .from("user_services")
-      .select("*, services(*)")
+      .select("*, services(id, name, type)")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
@@ -99,7 +116,7 @@ export default function AdminUsers() {
           .eq("id", editingUser.id);
 
         if (error) throw error;
-        alert("Usuario actualizado correctamente");
+        notify("Usuario actualizado correctamente", "success");
         fetchUsers();
         resetForm();
       } else {
@@ -125,7 +142,7 @@ export default function AdminUsers() {
 
           if (profileError) throw profileError;
 
-          alert("Usuario creado correctamente");
+          notify("Usuario creado correctamente", "success");
           setNewUserWhatsapp(normalizedWhatsapp);
           setShowSendCreds(true);
           fetchUsers();
@@ -134,7 +151,7 @@ export default function AdminUsers() {
       }
     } catch (error) {
       console.error("Error guardando usuario:", error);
-      alert("Error al guardar usuario: " + error.message);
+      notify("Error al guardar usuario: " + error.message, "error");
     }
   }
 
@@ -176,7 +193,7 @@ export default function AdminUsers() {
       fetchUsers();
     } catch (error) {
       console.error("Error eliminando usuario:", error);
-      alert("Error al eliminar usuario");
+      notify("Error al eliminar usuario", "error");
     }
   }
 
@@ -194,14 +211,14 @@ export default function AdminUsers() {
       );
     } catch (err) {
       console.error("Error al cambiar estado:", err);
-      alert("Error al cambiar el estado del usuario");
+      notify("Error al cambiar el estado del usuario", "error");
     }
   }
 
   function openAddService() {
     setEditingService(null);
     setServiceForm({
-      name: "",
+      service_id: "",
       price: "",
       owner: 0,
       expires_at: "",
@@ -209,13 +226,14 @@ export default function AdminUsers() {
       url_dominio: "",
       notes: "",
     });
+    fetchBaseServices();
     setShowServiceModal(true);
   }
 
   function openEditService(service) {
     setEditingService(service);
     setServiceForm({
-      name: service.name || "",
+      service_id: service.service_id || "",
       price: service.price || "",
       owner: service.owner ?? 0,
       expires_at: service.expires_at ? service.expires_at.split("T")[0] : "",
@@ -225,14 +243,23 @@ export default function AdminUsers() {
       url_dominio: service.url_dominio || "",
       notes: service.notes || "",
     });
+    fetchBaseServices();
     setShowServiceModal(true);
   }
 
   async function handleSaveService(e) {
     e.preventDefault();
+    if (!serviceForm.service_id) {
+      notify("Selecciona un servicio base", "warning");
+      return;
+    }
+    if (!selectedUser?.id) {
+      notify("Error: No hay cliente seleccionado", "error");
+      return;
+    }
     try {
       const data = {
-        name: serviceForm.name,
+        service_id: serviceForm.service_id,
         price: serviceForm.price ? parseFloat(serviceForm.price) : null,
         owner: serviceForm.owner,
         expires_at: serviceForm.expires_at || null,
@@ -241,21 +268,38 @@ export default function AdminUsers() {
         notes: serviceForm.notes || null,
         status: serviceForm.expires_at ? "active" : "pending",
       };
+
+      console.log("Guardando servicio:", { data, userId: selectedUser.id });
+
+      let result;
       if (editingService) {
-        await supabase
+        result = await supabase
           .from("user_services")
           .update(data)
-          .eq("id", editingService.id);
+          .eq("id", editingService.id)
+          .select();
       } else {
-        await supabase
+        result = await supabase
           .from("user_services")
-          .insert({ ...data, user_id: selectedUser.id });
+          .insert({ ...data, user_id: selectedUser.id })
+          .select();
       }
+
+      console.log("Resultado:", result);
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      notify(
+        editingService ? "Servicio actualizado" : "Servicio agregado",
+        "success",
+      );
       setShowServiceModal(false);
       viewUserDetails(selectedUser);
     } catch (error) {
       console.error("Error guardando servicio:", error);
-      alert("Error al guardar servicio: " + error.message);
+      notify("Error al guardar servicio: " + error.message, "error");
     }
   }
 
@@ -498,19 +542,59 @@ export default function AdminUsers() {
                                   </span>
                                 </div>
                                 <h3 className="font-bold text-foreground text-lg mb-1">
-                                  {service.name || service.services?.name}
+                                  {service.services?.name ||
+                                    service.name ||
+                                    "Servicio sin nombre"}
                                 </h3>
+                                {service.services?.type && (
+                                  <span
+                                    className={`text-xs px-2 py-0.5 rounded ${
+                                      service.services.type === "dominio"
+                                        ? "bg-blue-500/20 text-blue-400"
+                                        : service.services.type === "hosting"
+                                          ? "bg-purple-500/20 text-purple-400"
+                                          : service.services.type === "correo"
+                                            ? "bg-yellow-500/20 text-yellow-400"
+                                            : service.services.type ===
+                                                "membresia"
+                                              ? "bg-green-500/20 text-green-400"
+                                              : "bg-gray-500/20 text-gray-400"
+                                    }`}
+                                  >
+                                    {service.services.type}
+                                  </span>
+                                )}
                                 {service.url_dominio && (
                                   <p className="text-sm text-blue-400 truncate max-w-xs">
                                     {service.url_dominio}
                                   </p>
                                 )}
+                                {service.expires_at &&
+                                  daysRemaining !== null && (
+                                    <div
+                                      className={`mt-2 flex items-center justify-center w-16 h-16 rounded-full text-lg font-bold ${
+                                        daysRemaining >= 20
+                                          ? "bg-green-500/20 text-green-400 border-2 border-green-500/30"
+                                          : daysRemaining >= 7
+                                            ? "bg-orange-500/20 text-orange-400 border-2 border-orange-500/30"
+                                            : daysRemaining >= 0
+                                              ? "bg-yellow-500/20 text-yellow-400 border-2 border-yellow-500/30"
+                                              : "bg-red-500/20 text-red-400 border-2 border-red-500/30"
+                                      }`}
+                                    >
+                                      {daysRemaining}
+                                      <span className="text-[10px] font-normal ml-0.5">
+                                        d
+                                      </span>
+                                    </div>
+                                  )}
                               </div>
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setSelectedService(service);
+                                    setAccessEditMode(false);
                                     setShowAccessModal(true);
                                   }}
                                   className="p-2 rounded-lg bg-purple-500/10 hover:bg-purple-500 text-purple-400 hover:text-foreground transition-all"
@@ -586,16 +670,8 @@ export default function AdminUsers() {
                               </div>
                               {service.expires_at && (
                                 <div className="text-right">
-                                  <p className="text-xs text-muted-foreground">
-                                    {daysRemaining !== null &&
-                                    daysRemaining >= 0
-                                      ? `${daysRemaining} días restantes`
-                                      : daysRemaining < 0
-                                        ? `Vencido hace ${Math.abs(daysRemaining)} días`
-                                        : formatDate(service.expires_at)}
-                                  </p>
                                   <p className="text-sm text-muted-foreground">
-                                    {formatDate(service.expires_at)}
+                                    Vence: {formatDate(service.expires_at)}
                                   </p>
                                 </div>
                               )}
@@ -687,7 +763,7 @@ export default function AdminUsers() {
 
                   {selectedUser.whatsapp && (
                     <a
-                      href={`https://wa.me/${selectedUser.whatsapp.replace(/\D/g, "")}`}
+                      href={`https://wa.me/${normalizeWhatsapp(selectedUser.whatsapp)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-green-500/10 to-green-500/5 border border-green-500/20 hover:border-green-500/40 transition-all group"
@@ -706,7 +782,8 @@ export default function AdminUsers() {
                           WhatsApp
                         </p>
                         <p className="text-sm font-semibold text-foreground truncate">
-                          {selectedUser.whatsapp}
+                          {formatWhatsapp(selectedUser.whatsapp) ||
+                            selectedUser.whatsapp}
                         </p>
                       </div>
                       <svg
@@ -749,17 +826,23 @@ export default function AdminUsers() {
           <form onSubmit={handleSaveService} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-2">
-                Nombre del servicio
+                Servicio base
               </label>
-              <input
-                type="text"
-                value={serviceForm.name}
+              <select
+                value={serviceForm.service_id}
                 onChange={(e) =>
-                  setServiceForm({ ...serviceForm, name: e.target.value })
+                  setServiceForm({ ...serviceForm, service_id: e.target.value })
                 }
-                placeholder="Ej: Hosting, Dominio .com"
-                className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-              />
+                className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                required
+              >
+                <option value="">Seleccionar servicio...</option>
+                {baseServices.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.type})
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -1235,15 +1318,71 @@ export default function AdminUsers() {
           setShowAccessModal(false);
           setSelectedService(null);
         }}
-        title={`Accesos - ${selectedService?.name || selectedService?.services?.name || "Servicio"}`}
+        title={`Accesos - ${selectedService?.services?.name || "Servicio"}`}
         size="lg"
       >
-        <AccessEditor
-          value={selectedService?.accesos}
-          onChange={(content) =>
-            handleSaveServiceAccesses(selectedService.id, content)
-          }
-        />
+        {selectedService && (
+          <div>
+            {!accessEditMode ? (
+              <div className="space-y-4">
+                <div className="prose max-w-none text-[var(--muted-foreground)]">
+                  {selectedService.accesos ? (
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: selectedService.accesos,
+                      }}
+                    />
+                  ) : (
+                    <p className="text-sm">No hay credenciales registradas.</p>
+                  )}
+                </div>
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    onClick={() => setAccessEditMode(true)}
+                    className="px-4 py-2 btn-primary"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowAccessModal(false);
+                      setSelectedService(null);
+                    }}
+                    className="px-4 py-2 btn-secondary"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <LexicalEditor
+                  value={selectedService.accesos || ""}
+                  onChange={(content) =>
+                    handleSaveServiceAccesses(selectedService.id, content)
+                  }
+                />
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    onClick={() => setAccessEditMode(false)}
+                    className="px-4 py-2 btn-secondary"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAccessEditMode(false);
+                      setShowAccessModal(false);
+                    }}
+                    className="px-4 py-2 btn-primary"
+                  >
+                    Guardar y cerrar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
     </div>
   );
