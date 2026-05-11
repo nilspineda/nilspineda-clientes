@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { normalizeUrl } from "../../utils/formatUtils";
+import { normalizeUrl, formatCurrency } from "../../utils/formatUtils";
 import { notify } from "../../utils/notify";
 import { getDaysRemaining, getServiceStatus } from "../../utils/dateUtils";
 import Modal from "../../components/Modal";
@@ -27,9 +27,7 @@ export default function AdminAssignments() {
     const [assignmentsRes, usersRes, servicesRes] = await Promise.all([
       supabase
         .from("user_services")
-        .select(
-          "*, services(id, name, type), profiles!inner(id, name)",
-        )
+        .select("*, services(id, name, type), profiles!inner(id, name)")
         .order("created_at", { ascending: false }),
       supabase.from("profiles").select("id, name").eq("role", "user"),
       supabase.from("services").select("id, name, type"),
@@ -339,7 +337,7 @@ export default function AdminAssignments() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-3 py-1.5 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 font-bold">
-                        ${assignment.price || 0}
+                        {formatCurrency(assignment.price || 0)}
                       </span>
                     </td>
                     <td className="px-6 py-4">

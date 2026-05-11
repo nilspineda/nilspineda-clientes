@@ -78,6 +78,7 @@ export default function AdminServices() {
       const payload = {
         name: formData.name.trim(),
         type: formData.type,
+        price: 0,
       };
 
       if (editingService) {

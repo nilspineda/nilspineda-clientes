@@ -1,29 +1,29 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback } from "react";
 
 export default function AccessEditor({ value, onChange }) {
-  const [isEditing, setIsEditing] = useState(false)
-  const [localValue, setLocalValue] = useState(value || '')
+  const [isEditing, setIsEditing] = useState(false);
+  const [localValue, setLocalValue] = useState(value || "");
 
   const handleSave = useCallback(() => {
-    onChange(localValue)
-    setIsEditing(false)
-  }, [localValue, onChange])
+    onChange(localValue);
+    setIsEditing(false);
+  }, [localValue, onChange]);
 
   const insertLink = useCallback((text, url) => {
-    const link = `[${text}](${url})`
-    setLocalValue(prev => prev + '\n' + link)
-  }, [])
+    const link = `[${text}](${url})`;
+    setLocalValue((prev) => prev + "\n" + link);
+  }, []);
 
   const insertSection = useCallback((title) => {
-    const section = `\n## ${title}\n`
-    setLocalValue(prev => prev + section)
-  }, [])
+    const section = `\n## ${title}\n`;
+    setLocalValue((prev) => prev + section);
+  }, []);
 
   if (!isEditing) {
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-white">Accesos y Links</h3>
+          <h3 className="text-lg font-bold text-white">Accesos y Linkssss</h3>
           <button
             onClick={() => setIsEditing(true)}
             className="px-4 py-2 bg-primary/20 hover:bg-primary text-primary hover:text-white rounded-xl font-medium text-sm transition-all"
@@ -31,22 +31,34 @@ export default function AccessEditor({ value, onChange }) {
             Editar
           </button>
         </div>
-        
+
         {value ? (
           <div className="prose prose-invert max-w-none">
             <RenderMarkdown content={value} />
           </div>
         ) : (
           <div className="text-center py-8 text-muted-foreground500">
-            <svg className="w-12 h-12 mx-auto mb-3 text-muted-foreground600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            <svg
+              className="w-12 h-12 mx-auto mb-3 text-muted-foreground600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+              />
             </svg>
             <p className="font-medium">No hay accesos registrados</p>
-            <p className="text-sm mt-1">Agrega los accesos y links del cliente</p>
+            <p className="text-sm mt-1">
+              Agrega los accesos y links del cliente
+            </p>
           </div>
         )}
       </div>
-    )
+    );
   }
 
   return (
@@ -55,14 +67,14 @@ export default function AccessEditor({ value, onChange }) {
         <h3 className="text-lg font-bold text-white">Accesos y Links</h3>
         <div className="flex gap-2">
           <button
-            onClick={() => insertSection('Panel')}
+            onClick={() => insertSection("Panel")}
             type="button"
             className="px-3 py-1.5 text-xs bg-muted border border-border rounded-lg text-muted-foreground400 hover:text-white hover:border-primary/50 transition-colors"
           >
             + Sección
           </button>
           <button
-            onClick={() => insertLink('Link', 'https://')}
+            onClick={() => insertLink("Link", "https://")}
             type="button"
             className="px-3 py-1.5 text-xs bg-muted border border-border rounded-lg text-muted-foreground400 hover:text-white hover:border-primary/50 transition-colors"
           >
@@ -86,7 +98,10 @@ export default function AccessEditor({ value, onChange }) {
           Guardar
         </button>
         <button
-          onClick={() => { setLocalValue(value || ''); setIsEditing(false) }}
+          onClick={() => {
+            setLocalValue(value || "");
+            setIsEditing(false);
+          }}
           className="flex-1 px-6 py-3 border border-border rounded-xl text-muted-foreground400 hover:bg-accent hover:text-white transition-colors font-medium"
         >
           Cancelar
@@ -100,50 +115,68 @@ export default function AccessEditor({ value, onChange }) {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function RenderMarkdown({ content }) {
-  if (!content) return null
+  if (!content) return null;
 
-  const lines = content.split('\n')
-  const elements = []
-  let inList = false
-  let listItems = []
+  const lines = content.split("\n");
+  const elements = [];
+  let inList = false;
+  let listItems = [];
 
   const renderLine = (line, index) => {
-    if (line.startsWith('## ')) {
-      return <h4 key={index} className="text-lg font-bold text-primary mt-4 mb-2">{line.replace('## ', '')}</h4>
+    if (line.startsWith("## ")) {
+      return (
+        <h4 key={index} className="text-lg font-bold text-primary mt-4 mb-2">
+          {line.replace("## ", "")}
+        </h4>
+      );
     }
-    if (line.startsWith('- ')) {
-      const linkMatch = line.match(/- \[([^\]]+)\]\(([^)]+)\)/)
+    if (line.startsWith("- ")) {
+      const linkMatch = line.match(/- \[([^\]]+)\]\(([^)]+)\)/);
       if (linkMatch) {
         return (
-          <a 
-            key={index} 
-            href={linkMatch[2]} 
-            target="_blank" 
+          <a
+            key={index}
+            href={linkMatch[2]}
+            target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 text-blue-400 hover:text-blue-300"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+              />
             </svg>
             {linkMatch[1]}
           </a>
-        )
+        );
       }
-      return <p key={index} className="text-muted-foreground300">{line.replace('- ', '')}</p>
+      return (
+        <p key={index} className="text-muted-foreground300">
+          {line.replace("- ", "")}
+        </p>
+      );
     }
     if (line.trim()) {
-      return <p key={index} className="text-muted-foreground300">{line}</p>
+      return (
+        <p key={index} className="text-muted-foreground300">
+          {line}
+        </p>
+      );
     }
-    return null
-  }
+    return null;
+  };
 
-  return (
-    <div>
-      {lines.map((line, i) => renderLine(line, i))}
-    </div>
-  )
+  return <div>{lines.map((line, i) => renderLine(line, i))}</div>;
 }

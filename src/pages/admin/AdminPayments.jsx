@@ -3,6 +3,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { normalizeWhatsapp } from "../../utils/formatUtils";
 import { notify } from "../../utils/notify";
 import { formatDate } from "../../utils/dateUtils";
+import { formatCurrency } from "../../utils/formatUtils";
 import Modal from "../../components/Modal";
 
 export default function AdminPayments() {
@@ -244,7 +245,7 @@ export default function AdminPayments() {
           <div>
             <h1 className="text-2xl font-bold text-foreground">Pagos</h1>
             <p className="text-sm text-muted-foreground">
-              Total filtrado: ${totalAmount.toLocaleString()}
+              Total filtrado: {formatCurrency(totalAmount)}
             </p>
           </div>
         </div>
@@ -281,13 +282,13 @@ export default function AdminPayments() {
         <div className="bg-card rounded-2xl border border-border p-5">
           <p className="text-sm text-muted-foreground">{currentMonth}</p>
           <p className="text-3xl font-bold text-green-400">
-            ${stats.thisMonth.toLocaleString()}
+            {formatCurrency(stats.thisMonth)}
           </p>
         </div>
         <div className="bg-card rounded-2xl border border-border p-5">
           <p className="text-sm text-muted-foreground">Mes anterior</p>
           <p className="text-3xl font-bold text-foreground">
-            ${stats.lastMonth.toLocaleString()}
+            {formatCurrency(stats.lastMonth)}
           </p>
         </div>
         <div className="bg-card rounded-2xl border border-border p-5">
@@ -552,7 +553,7 @@ export default function AdminPayments() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-3 py-1.5 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 font-bold">
-                        ${payment.amount}
+                        {formatCurrency(payment.amount)}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-muted-foreground text-sm">

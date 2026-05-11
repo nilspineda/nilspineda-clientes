@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { normalizeUrl, normalizeWhatsapp } from "../../utils/formatUtils";
+import {
+  normalizeUrl,
+  normalizeWhatsapp,
+  formatCurrency,
+} from "../../utils/formatUtils";
 import { formatDate } from "../../utils/dateUtils";
 import Modal from "../../components/Modal";
 
@@ -317,7 +321,7 @@ export default function AdminIndex() {
         />
         <StatCard
           title="Ingresos Totales"
-          value={`$${stats.totalRevenue.toLocaleString()}`}
+          value={formatCurrency(stats.totalRevenue)}
           color="yellow"
           icon="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
         />
@@ -540,7 +544,7 @@ export default function AdminIndex() {
                         className="px-4 py-3 font-bold"
                         style={{ color: "#10b981" }}
                       >
-                        ${item.price || 0}
+                        {formatCurrency(item.price || 0)}
                       </td>
                     </tr>
                   );
@@ -717,7 +721,7 @@ export default function AdminIndex() {
                           {payment.status === "paid" ? "Pagado" : "Pendiente"}
                         </span>
                         <p className="text-xs font-semibold mt-1 text-[var(--foreground)]">
-                          ${payment.amount || 0}
+                          {formatCurrency(payment.amount || 0)}
                         </p>
                       </div>
                     </div>

@@ -41,3 +41,18 @@ export function formatWhatsapp(raw) {
   // Generic: show +<digits>
   return `+${cleaned}`;
 }
+
+export function formatCurrency(
+  value,
+  { currency = "COP", symbol = "$", decimals = 0 } = {},
+) {
+  if (value === null || value === undefined || value === "")
+    return `${symbol} 0 ${currency}`;
+  const n = Number(value);
+  if (Number.isNaN(n)) return `${symbol} 0 ${currency}`;
+  const formatted = new Intl.NumberFormat("es-CO", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(n);
+  return `${symbol} ${formatted} ${currency}`;
+}

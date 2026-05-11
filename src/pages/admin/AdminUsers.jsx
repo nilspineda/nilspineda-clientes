@@ -4,6 +4,7 @@ import {
   normalizeWhatsapp,
   formatWhatsapp,
   normalizeUrl,
+  formatCurrency,
 } from "../../utils/formatUtils";
 import { notify } from "../../utils/notify";
 import { formatDate } from "../../utils/dateUtils";
@@ -431,7 +432,7 @@ export default function AdminUsers() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-card rounded-3xl border border-border overflow-hidden">
                 <div className="flex items-center gap-3 p-5 lg:p-6 border-b border-border">
@@ -450,7 +451,7 @@ export default function AdminUsers() {
                       />
                     </svg>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2 ">
                     <h2 className="text-lg font-bold text-foreground">
                       Dominios / Servicios
                     </h2>
@@ -597,7 +598,7 @@ export default function AdminUsers() {
                                     setAccessEditMode(false);
                                     setShowAccessModal(true);
                                   }}
-                                  className="p-2 rounded-lg bg-purple-500/10 hover:bg-purple-500 text-purple-400 hover:text-foreground transition-all"
+                                  className="px-3 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500 text-purple-400 hover:text-foreground text-sm font-medium transition-all flex items-center gap-1.5"
                                   title="Ver accesos"
                                 >
                                   <svg
@@ -613,6 +614,7 @@ export default function AdminUsers() {
                                       d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
                                     />
                                   </svg>
+                                  Credenciales
                                 </button>
                                 <button
                                   onClick={(e) => {
@@ -665,7 +667,7 @@ export default function AdminUsers() {
                                   Precio mensual
                                 </p>
                                 <p className="text-xl font-bold text-primary">
-                                  ${service.price || 0}
+                                  {formatCurrency(service.price || 0)}
                                 </p>
                               </div>
                               {service.expires_at && (
