@@ -1,16 +1,15 @@
-import { useState, useCallback } from 'react'
-import LexicalComposer from '@lexical/react/LexicalComposer'
+import { useState, useCallback, useEffect } from 'react'
+import { LexicalComposer } from '@lexical/react/LexicalComposer'
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
 import { ContentEditable } from '@lexical/react/LexicalContentEditable'
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
-import LexicalErrorBoundary from '@lexical/react/LexicalErrorBoundary'
+import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary'
 import { HeadingNode, QuoteNode } from '@lexical/rich-text'
 import { ListItemNode, ListNode } from '@lexical/list'
 import { LinkNode } from '@lexical/link'
 import { $getRoot, $createParagraphNode, $createTextNode, $getSelection } from 'lexical'
-import { $setSelection } from '@lexical/selection'
 
 const theme = {
   paragraph: 'mb-2',

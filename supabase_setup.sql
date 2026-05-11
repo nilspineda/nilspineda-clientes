@@ -26,12 +26,14 @@ create table public.services (
 -- USER_SERVICES
 create table public.user_services (
   id uuid default uuid_generate_v4() primary key,
-  user_id uuid references public.profiles(id) on delete cascade not null,
-  service_id uuid references public.services(id) on delete cascade not null,
+  user_id uuid references public.profiles(id) on delete cascade,
+  service_id uuid references public.services(id) on delete cascade,
   price numeric,
   status text default 'pending' check (status in ('active', 'pending', 'expired', 'warning')),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  expires_at timestamp with time zone
+  expires_at timestamp with time zone,
+  accesos text,
+  url_dominio text
 );
 
 -- PAYMENTS
