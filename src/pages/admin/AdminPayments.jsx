@@ -192,15 +192,22 @@ export default function AdminPayments() {
       "Método",
       "Estado",
     ];
+    const escapeCsv = (v) => {
+      if (v === null || v === undefined) return '""';
+      const s = String(v);
+      return `"${s.replace(/"/g, '""')}"`;
+    };
     const rows = filteredPayments.map((p) => [
       p.profiles?.name || "-",
       p.user_services?.name || "-",
-      p.amount,
+      formatCurrency(p.amount),
       formatDate(p.payment_date),
       p.payment_method,
       p.status,
     ]);
-    const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
+    const csv = [headers, ...rows]
+      .map((r) => r.map(escapeCsv).join(","))
+      .join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
