@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase, supabaseAdmin } from "../../lib/supabaseClient";
 import {
   normalizeWhatsapp,
   formatWhatsapp,
@@ -83,7 +83,28 @@ export default function AdminUsers() {
           ...u,
           service_count: counts[u.id] || 0,
         }));
-        setUsers(usersWithCount);
+
+        try {
+          const usersWithAuthEmail = await Promise.all(
+            usersWithCount.map(async (profile) => {
+              const client = supabaseAdmin || supabase;
+              if (client?.auth?.admin?.getUserById) {
+                const { data: authData } = await client.auth.admin.getUserById(
+                  profile.id,
+                );
+                return {
+                  ...profile,
+                  email: authData?.user?.email || profile.email,
+                };
+              }
+              return profile;
+            }),
+          );
+          setUsers(usersWithAuthEmail);
+        } catch (err) {
+          console.error("Error enriching users with auth data:", err);
+          setUsers(usersWithCount);
+        }
       }
     } catch (err) {
       console.error("Error:", err);
@@ -614,7 +635,9 @@ export default function AdminUsers() {
                                       d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
                                     />
                                   </svg>
-                                  <span className="hidden sm:inline">Credenciales</span>
+                                  <span className="hidden sm:inline">
+                                    Credenciales
+                                  </span>
                                 </button>
                                 <button
                                   onClick={(e) => {
