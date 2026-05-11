@@ -10,7 +10,7 @@ import AdminIndex from "./pages/admin/AdminIndex";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminServices from "./pages/admin/AdminServices";
 import AdminPayments from "./pages/admin/AdminPayments";
-import AdminAssignments from "./pages/admin/AdminAssignments";
+import Payments from "./pages/Payments";
 
 function AppRoutes() {
   const { user, profile, loading } = useAuth();
@@ -46,6 +46,7 @@ function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/payments" element={<Payments />} />
         </Route>
       </Route>
 
@@ -55,7 +56,6 @@ function AppRoutes() {
           <Route path="/admin/users" element={<AdminUsers />} />
           <Route path="/admin/services" element={<AdminServices />} />
           <Route path="/admin/payments" element={<AdminPayments />} />
-          <Route path="/admin/assignments" element={<AdminAssignments />} />
         </Route>
       </Route>
 
