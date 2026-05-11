@@ -355,7 +355,7 @@ export default function AdminIndex() {
                 placeholder="Buscar..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="input py-1.5 text-sm w-40"
+                className="input py-1.5 text-sm w-full sm:w-40"
               />
               <select
                 value={filterStatus}
@@ -590,7 +590,7 @@ export default function AdminIndex() {
 
             {clientModalTab === "details" && (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="card p-4 bg-[var(--muted)]/50">
                     <p className="text-sm font-medium text-[var(--muted-foreground)] mb-1">
                       Nombre
@@ -603,7 +603,7 @@ export default function AdminIndex() {
                     <p className="text-sm font-medium text-[var(--muted-foreground)] mb-1">
                       Email
                     </p>
-                    <p className="font-semibold text-[var(--foreground)] break-all">
+                    <p className="font-semibold text-[var(--foreground)] truncate">
                       {selectedClient.email || "-"}
                     </p>
                   </div>
@@ -802,23 +802,21 @@ export default function AdminIndex() {
                 className="input"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label
-                  className="block text-sm font-medium mb-2"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  WhatsApp
-                </label>
-                <input
-                  type="text"
-                  value={userForm.whatsapp}
-                  onChange={(e) =>
-                    setUserForm({ ...userForm, whatsapp: e.target.value })
-                  }
-                  className="input"
-                />
-              </div>
+            <div>
+              <label
+                className="block text-sm font-medium mb-2"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                WhatsApp
+              </label>
+              <input
+                type="text"
+                value={userForm.whatsapp}
+                onChange={(e) =>
+                  setUserForm({ ...userForm, whatsapp: e.target.value })
+                }
+                className="input"
+              />
             </div>
           </div>
           <div className="flex gap-3 pt-4">
@@ -884,7 +882,7 @@ export default function AdminIndex() {
             >
               ¿Quién paga?
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label
                 className={`flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${serviceForm.owner === 0 ? "border-primary bg-primary/10" : "border-[var(--border)] hover:bg-[var(--muted)]"}`}
               >
@@ -1039,7 +1037,7 @@ export default function AdminIndex() {
               ))}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label
                 className="block text-sm font-medium mb-2"

@@ -399,11 +399,11 @@ export default function AdminUsers() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-primary-light/80">Cliente</span>
                 </div>
-                <h1 className="text-3xl lg:text-4xl font-bold text-foreground">
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
                   {selectedUser.name}
                 </h1>
               </div>
-              <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
                 <span className="text-4xl font-bold text-foreground">
                   {selectedUser.name?.charAt(0).toUpperCase() || "U"}
                 </span>
@@ -542,7 +542,7 @@ export default function AdminUsers() {
                                     {paymentStatus.label}
                                   </span>
                                 </div>
-                                <h3 className="font-bold text-foreground text-lg mb-1">
+                                <h3 className="font-bold text-foreground text-base sm:text-lg mb-1 truncate max-w-[200px] sm:max-w-none">
                                   {service.services?.name ||
                                     service.name ||
                                     "Servicio sin nombre"}
@@ -566,7 +566,7 @@ export default function AdminUsers() {
                                   </span>
                                 )}
                                 {service.url_dominio && (
-                                  <p className="text-sm text-blue-400 truncate max-w-xs">
+                                  <p className="text-xs text-muted-foreground truncate max-w-[200px] sm:max-w-xs mt-0.5">
                                     {service.url_dominio}
                                   </p>
                                 )}
@@ -590,7 +590,7 @@ export default function AdminUsers() {
                                     </div>
                                   )}
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -598,11 +598,11 @@ export default function AdminUsers() {
                                     setAccessEditMode(false);
                                     setShowAccessModal(true);
                                   }}
-                                  className="px-3 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500 text-purple-400 hover:text-foreground text-sm font-medium transition-all flex items-center gap-1.5"
+                                  className="px-2 sm:px-3 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500 text-purple-400 hover:text-foreground text-xs sm:text-sm font-medium transition-all flex items-center gap-1"
                                   title="Ver accesos"
                                 >
                                   <svg
-                                    className="w-4 h-4"
+                                    className="w-3.5 h-3.5 sm:w-4 sm:h-4"
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
@@ -614,17 +614,17 @@ export default function AdminUsers() {
                                       d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
                                     />
                                   </svg>
-                                  Credenciales
+                                  <span className="hidden sm:inline">Credenciales</span>
                                 </button>
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     openEditService(service);
                                   }}
-                                  className="p-2 rounded-lg bg-primary/10 hover:bg-primary text-primary hover:text-foreground transition-all"
+                                  className="p-1.5 sm:p-2 rounded-lg bg-primary/10 hover:bg-primary text-primary hover:text-foreground transition-all"
                                 >
                                   <svg
-                                    className="w-4 h-4"
+                                    className="w-3.5 h-3.5 sm:w-4 sm:h-4"
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
@@ -642,10 +642,10 @@ export default function AdminUsers() {
                                     e.stopPropagation();
                                     handleDeleteService(service.id);
                                   }}
-                                  className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-foreground transition-all"
+                                  className="p-1.5 sm:p-2 rounded-lg bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-foreground transition-all"
                                 >
                                   <svg
-                                    className="w-4 h-4"
+                                    className="w-3.5 h-3.5 sm:w-4 sm:h-4"
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"

@@ -87,11 +87,11 @@ export default function Payments() {
           ) : (
             <div className="space-y-3">
               {payments.map((payment) => (
-                <div
-                  key={payment.id}
-                  className="group flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-card to-muted border border-border hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 transition-all duration-300"
-                >
-                  <div className="flex items-center gap-4">
+                  <div
+                    key={payment.id}
+                    className="group flex items-center justify-between p-5 rounded-2xl bg-gradient-to-r from-card to-muted border border-border hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 transition-all duration-300"
+                  >
+                    <div className="flex items-center gap-4 min-w-0">
                     <div
                       className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
                         payment.status === "paid"
@@ -129,11 +129,11 @@ export default function Payments() {
                         </svg>
                       )}
                     </div>
-                    <div>
-                      <p className="font-semibold text-white">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-white truncate">
                         {payment.services?.name || "Pago"}
                       </p>
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <div className="flex items-center gap-2 text-sm text-gray-500 mt-0.5">
                         <svg
                           className="w-4 h-4"
                           fill="none"

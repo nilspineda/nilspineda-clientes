@@ -26,16 +26,41 @@ const navItems = [
   },
 ];
 
-function Sidebar() {
+function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
 
   return (
-    <aside className="w-60 h-screen fixed left-0 top-0 bg-sidebar-bg border-r border-border-dark flex flex-col z-50">
-      <div className="p-6 border-b border-border-dark">
-        <Link to="/admin" className="text-xl font-bold text-white">
-          Nilspineda
-        </Link>
-        <p className="text-sm text-gray-400 mt-1">Panel Admin</p>
+    <aside
+      className={`fixed inset-y-0 left-0 w-60 z-50 bg-sidebar-bg border-r border-border-dark flex flex-col transform transition-transform duration-300 ${
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      } lg:translate-x-0`}
+    >
+      <div className="p-4 border-b border-border-dark flex items-center justify-between lg:p-6">
+        <div>
+          <Link to="/admin" className="text-xl font-bold text-white">
+            Nilspineda
+          </Link>
+          <p className="text-sm text-gray-400 mt-1">Panel Admin</p>
+        </div>
+        <button
+          onClick={onClose}
+          className="lg:hidden p-2 rounded-md text-gray-300 hover:bg-card-hover"
+          aria-label="Cerrar menú"
+        >
+          <svg
+            className="w-5 h-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
       </div>
 
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -102,6 +127,7 @@ function Sidebar() {
 export default function AdminLayout() {
   const navigate = useNavigate();
   const { signOut, profile } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   async function handleSignOut() {
     await signOut();
@@ -110,8 +136,61 @@ export default function AdminLayout() {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      {/* overlay for mobile when sidebar is open */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       <main className="flex-1 lg:ml-60 min-h-screen flex flex-col">
+        {/* Mobile header with hamburger */}
+        <div
+          className="flex items-center justify-between gap-4 px-4 py-3 border-b lg:hidden"
+          style={{
+            background: "var(--background)",
+            borderColor: "var(--border)",
+          }}
+        >
+          <button
+            onClick={() => setSidebarOpen((s) => !s)}
+            className="p-2 rounded-md text-gray-700 hover:bg-gray-100"
+            aria-label="Abrir menú"
+          >
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
+              />
+            </svg>
+          </button>
+
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
+              {profile?.name?.charAt(0).toUpperCase() || "U"}
+            </div>
+            <div className="text-sm" style={{ color: "var(--foreground)" }}>
+              {profile?.name}
+            </div>
+          </div>
+
+          <button
+            onClick={handleSignOut}
+            className="text-sm text-red-500 hover:text-red-700 px-3 py-2 rounded-md"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+
         <div
           className="hidden lg:flex items-center justify-end gap-4 px-6 py-3 border-b"
           style={{

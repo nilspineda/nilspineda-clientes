@@ -181,7 +181,7 @@ export default function Dashboard() {
               />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-4">
+          <h1 className="text-2xl font-bold text-white mb-4">
             Cuenta Suspendida
           </h1>
           <p className="text-gray-400 mb-8">
@@ -297,10 +297,10 @@ export default function Dashboard() {
                         </div>
                         <button
                           onClick={() => handleRenew(service)}
-                          className="px-4 py-2 bg-primary/20 hover:bg-primary text-primary hover:text-white rounded-xl font-medium text-sm transition-all"
-                        >
-                          Renovar
-                        </button>
+                          className="px-4 py-3 bg-primary/20 hover:bg-primary text-primary hover:text-white rounded-xl font-medium text-sm transition-all"
+                            >
+                              Renovar
+                            </button>
                       </div>
 
                       {service.expires_at && (
@@ -444,7 +444,7 @@ export default function Dashboard() {
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 p-6 text-center border border-primary/20">
               <div className="absolute top-0 right-0 w-20 h-20 bg-primary/10 rounded-full blur-xl" />
               <p className="text-gray-400 text-sm mb-2">Servicios Activos</p>
-              <p className="text-5xl font-bold text-primary">
+              <p className="text-4xl lg:text-5xl font-bold text-primary">
                 {serviceCounts.active + serviceCounts.warning}
               </p>
               <p className="text-primary/60 text-sm mt-2">
@@ -454,15 +454,15 @@ export default function Dashboard() {
 
             <div className="grid grid-cols-2 gap-3 mt-4">
               <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-yellow-500/10 to-yellow-500/5 p-4 text-center border border-yellow-500/20">
-                <p className="text-2xl font-bold text-yellow-400">
-                  {serviceCounts.pending}
-                </p>
+              <p className="text-xl lg:text-2xl font-bold text-yellow-400">
+                {serviceCounts.warning}
+              </p>
                 <p className="text-xs text-yellow-400/70">Pendientes</p>
               </div>
               <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-red-500/10 to-red-500/5 p-4 text-center border border-red-500/20">
-                <p className="text-2xl font-bold text-red-400">
-                  {serviceCounts.expired}
-                </p>
+              <p className="text-xl lg:text-2xl font-bold text-red-400">
+                {serviceCounts.expired}
+              </p>
                 <p className="text-xs text-red-400/70">Vencidos</p>
               </div>
             </div>
@@ -543,7 +543,7 @@ export default function Dashboard() {
       {/* ── Modal Editar Perfil ──────────────────────────────────────────── */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card rounded-3xl border border-border w-full max-w-md p-8">
+          <div className="bg-card rounded-3xl border border-border w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-white">Editar Perfil</h3>
               <button
