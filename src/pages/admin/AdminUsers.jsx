@@ -11,6 +11,7 @@ import { formatDate } from "../../utils/dateUtils";
 import Modal from "../../components/Modal";
 import AccessEditor from "../../components/AccessEditor";
 import LexicalEditor from "../../components/LexicalEditor";
+import { getPaymentsByUserService, updatePaymentStatus, formatPaymentStatus } from "../../utils/paymentUtils";
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -25,6 +26,9 @@ export default function AdminUsers() {
   const [showAccessModal, setShowAccessModal] = useState(false);
   const [accessingService, setAccessingService] = useState(null);
   const [accessEditMode, setAccessEditMode] = useState(false);
+  const [showPaymentsModal, setShowPaymentsModal] = useState(false);
+  const [servicePayments, setServicePayments] = useState([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
   const [showSendCreds, setShowSendCreds] = useState(false);
   const [newUserWhatsapp, setNewUserWhatsapp] = useState("");
   const [baseServices, setBaseServices] = useState([]);
@@ -360,6 +364,40 @@ export default function AdminUsers() {
     }
   }
 
+  async function viewServicePayments(service) {
+    setSelectedService(service);
+    setLoadingPayments(true);
+    setShowPaymentsModal(true);
+    
+    const result = await getPaymentsByUserService(service.id);
+    if (result.success) {
+      setServicePayments(result.data || []);
+    } else {
+      setServicePayments([]);
+      notify("Error al cargar pagos", "error");
+    }
+    setLoadingPayments(false);
+  }
+
+  async function handleMarkPaymentPaid(paymentId) {
+    const result = await updatePaymentStatus(paymentId, "paid");
+    if (result.success) {
+      setServicePayments(prev => 
+        prev.map(p => p.id === paymentId ? { ...p, status: "paid" } : p)
+      );
+      viewUserDetails(selectedUser);
+    }
+  }
+
+  async function handleMarkPaymentPending(paymentId) {
+    const result = await updatePaymentStatus(paymentId, "pending");
+    if (result.success) {
+      setServicePayments(prev => 
+        prev.map(p => p.id === paymentId ? { ...p, status: "pending" } : p)
+      );
+    }
+  }
+
   function getDaysRemaining(expiresAt) {
     if (!expiresAt) return null;
     const today = new Date();
@@ -639,6 +677,33 @@ export default function AdminUsers() {
                                     Credenciales
                                   </span>
                                 </button>
+                                {service.owner === 1 && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      viewServicePayments(service);
+                                    }}
+                                    className="px-2 sm:px-3 py-1.5 rounded-lg bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-foreground text-xs sm:text-sm font-medium transition-all flex items-center gap-1"
+                                    title="Ver pagos"
+                                  >
+                                    <svg
+                                      className="w-3.5 h-3.5 sm:w-4 sm:h-4"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                                      />
+                                    </svg>
+                                    <span className="hidden sm:inline">
+                                      Pagos
+                                    </span>
+                                  </button>
+                                )}
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -1406,6 +1471,92 @@ export default function AdminUsers() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+      </Modal>
+      )}
+
+      <Modal
+        isOpen={showPaymentsModal}
+        onClose={() => {
+          setShowPaymentsModal(false);
+          setSelectedService(null);
+          setServicePayments([]);
+        }}
+        title={`Pagos - ${selectedService?.services?.name || "Servicio"}`}
+        size="lg"
+      >
+        {loadingPayments ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : servicePayments.length === 0 ? (
+          <div className="text-center py-8">
+            <svg className="w-12 h-12 mx-auto mb-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <p className="text-muted-foreground">No hay pagos registrados</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+              <span className="text-sm text-muted-foreground">
+                Total: {servicePayments.length} pagos
+              </span>
+              <div className="flex gap-4 text-sm">
+                <span className="text-green-400">
+                  Pagados: {servicePayments.filter(p => p.status === 'paid').length}
+                </span>
+                <span className="text-orange-400">
+                  Pendientes: {servicePayments.filter(p => p.status === 'pending').length}
+                </span>
+              </div>
+            </div>
+            {servicePayments.map((payment) => {
+              const statusInfo = formatPaymentStatus(payment.status);
+              return (
+                <div
+                  key={payment.id}
+                  className="flex items-center justify-between p-4 bg-card border border-border rounded-xl hover:bg-muted/30 transition-colors"
+                >
+                  <div className="flex-1">
+                    <p className="font-semibold text-foreground">
+                      {formatCurrency(payment.amount)}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatDate(payment.payment_date)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
+                      payment.status === 'paid' 
+                        ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                        : payment.status === 'pending'
+                          ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
+                          : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                    }`}>
+                      {statusInfo.label}
+                    </span>
+                    {payment.status === 'pending' && (
+                      <button
+                        onClick={() => handleMarkPaymentPaid(payment.id)}
+                        className="px-3 py-1.5 rounded-lg bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-foreground text-xs font-medium transition-all"
+                      >
+                        Marcar Pagado
+                      </button>
+                    )}
+                    {payment.status === 'paid' && (
+                      <button
+                        onClick={() => handleMarkPaymentPending(payment.id)}
+                        className="px-3 py-1.5 rounded-lg bg-orange-500/10 hover:bg-orange-500 text-orange-400 hover:text-foreground text-xs font-medium transition-all"
+                      >
+                        Marcar Pendiente
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </Modal>

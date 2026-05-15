@@ -3,6 +3,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { normalizeUrl, formatCurrency } from "../../utils/formatUtils";
 import { notify } from "../../utils/notify";
 import { getDaysRemaining, getServiceStatus } from "../../utils/dateUtils";
+import { createRecurringPayments } from "../../utils/paymentUtils";
 import Modal from "../../components/Modal";
 
 export default function AdminAssignments() {
@@ -17,6 +18,8 @@ export default function AdminAssignments() {
     price: "",
     expires_at: "",
     url_dominio: "",
+    owner: 0,
+    billing_months: 12,
   });
 
   useEffect(() => {
@@ -43,15 +46,31 @@ export default function AdminAssignments() {
     e.preventDefault();
 
     const url = normalizeUrl(formData.url_dominio);
+    const isRecurring = formData.owner === 1;
 
-    await supabase.from("user_services").insert({
+    const { data, error } = await supabase.from("user_services").insert({
       user_id: formData.user_id || null,
       service_id: formData.service_id || null,
       price: formData.price ? parseFloat(formData.price) : null,
       expires_at: formData.expires_at || null,
       url_dominio: url,
+      owner: formData.owner,
+      next_billing_date: isRecurring ? new Date().toISOString() : null,
       status: formData.expires_at ? "active" : "pending",
-    });
+    }).select().single();
+
+    if (error) {
+      notify("Error al asignar servicio", "error");
+      console.error("Error assigning service:", error);
+      return;
+    }
+
+    if (data && isRecurring && formData.price) {
+      await createRecurringPayments(data.id, formData.billing_months);
+      notify("Pagos recurrentes generados", "success");
+    } else {
+      notify("Servicio asignado correctamente", "success");
+    }
 
     fetchData();
     resetForm();
@@ -65,6 +84,8 @@ export default function AdminAssignments() {
       price: "",
       expires_at: "",
       url_dominio: "",
+      owner: 0,
+      billing_months: 12,
     });
   }
 
@@ -240,6 +261,52 @@ export default function AdminAssignments() {
             </div>
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
+                ¿Quién paga?
+              </label>
+              <select
+                value={formData.owner}
+                onChange={(e) =>
+                  setFormData({ ...formData, owner: parseInt(e.target.value) })
+                }
+                className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              >
+                <option value={0}>Yo lo gestiono</option>
+                <option value={1}>Cliente paga (recurrente)</option>
+              </select>
+            </div>
+            {formData.owner === 1 && (
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                  Meses de pagos a generar
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="24"
+                  value={formData.billing_months}
+                  onChange={(e) =>
+                    setFormData({ ...formData, billing_months: parseInt(e.target.value) || 12 })
+                  }
+                  className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                />
+              </div>
+            )}
+          </div>
+
+          {formData.owner === 1 && formData.price && (
+            <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-4">
+              <p className="text-purple-400 font-medium">
+                Pagos recurrentes: Se generarán {formData.billing_months} pagos de {formatCurrency(parseFloat(formData.price) || 0)} c/u
+              </p>
+              <p className="text-purple-400/70 text-sm mt-1">
+                Total: {formatCurrency((parseFloat(formData.price) || 0) * formData.billing_months)}
+              </p>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row gap-3 pt-4">
             <button
               type="submit"
@@ -267,16 +334,13 @@ export default function AdminAssignments() {
                   Usuario
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
-                  Cliente
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
                   Dominio
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
-                  URL
+                  Servicio
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
-                  Servicio
+                  Tipo
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
                   Precio
@@ -298,6 +362,7 @@ export default function AdminAssignments() {
             <tbody className="divide-y divide-border-dark">
               {assignments.map((assignment) => {
                 const daysLeft = getDaysRemaining(assignment.expires_at);
+                const isRecurring = assignment.owner === 1;
                 return (
                   <tr
                     key={assignment.id}
@@ -312,11 +377,6 @@ export default function AdminAssignments() {
                           {assignment.profiles?.name}
                         </span>
                       </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-3 py-1.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 font-medium text-sm">
-                        {assignment.profiles?.dominio || "-"}
-                      </span>
                     </td>
                     <td className="px-6 py-4">
                       {assignment.url_dominio ? (
@@ -334,6 +394,17 @@ export default function AdminAssignments() {
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">
                       {assignment.services?.name || "-"}
+                    </td>
+                    <td className="px-6 py-4">
+                      {isRecurring ? (
+                        <span className="px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 font-medium text-sm">
+                          Recurrente
+                        </span>
+                      ) : (
+                        <span className="px-3 py-1.5 rounded-xl bg-gray-500/10 border border-gray-500/20 text-gray-400 font-medium text-sm">
+                          Fijo
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-3 py-1.5 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 font-bold">

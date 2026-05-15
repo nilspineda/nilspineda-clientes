@@ -169,10 +169,15 @@ function EditorRefPlugin({ setEditorRef }) {
   return null
 }
 
-export default function LexicalEditor({ value, onChange }) {
-  const [isEditing, setIsEditing] = useState(false)
-  const [localValue, setLocalValue] = useState(value || '')
+export default function LexicalEditor({ value, onChange, showEditor = false, onEdit }) {
   const [editorRef, setEditorRef] = useState(null)
+  const [isEditing, setIsEditing] = useState(false)
+
+  useEffect(() => {
+    if (showEditor && !isEditing) {
+      setIsEditing(true)
+    }
+  }, [showEditor])
 
   const handleSave = useCallback(() => {
     if (editorRef) {
@@ -187,20 +192,14 @@ export default function LexicalEditor({ value, onChange }) {
         }).join('\n')
         onChange(text)
       })
-    } else {
-      onChange(localValue)
     }
     setIsEditing(false)
-  }, [editorRef, localValue, onChange])
+  }, [editorRef, onChange])
 
-  const handleChange = useCallback((editorState) => {
-    editorState.read(() => {
-      const root = $getRoot()
-      const children = root.getChildren()
-      const text = children.map(child => child.getTextContent()).join('\n')
-      setLocalValue(text)
-    })
-  }, [])
+  const handleCancel = useCallback(() => {
+    setIsEditing(false)
+    if (onEdit) onEdit()
+  }, [onEdit])
 
   const initialConfig = {
     namespace: 'LexicalEditor',
@@ -214,10 +213,10 @@ export default function LexicalEditor({ value, onChange }) {
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-foreground">Accesos y Links</h3>
+          <h3 className="text-lg font-bold text-foreground">Credenciales y Accesos</h3>
           <button
             onClick={() => setIsEditing(true)}
-            className="px-4 py-2 bg-primary/20 hover:bg-primary text-primary hover:text-primary-foreground rounded-lg font-medium text-sm transition-all"
+            className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500 text-purple-400 hover:text-foreground rounded-lg font-medium text-sm transition-all"
           >
             Editar
           </button>
@@ -225,15 +224,16 @@ export default function LexicalEditor({ value, onChange }) {
         
         {value ? (
           <div 
-            className="prose prose-invert max-w-none p-4 bg-muted/30 rounded-lg min-h-[100px]"
+            className="prose prose-invert max-w-none p-4 bg-muted/30 rounded-lg min-h-[100px] border border-border"
             dangerouslySetInnerHTML={{ __html: value.replace(/\n/g, '<br/>') }}
           />
         ) : (
-          <div className="text-center py-8 bg-muted/30 rounded-lg">
+          <div className="text-center py-8 bg-muted/30 rounded-lg border border-dashed border-border">
             <svg className="w-10 h-10 mx-auto mb-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
             </svg>
-            <p className="text-muted-foreground font-medium">No hay accesos registrados</p>
+            <p className="text-muted-foreground font-medium">No hay credenciales registradas</p>
+            <p className="text-sm text-muted-foreground/60 mt-1">Haz clic en "Editar" para agregar accesos</p>
           </div>
         )}
       </div>
@@ -243,31 +243,31 @@ export default function LexicalEditor({ value, onChange }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-foreground">Accesos y Links</h3>
+        <h3 className="text-lg font-bold text-foreground">Credenciales y Accesos</h3>
       </div>
 
       <LexicalComposer initialConfig={initialConfig}>
         <ToolbarPlugin />
         <RichTextPlugin
-          contentEditable={<ContentEditable className="min-h-[150px] p-4 bg-muted/30 rounded-b-lg text-foreground focus:outline-none" />}
-          placeholder={<div className="text-muted-foreground p-4 absolute top-0">Escribe los accesos y links aquí...</div>}
+          contentEditable={<ContentEditable className="min-h-[150px] p-4 bg-muted/30 rounded-lg text-foreground focus:outline-none border border-border" />}
+          placeholder={<div className="text-muted-foreground p-4 absolute top-0 left-0">Escribe las credenciales y accesos aquí...</div>}
           ErrorBoundary={LexicalErrorBoundary}
         />
         <HistoryPlugin />
-        <OnChangePlugin onChange={handleChange} />
-        <InitialContentPlugin content={isEditing ? localValue : value} />
+        <OnChangePlugin onChange={() => {}} />
+        <InitialContentPlugin content={value} />
         <EditorRefPlugin setEditorRef={setEditorRef} />
       </LexicalComposer>
 
       <div className="flex gap-3">
         <button
           onClick={handleSave}
-          className="flex-1 bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary-light transition-colors font-medium"
+          className="flex-1 bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-lg transition-colors font-medium"
         >
           Guardar
         </button>
         <button
-          onClick={() => { setLocalValue(value || ''); setIsEditing(false) }}
+          onClick={handleCancel}
           className="flex-1 px-6 py-3 border border-border rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors font-medium"
         >
           Cancelar

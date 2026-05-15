@@ -7,6 +7,7 @@ import {
   formatWhatsapp,
   formatCurrency,
 } from "../utils/formatUtils";
+import { getPaymentsByUserService } from "../utils/paymentUtils";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -28,6 +29,7 @@ function getServiceStatus(service) {
 export default function Dashboard() {
   const { user, profile, refreshProfile } = useAuth();
   const [services, setServices] = useState([]);
+  const [pendingPayments, setPendingPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
@@ -52,6 +54,21 @@ export default function Dashboard() {
       if (servicesError) throw servicesError;
 
       setServices(servicesData ?? []);
+
+      const allPayments = [];
+      for (const service of servicesData || []) {
+        if (service.owner === 1) {
+          const result = await getPaymentsByUserService(service.id);
+          if (result.success && result.data) {
+            const paymentsWithService = result.data.map(p => ({
+              ...p,
+              service_name: service.services?.name || 'Servicio'
+            }));
+            allPayments.push(...paymentsWithService);
+          }
+        }
+      }
+      setPendingPayments(allPayments.filter(p => p.status === 'pending'));
     } catch (err) {
       console.error("Error al cargar datos:", err);
       setFetchError("No se pudo cargar la información. Intenta recargar.");
@@ -467,6 +484,53 @@ export default function Dashboard() {
               </div>
             </div>
           </Card>
+
+          {pendingPayments.length > 0 && (
+            <Card
+              titulo="Próximos Pagos"
+              icon={
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                  />
+                </svg>
+              }
+            >
+              <div className="space-y-3">
+                {pendingPayments.slice(0, 5).map((payment) => (
+                  <div
+                    key={payment.id}
+                    className="flex items-center justify-between p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl"
+                  >
+                    <div>
+                      <p className="font-semibold text-foreground">
+                        {formatCurrency(payment.amount)}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {payment.service_name} - {formatDate(payment.payment_date)}
+                      </p>
+                    </div>
+                    <span className="px-3 py-1.5 rounded-lg bg-orange-500/20 text-orange-400 text-xs font-medium">
+                      Pendiente
+                    </span>
+                  </div>
+                ))}
+                {pendingPayments.length > 5 && (
+                  <p className="text-center text-sm text-muted-foreground">
+                    + {pendingPayments.length - 5} pagos más
+                  </p>
+                )}
+              </div>
+            </Card>
+          )}
 
           {/* Soporte */}
           <Card

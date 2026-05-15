@@ -357,3 +357,131 @@ create policy "Admin can delete invoices" on storage.objects for delete using (
       and role = 'admin'
   )
 );
+
+-- ADD COLUMN FOR USER_SERVICE REFERENCE IN PAYMENTS
+alter table public.payments add column if not exists user_service_id uuid references public.user_services(id) on delete set null;
+
+-- FUNCTION: Create recurring payments for a user service
+create or replace function public.create_recurring_payments(
+  p_user_service_id uuid,
+  p_months integer default 12
+)
+returns void
+language plpgsql
+security definer
+as $$
+declare
+  v_price numeric;
+  v_user_id uuid;
+  v_service_id uuid;
+  v_next_date timestamp;
+  v_count integer := 0;
+begin
+  -- Get user service details
+  SELECT user_id, service_id, price, next_billing_date
+  INTO v_user_id, v_service_id, v_price, v_next_date
+  FROM user_services
+  WHERE id = p_user_service_id;
+
+  -- If no next_billing_date, start from today
+  if v_next_date is null then
+    v_next_date := current_date;
+  end if;
+
+  -- If no price, don't create payments
+  if v_price is null or v_price = 0 then
+    raise notice 'No price defined for user_service %', p_user_service_id;
+    return;
+  end if;
+
+  -- Check if payments already exist for this user_service
+  if exists (select 1 from payments where user_service_id = p_user_service_id) then
+    raise notice 'Payments already exist for user_service %', p_user_service_id;
+    return;
+  end if;
+
+  -- Create payments for the specified months
+  while v_count < p_months loop
+    insert into payments (
+      user_id,
+      user_service_id,
+      service_id,
+      amount,
+      payment_date,
+      status
+    ) values (
+      v_user_id,
+      p_user_service_id,
+      v_service_id,
+      v_price,
+      v_next_date,
+      'pending'
+    );
+
+    -- Advance to next month
+    v_next_date := v_next_date + interval '1 month';
+    v_count := v_count + 1;
+  end loop;
+
+  -- Update next_billing_date to the next unpaid month
+  update user_services
+  set next_billing_date = (
+    select min(payment_date)
+    from payments
+    where user_service_id = p_user_service_id
+    and status = 'pending'
+  )
+  where id = p_user_service_id;
+end;
+$$;
+
+-- FUNCTION: Update pending payments amount when price changes
+create or replace function public.update_pending_payments_amount(p_user_service_id uuid)
+returns void
+language plpgsql
+security definer
+as $$
+declare
+  v_price numeric;
+begin
+  -- Get current price
+  select price into v_price from user_services where id = p_user_service_id;
+
+  if v_price is null or v_price = 0 then
+    return;
+  end if;
+
+  -- Update only pending payments (not paid ones)
+  update payments
+  set amount = v_price
+  where user_service_id = p_user_service_id
+  and status = 'pending';
+end;
+$$;
+
+-- FUNCTION: Get payment statistics for a user service
+create or replace function public.get_user_service_payment_stats(p_user_service_id uuid)
+returns table (
+  total_payments bigint,
+  paid_payments bigint,
+  pending_payments bigint,
+  total_amount numeric,
+  paid_amount numeric,
+  pending_amount numeric
+)
+language plpgsql
+security definer
+as $$
+begin
+  return query
+  select
+    count(*) as total_payments,
+    count(*) filter (where status = 'paid') as paid_payments,
+    count(*) filter (where status = 'pending') as pending_payments,
+    coalesce(sum(amount), 0) as total_amount,
+    coalesce(sum(amount) filter (where status = 'paid'), 0) as paid_amount,
+    coalesce(sum(amount) filter (where status = 'pending'), 0) as pending_amount
+  from payments
+  where user_service_id = p_user_service_id;
+end;
+$$;

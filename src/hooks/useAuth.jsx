@@ -7,31 +7,52 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isOffline, setIsOffline] = useState(false)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        fetchProfile(session.user.id)
-      } else {
+    const handleOnline = () => setIsOffline(false)
+    const handleOffline = () => setIsOffline(true)
+    
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    
+    setIsOffline(!navigator.onLine)
+
+    async function initializeAuth() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        setUser(session?.user ?? null)
+        if (session?.user) {
+          await fetchProfile(session.user.id, true)
+        } else {
+          setLoading(false)
+        }
+      } catch (err) {
+        console.error('Auth init error:', err)
         setLoading(false)
       }
-    })
+    }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    initializeAuth()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null)
       if (session?.user) {
-        fetchProfile(session.user.id)
+        await fetchProfile(session.user.id, true)
       } else {
         setProfile(null)
         setLoading(false)
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription.unsubscribe()
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
   }, [])
 
-async function fetchProfile(userId) {
+  async function fetchProfile(userId, retry = true) {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -41,17 +62,20 @@ async function fetchProfile(userId) {
       
       if (error) {
         console.error('Error fetching profile:', error)
-        // Fallback: crear perfil temporal si no existe
         setProfile({ id: userId, role: 'user', name: 'Usuario' })
       } else {
         setProfile(data)
       }
     } catch (err) {
       console.error('Exception fetching profile:', err)
-      // Fallback en caso de error
+      if (retry && !isOffline) {
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        return fetchProfile(userId, false)
+      }
       setProfile({ id: userId, role: 'user', name: 'Usuario' })
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   async function signIn(email, password) {
@@ -72,6 +96,7 @@ async function fetchProfile(userId) {
     user,
     profile,
     loading,
+    isOffline,
     signIn,
     signOut,
     isAdmin: profile?.role === 'admin',
