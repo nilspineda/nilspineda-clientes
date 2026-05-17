@@ -9,120 +9,22 @@ import {
 } from "../../utils/formatUtils";
 import { notify } from "../../utils/notify";
 import { formatDate } from "../../utils/dateUtils";
-import Modal from "../../components/Modal";
-import AccessEditor from "../../components/AccessEditor";
-import LexicalEditor from "../../components/LexicalEditor";
-import {
-  getPaymentsByUserService,
-  updatePaymentStatus,
-  formatPaymentStatus,
-} from "../../utils/paymentUtils";
-
-export default function AdminUsers() {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [userServices, setUserServices] = useState([]);
-  const [selectedService, setSelectedService] = useState(null);
-  const [showServiceModal, setShowServiceModal] = useState(false);
-  const [editingService, setEditingService] = useState(null);
-  const [showAccessModal, setShowAccessModal] = useState(false);
-  const [accessingService, setAccessingService] = useState(null);
-  const [accessEditMode, setAccessEditMode] = useState(false);
-  const [showPaymentsModal, setShowPaymentsModal] = useState(false);
-  const [servicePayments, setServicePayments] = useState([]);
-  const [loadingPayments, setLoadingPayments] = useState(false);
-  const [showSendCreds, setShowSendCreds] = useState(false);
-  const [newUserWhatsapp, setNewUserWhatsapp] = useState("");
-  const [baseServices, setBaseServices] = useState([]);
-  const [serviceForm, setServiceForm] = useState({
-    service_id: "",
-    price: "",
-    owner: 0,
-    expires_at: "",
-    next_billing_date: "",
-    url_dominio: "",
-    notes: "",
-  });
-  const [formData, setFormData] = useState({
-    name: "",
-    whatsapp: "",
-    email: "",
-    password: "",
-  });
-
-  useEffect(() => {
-    fetchUsers();
-    fetchBaseServices();
-  }, []);
-
-  async function fetchBaseServices() {
-    const { data } = await supabase
-      .from("services")
-      .select("id, name, type")
-      .order("name");
-    setBaseServices(data || []);
-  }
-
-  async function fetchUsers() {
-    try {
-      const { data: profiles, error } = await supabase
-        .from("profiles")
-        .select("id, name, whatsapp, email, status, created_at, role")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Error fetching profiles:", error);
-        if (error.code === "PGRST116") {
-          setUsers([]);
-        }
-      } else {
-        const { data: serviceCounts } = await supabase
-          .from("user_services")
-          .select("user_id");
-
-        const counts = {};
-        (serviceCounts || []).forEach((s) => {
-          counts[s.user_id] = (counts[s.user_id] || 0) + 1;
-        });
-
-        const usersWithCount = (profiles || []).map((u) => ({
-          ...u,
-          service_count: counts[u.id] || 0,
-        }));
-
-        try {
-          const usersWithAuthEmail = await Promise.all(
-            usersWithCount.map(async (profile) => {
-              const client = supabaseAdmin || supabase;
-              if (client?.auth?.admin?.getUserById) {
-                const { data: authData } = await client.auth.admin.getUserById(
-                  profile.id,
-                );
-                return {
-                  ...profile,
-                  email: authData?.user?.email || profile.email,
-                };
-              }
-              return profile;
-            }),
-          );
-          setUsers(usersWithAuthEmail);
-        } catch (err) {
-          console.error("Error enriching users with auth data:", err);
-          setUsers(usersWithCount);
-        }
-      }
-    } catch (err) {
-      console.error("Error:", err);
-      setUsers([]);
-    }
-    setLoading(false);
-  }
-
-  async function viewUserDetails(user) {
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleEdit(user)}
+                        className="px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary text-primary hover:text-foreground font-medium text-sm transition-all"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleDelete(user.id)}
+                        className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-foreground font-medium text-sm transition-all"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </td>
     setSelectedUser(user);
     const { data } = await supabase
       .from("user_services")
@@ -606,7 +508,7 @@ export default function AdminUsers() {
                                     {paymentStatus.label}
                                   </span>
                                 </div>
-                                <h3 className="font-bold text-foreground text-base sm:text-lg mb-1 truncate max-w-[200px] sm:max-w-none">
+                                <h3 className="font-extrabold text-foreground text-lg sm:text-2xl mb-1">
                                   {service.services?.name ||
                                     service.name ||
                                     "Servicio sin nombre"}
@@ -630,37 +532,19 @@ export default function AdminUsers() {
                                   </span>
                                 )}
                                 {service.url_dominio && (
-                                  <p className="text-xs text-muted-foreground truncate max-w-[200px] sm:max-w-xs mt-0.5">
+                                  <p className="text-xl sm:text-2xl font-semibold text-muted-foreground truncate max-w-[280px] sm:max-w-xs mt-0.5">
                                     {service.url_dominio}
                                   </p>
                                 )}
-                                {service.expires_at &&
-                                  daysRemaining !== null && (
-                                    <div
-                                      className={`mt-2 flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full text-sm sm:text-lg font-bold ${
-                                        daysRemaining >= 20
-                                          ? "bg-green-500/20 text-green-400 border-2 border-green-500/30"
-                                          : daysRemaining >= 7
-                                            ? "bg-orange-500/20 text-orange-400 border-2 border-orange-500/30"
-                                            : daysRemaining >= 0
-                                              ? "bg-yellow-500/20 text-yellow-400 border-2 border-yellow-500/30"
-                                              : "bg-red-500/20 text-red-400 border-2 border-red-500/30"
-                                      }`}
-                                    >
-                                      {daysRemaining}
-                                      <span className="text-[10px] font-normal ml-0.5">
-                                        d
-                                      </span>
-                                    </div>
-                                  )}
                               </div>
-                              <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-                                <Link
-                                  to={`/service/${service.id}/credentials`}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="px-2 sm:px-3 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500 text-purple-400 hover:text-foreground text-xs sm:text-sm font-medium transition-all flex items-center gap-1"
-                                  title="Credenciales"
-                                >
+                              <div className="flex flex-col items-end gap-2 sm:gap-2 flex-shrink-0">
+                                <div className="flex items-center gap-1.5 sm:gap-2">
+                                  <Link
+                                    to={`/service/${service.id}/credentials`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="px-2 sm:px-3 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500 text-purple-400 hover:text-foreground text-xs sm:text-sm font-medium transition-all flex items-center gap-1"
+                                    title="Credenciales"
+                                  >
                                   <svg
                                     className="w-3.5 h-3.5 sm:w-4 sm:h-4"
                                     fill="none"
@@ -747,6 +631,25 @@ export default function AdminUsers() {
                                     />
                                   </svg>
                                 </button>
+                                </div>
+                                {service.expires_at && daysRemaining !== null && (
+                                  <div
+                                    className={`mt-2 flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-md text-lg sm:text-2xl font-extrabold ${
+                                      daysRemaining >= 20
+                                        ? "bg-green-500/20 text-green-400 border-2 border-green-500/30"
+                                        : daysRemaining >= 7
+                                          ? "bg-orange-500/20 text-orange-400 border-2 border-orange-500/30"
+                                          : daysRemaining >= 0
+                                            ? "bg-yellow-500/20 text-yellow-400 border-2 border-yellow-500/30"
+                                            : "bg-red-500/20 text-red-400 border-2 border-red-500/30"
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-center gap-1">
+                                      <span className="text-2xl sm:text-3xl font-extrabold">{daysRemaining}</span>
+                                      <span className="text-xs font-normal">d</span>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
 
@@ -1381,118 +1284,118 @@ export default function AdminUsers() {
                     </button>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleEdit(user)}
-                        className="px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary text-primary hover:text-foreground font-medium text-sm transition-all"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleDelete(user.id)}
-                        className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-foreground font-medium text-sm transition-all"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <Modal
-        isOpen={showAccessModal}
-        onClose={() => {
-          setShowAccessModal(false);
-          setSelectedService(null);
-        }}
-        title={`Credenciales - ${selectedService?.services?.name || "Servicio"}`}
-        size="lg"
-      >
-        {selectedService && (
-          <LexicalEditor
-            value={selectedService.accesos || ""}
-            onChange={(content) =>
-              handleSaveServiceAccesses(selectedService.id, content)
-            }
-            showEditor={true}
-          />
-        )}
-      </Modal>
-
-      <Modal
-        isOpen={showPaymentsModal}
-        onClose={() => {
-          setShowPaymentsModal(false);
-          setSelectedService(null);
-          setServicePayments([]);
-        }}
-        title={`Pagos - ${selectedService?.services?.name || "Servicio"}`}
-        size="lg"
-      >
-        {loadingPayments ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-        ) : servicePayments.length === 0 ? (
-          <div className="text-center py-8">
-            <svg
-              className="w-12 h-12 mx-auto mb-3 text-muted-foreground"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
-              />
-            </svg>
-            <p className="text-muted-foreground">No hay pagos registrados</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-              <span className="text-sm text-muted-foreground">
-                Total: {servicePayments.length} pagos
-              </span>
-              <div className="flex gap-4 text-sm">
-                <span className="text-green-400">
-                  Pagados:{" "}
-                  {servicePayments.filter((p) => p.status === "paid").length}
-                </span>
-                <span className="text-orange-400">
-                  Pendientes:{" "}
-                  {servicePayments.filter((p) => p.status === "pending").length}
-                </span>
-              </div>
-            </div>
-            {servicePayments.map((payment) => {
-              const statusInfo = formatPaymentStatus(payment.status);
-              return (
-                <div
-                  key={payment.id}
-                  className="flex items-center justify-between p-4 bg-card border border-border rounded-xl hover:bg-muted/30 transition-colors"
-                >
-                  <div className="flex-1">
-                    <p className="font-semibold text-foreground">
-                      {formatCurrency(payment.amount)}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatDate(payment.payment_date)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
-                        payment.status === "paid"
-                          ? "bg-green-500/10 text-green-400 border border-green-500/20"
-                          : payment.status === "pending"
-                            ? "bg-orange-500/10 text-orange-400 border border-orange-500/20"
+                              <div className="flex flex-col items-end gap-2 sm:gap-2 flex-shrink-0">
+                                <div className="flex items-center gap-2">
+                                  <Link
+                                    to={`/service/${service.id}/credentials`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="px-3 py-2 rounded-lg bg-purple-500/10 hover:bg-purple-500 text-purple-400 hover:text-foreground text-sm sm:text-sm font-medium transition-all flex items-center gap-2"
+                                    title="Credenciales"
+                                  >
+                                    <svg
+                                      className="w-4 h-4 sm:w-4 sm:h-4"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+                                      />
+                                    </svg>
+                                    <span className="hidden sm:inline">Credenciales</span>
+                                  </Link>
+                                  {service.owner === 1 && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        viewServicePayments(service);
+                                      }}
+                                      className="px-3 py-2 rounded-lg bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-foreground text-sm sm:text-sm font-medium transition-all flex items-center gap-2"
+                                      title="Ver pagos"
+                                    >
+                                      <svg
+                                        className="w-4 h-4 sm:w-4 sm:h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                                        />
+                                      </svg>
+                                      <span className="hidden sm:inline">Pagos</span>
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openEditService(service);
+                                    }}
+                                    className="px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary text-primary hover:text-foreground transition-all"
+                                    title="Editar servicio"
+                                  >
+                                    <svg
+                                      className="w-4 h-4 sm:w-4 sm:h-4"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                                      />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteService(service.id);
+                                    }}
+                                    className="px-3 py-2 rounded-lg bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-foreground transition-all"
+                                    title="Eliminar servicio"
+                                  >
+                                    <svg
+                                      className="w-4 h-4 sm:w-4 sm:h-4"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                      />
+                                    </svg>
+                                  </button>
+                                </div>
+                                {service.expires_at && daysRemaining !== null && (
+                                  <div
+                                    className={`mt-2 flex items-center justify-center w-20 h-14 sm:w-24 sm:h-16 rounded-lg text-lg sm:text-xl font-extrabold ${
+                                      daysRemaining >= 20
+                                        ? "bg-green-500/20 text-green-400 border-2 border-green-500/30"
+                                        : daysRemaining >= 7
+                                          ? "bg-orange-500/20 text-orange-400 border-2 border-orange-500/30"
+                                          : daysRemaining >= 0
+                                            ? "bg-yellow-500/20 text-yellow-400 border-2 border-yellow-500/30"
+                                            : "bg-red-500/20 text-red-400 border-2 border-red-500/30"
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-center gap-1">
+                                      <span className="text-xl sm:text-2xl font-extrabold">{daysRemaining}</span>
+                                      <span className="text-xs font-normal">d</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             : "bg-red-500/10 text-red-400 border border-red-500/20"
                       }`}
                     >
