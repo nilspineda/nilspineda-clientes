@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { supabase, supabaseAdmin } from "../../lib/supabaseClient";
 import {
   normalizeWhatsapp,
@@ -11,7 +12,11 @@ import { formatDate } from "../../utils/dateUtils";
 import Modal from "../../components/Modal";
 import AccessEditor from "../../components/AccessEditor";
 import LexicalEditor from "../../components/LexicalEditor";
-import { getPaymentsByUserService, updatePaymentStatus, formatPaymentStatus } from "../../utils/paymentUtils";
+import {
+  getPaymentsByUserService,
+  updatePaymentStatus,
+  formatPaymentStatus,
+} from "../../utils/paymentUtils";
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -368,7 +373,7 @@ export default function AdminUsers() {
     setSelectedService(service);
     setLoadingPayments(true);
     setShowPaymentsModal(true);
-    
+
     const result = await getPaymentsByUserService(service.id);
     if (result.success) {
       setServicePayments(result.data || []);
@@ -382,8 +387,8 @@ export default function AdminUsers() {
   async function handleMarkPaymentPaid(paymentId) {
     const result = await updatePaymentStatus(paymentId, "paid");
     if (result.success) {
-      setServicePayments(prev => 
-        prev.map(p => p.id === paymentId ? { ...p, status: "paid" } : p)
+      setServicePayments((prev) =>
+        prev.map((p) => (p.id === paymentId ? { ...p, status: "paid" } : p)),
       );
       viewUserDetails(selectedUser);
     }
@@ -392,8 +397,8 @@ export default function AdminUsers() {
   async function handleMarkPaymentPending(paymentId) {
     const result = await updatePaymentStatus(paymentId, "pending");
     if (result.success) {
-      setServicePayments(prev => 
-        prev.map(p => p.id === paymentId ? { ...p, status: "pending" } : p)
+      setServicePayments((prev) =>
+        prev.map((p) => (p.id === paymentId ? { ...p, status: "pending" } : p)),
       );
     }
   }
@@ -650,15 +655,11 @@ export default function AdminUsers() {
                                   )}
                               </div>
                               <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedService(service);
-                                    setAccessEditMode(false);
-                                    setShowAccessModal(true);
-                                  }}
+                                <Link
+                                  to={`/service/${service.id}/credentials`}
+                                  onClick={(e) => e.stopPropagation()}
                                   className="px-2 sm:px-3 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500 text-purple-400 hover:text-foreground text-xs sm:text-sm font-medium transition-all flex items-center gap-1"
-                                  title="Ver accesos"
+                                  title="Credenciales"
                                 >
                                   <svg
                                     className="w-3.5 h-3.5 sm:w-4 sm:h-4"
@@ -676,7 +677,7 @@ export default function AdminUsers() {
                                   <span className="hidden sm:inline">
                                     Credenciales
                                   </span>
-                                </button>
+                                </Link>
                                 {service.owner === 1 && (
                                   <button
                                     onClick={(e) => {
@@ -1408,73 +1409,19 @@ export default function AdminUsers() {
           setShowAccessModal(false);
           setSelectedService(null);
         }}
-        title={`Accesos - ${selectedService?.services?.name || "Servicio"}`}
+        title={`Credenciales - ${selectedService?.services?.name || "Servicio"}`}
         size="lg"
       >
         {selectedService && (
-          <div>
-            {!accessEditMode ? (
-              <div className="space-y-4">
-                <div className="prose max-w-none text-[var(--muted-foreground)]">
-                  {selectedService.accesos ? (
-                    <div
-                      dangerouslySetInnerHTML={{
-                        __html: selectedService.accesos,
-                      }}
-                    />
-                  ) : (
-                    <p className="text-sm">No hay credenciales registradas.</p>
-                  )}
-                </div>
-                <div className="flex justify-end gap-3 pt-4">
-                  <button
-                    onClick={() => setAccessEditMode(true)}
-                    className="px-4 py-2 btn-primary"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowAccessModal(false);
-                      setSelectedService(null);
-                    }}
-                    className="px-4 py-2 btn-secondary"
-                  >
-                    Cerrar
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <LexicalEditor
-                  value={selectedService.accesos || ""}
-                  onChange={(content) =>
-                    handleSaveServiceAccesses(selectedService.id, content)
-                  }
-                />
-                <div className="flex justify-end gap-3 pt-4">
-                  <button
-                    onClick={() => setAccessEditMode(false)}
-                    className="px-4 py-2 btn-secondary"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={() => {
-                      setAccessEditMode(false);
-                      setShowAccessModal(false);
-                    }}
-                    className="px-4 py-2 btn-primary"
-                  >
-                    Guardar y cerrar
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          <LexicalEditor
+            value={selectedService.accesos || ""}
+            onChange={(content) =>
+              handleSaveServiceAccesses(selectedService.id, content)
+            }
+            showEditor={true}
+          />
         )}
       </Modal>
-      )}
 
       <Modal
         isOpen={showPaymentsModal}
@@ -1492,8 +1439,18 @@ export default function AdminUsers() {
           </div>
         ) : servicePayments.length === 0 ? (
           <div className="text-center py-8">
-            <svg className="w-12 h-12 mx-auto mb-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+            <svg
+              className="w-12 h-12 mx-auto mb-3 text-muted-foreground"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+              />
             </svg>
             <p className="text-muted-foreground">No hay pagos registrados</p>
           </div>
@@ -1505,10 +1462,12 @@ export default function AdminUsers() {
               </span>
               <div className="flex gap-4 text-sm">
                 <span className="text-green-400">
-                  Pagados: {servicePayments.filter(p => p.status === 'paid').length}
+                  Pagados:{" "}
+                  {servicePayments.filter((p) => p.status === "paid").length}
                 </span>
                 <span className="text-orange-400">
-                  Pendientes: {servicePayments.filter(p => p.status === 'pending').length}
+                  Pendientes:{" "}
+                  {servicePayments.filter((p) => p.status === "pending").length}
                 </span>
               </div>
             </div>
@@ -1528,16 +1487,18 @@ export default function AdminUsers() {
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
-                      payment.status === 'paid' 
-                        ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                        : payment.status === 'pending'
-                          ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
-                          : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                    }`}>
+                    <span
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
+                        payment.status === "paid"
+                          ? "bg-green-500/10 text-green-400 border border-green-500/20"
+                          : payment.status === "pending"
+                            ? "bg-orange-500/10 text-orange-400 border border-orange-500/20"
+                            : "bg-red-500/10 text-red-400 border border-red-500/20"
+                      }`}
+                    >
                       {statusInfo.label}
                     </span>
-                    {payment.status === 'pending' && (
+                    {payment.status === "pending" && (
                       <button
                         onClick={() => handleMarkPaymentPaid(payment.id)}
                         className="px-3 py-1.5 rounded-lg bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-foreground text-xs font-medium transition-all"
@@ -1545,7 +1506,7 @@ export default function AdminUsers() {
                         Marcar Pagado
                       </button>
                     )}
-                    {payment.status === 'paid' && (
+                    {payment.status === "paid" && (
                       <button
                         onClick={() => handleMarkPaymentPending(payment.id)}
                         className="px-3 py-1.5 rounded-lg bg-orange-500/10 hover:bg-orange-500 text-orange-400 hover:text-foreground text-xs font-medium transition-all"

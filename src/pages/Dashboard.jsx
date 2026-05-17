@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { supabase } from "../lib/supabaseClient";
 import { formatDate, getDaysRemaining } from "../utils/dateUtils";
@@ -312,12 +313,20 @@ export default function Dashboard() {
                             {formatCurrency(service.price ?? 0)}
                           </p>
                         </div>
-                        <button
-                          onClick={() => handleRenew(service)}
-                          className="px-4 py-3 bg-primary/20 hover:bg-primary text-primary hover:text-white rounded-xl font-medium text-sm transition-all"
-                            >
-                              Renovar
-                            </button>
+                        <div className="flex gap-2">
+                          <Link
+                            to={`/service/${service.id}/credentials`}
+                            className="px-4 py-3 bg-purple-500/20 hover:bg-purple-500 text-purple-400 hover:text-white rounded-xl font-medium text-sm transition-all"
+                          >
+                            Credenciales
+                          </Link>
+                          <button
+                            onClick={() => handleRenew(service)}
+                            className="px-4 py-3 bg-primary/20 hover:bg-primary text-primary hover:text-white rounded-xl font-medium text-sm transition-all"
+                          >
+                            Renovar
+                          </button>
+                        </div>
                       </div>
 
                       {service.expires_at && (

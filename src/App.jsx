@@ -6,6 +6,7 @@ import DashboardLayout from "./layouts/DashboardLayout";
 import AdminLayout from "./layouts/AdminLayout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import ServiceCredentials from "./pages/ServiceCredentials";
 import AdminIndex from "./pages/admin/AdminIndex";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminServices from "./pages/admin/AdminServices";
@@ -47,6 +48,7 @@ function AppRoutes() {
         <Route element={<DashboardLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/payments" element={<Payments />} />
+          <Route path="/service/:serviceId/credentials" element={<ServiceCredentials />} />
         </Route>
       </Route>
 
