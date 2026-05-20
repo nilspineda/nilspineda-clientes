@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import {
   normalizeUrl,
@@ -146,27 +146,33 @@ export default function AdminIndex() {
     return labels[type] || type || "Servicio";
   }
 
-  const filteredServices = allServices.filter((s) => {
-    const matchStatus = !filterStatus || s.status === filterStatus;
-    const matchType = filterService === "all" || s.service_id === filterService;
-    const matchSearch =
-      !searchTerm ||
-      s.profiles?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.services?.name?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchStatus && matchType && matchSearch;
-  });
+  const filteredServices = useMemo(
+    () =>
+      allServices.filter((s) => {
+        const matchStatus = !filterStatus || s.status === filterStatus;
+        const matchType = filterService === "all" || s.service_id === filterService;
+        const matchSearch =
+          !searchTerm ||
+          s.profiles?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          s.services?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+        return matchStatus && matchType && matchSearch;
+      }),
+    [allServices, filterStatus, filterService, searchTerm],
+  );
 
-  const clientServiceCounts = {};
-  allServices.forEach((s) => {
-    if (!clientServiceCounts[s.user_id]) {
-      clientServiceCounts[s.user_id] = { active: 0, pending: 0, suspended: 0 };
-    }
-    if (s.status === "active") clientServiceCounts[s.user_id].active++;
-    else if (s.status === "pending") clientServiceCounts[s.user_id].pending++;
-    else if (s.status === "suspended")
-      clientServiceCounts[s.user_id].suspended++;
-  });
+  const clientServiceCounts = useMemo(() => {
+    const counts = {};
+    allServices.forEach((s) => {
+      if (!counts[s.user_id]) {
+        counts[s.user_id] = { active: 0, pending: 0, suspended: 0 };
+      }
+      if (s.status === "active") counts[s.user_id].active++;
+      else if (s.status === "pending") counts[s.user_id].pending++;
+      else if (s.status === "suspended") counts[s.user_id].suspended++;
+    });
+    return counts;
+  }, [allServices]);
 
   async function fetchDataForForms() {
     const [usersRes, servicesRes] = await Promise.all([
@@ -238,18 +244,22 @@ export default function AdminIndex() {
 
   const allUserServices = allServices;
 
-  const filteredServicesList = allUserServices.filter((item) => {
-    if (filterService !== "all" && item.service_id !== filterService)
-      return false;
+  const filteredServicesList = useMemo(
+    () =>
+      allUserServices.filter((item) => {
+        if (filterService !== "all" && item.service_id !== filterService)
+          return false;
 
-    if (filterStatus !== "all") {
-      const status = getPaymentStatus(item.expires_at);
-      if (filterStatus === "expired" && status.urgency !== 3) return false;
-      if (filterStatus === "expiring" && status.urgency !== 2) return false;
-      if (filterStatus === "active" && status.urgency !== 1) return false;
-    }
-    return true;
-  });
+        if (filterStatus !== "all") {
+          const status = getPaymentStatus(item.expires_at);
+          if (filterStatus === "expired" && status.urgency !== 3) return false;
+          if (filterStatus === "expiring" && status.urgency !== 2) return false;
+          if (filterStatus === "active" && status.urgency !== 1) return false;
+        }
+        return true;
+      }),
+    [allUserServices, filterService, filterStatus],
+  );
 
   if (loading)
     return (

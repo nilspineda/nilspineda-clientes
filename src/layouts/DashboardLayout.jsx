@@ -4,6 +4,20 @@ import { useAuth } from "../hooks/useAuth";
 import { useTheme } from "../context/ThemeContext";
 import Footer from "../components/Footer";
 import Logo from "../assets/logo.svg";
+import LogoMark from "../assets/logo-mark.svg";
+import LogoRaw from "../assets/logo.svg?raw";
+
+const LogoSvgMarkup = (() => {
+  const idx = LogoRaw.indexOf("<svg");
+  if (idx === -1) return "";
+  let svg = LogoRaw.slice(idx);
+  svg = svg.replace(/<\?xml[^>]*\?>/i, "");
+  svg = svg.replace(/<svg(\s|>)/, '<svg class="h-8 w-auto"$1');
+  // Make logo colors follow CSS variables / currentColor so it remains visible in light/dark themes
+  svg = svg.replace(/\.st0\s*\{[^}]*\}/i, '.st0{fill:currentColor;}');
+  svg = svg.replace(/\.st1\s*\{[^}]*\}/i, '.st1{fill:var(--primary);}');
+  return svg;
+})();
 
 function SidebarContent() {
   const { profile, isAdmin, signOut } = useAuth();
@@ -56,7 +70,12 @@ function SidebarContent() {
           className="text-xl font-bold"
           style={{ color: "var(--foreground)" }}
         >
-          <img src={Logo} alt="Logo" className="h-8 w-auto" />
+          <span
+            className="hidden lg:block"
+            dangerouslySetInnerHTML={{ __html: LogoSvgMarkup }}
+            aria-hidden="true"
+          />
+          <img src={LogoMark} alt="Logo" className="lg:hidden h-8 w-8" />
         </Link>
         <p
           className="text-sm mt-1"
@@ -484,7 +503,12 @@ export default function DashboardLayout() {
               className="text-xl font-bold"
               style={{ color: "var(--foreground)" }}
             >
-              <img src={Logo} alt="Logo" className="h-8 w-auto" />
+              <span
+                className="hidden lg:block"
+                dangerouslySetInnerHTML={{ __html: LogoSvgMarkup }}
+                aria-hidden="true"
+              />
+              <img src={LogoMark} alt="Logo" className="lg:hidden h-8 w-8" />
             </Link>
             <p
               className="text-sm mt-1"
@@ -528,7 +552,12 @@ export default function DashboardLayout() {
               className="text-xl font-bold"
               style={{ color: "var(--foreground)" }}
             >
-              <img src={Logo} alt="Logo" className="h-8 w-auto" />
+              <span
+                className="hidden lg:block"
+                dangerouslySetInnerHTML={{ __html: LogoSvgMarkup }}
+                aria-hidden="true"
+              />
+              <img src={LogoMark} alt="Logo" className="lg:hidden h-8 w-8" />
             </Link>
             <div>
               <div

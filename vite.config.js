@@ -6,5 +6,18 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173
-  }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/@lexical/') || id.includes('node_modules/lexical/')) return 'vendor-editor'
+          if (id.includes('node_modules/pdf-lib/')) return 'vendor-pdf'
+          if (id.includes('node_modules/@supabase/')) return 'vendor-supabase'
+          if (id.includes('node_modules/react-dom/') || id.includes('node_modules/react/') || id.includes('node_modules/react-router/')) return 'vendor-react'
+        },
+      },
+    },
+    chunkSizeWarningLimit: 300,
+  },
 })

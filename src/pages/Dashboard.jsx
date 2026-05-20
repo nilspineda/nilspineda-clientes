@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from "react";
+﻿import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { supabase } from "../lib/supabaseClient";
@@ -58,19 +58,20 @@ export default function Dashboard() {
 
       setServices(servicesData ?? []);
 
+      const ownerServices = (servicesData || []).filter((s) => s.owner === 1);
+      const results = await Promise.all(
+        ownerServices.map((s) => getPaymentsByUserService(s.id)),
+      );
       const allPayments = [];
-      for (const service of servicesData || []) {
-        if (service.owner === 1) {
-          const result = await getPaymentsByUserService(service.id);
-          if (result.success && result.data) {
-            const paymentsWithService = result.data.map((p) => ({
-              ...p,
-              service_name: service.services?.name || "Servicio",
-            }));
-            allPayments.push(...paymentsWithService);
-          }
+      results.forEach((result, i) => {
+        if (result.success && result.data) {
+          const paymentsWithService = result.data.map((p) => ({
+            ...p,
+            service_name: ownerServices[i].services?.name || "Servicio",
+          }));
+          allPayments.push(...paymentsWithService);
         }
-      }
+      });
       setPendingPayments(allPayments.filter((p) => p.status === "pending"));
     } catch (err) {
       console.error("Error al cargar datos:", err);
@@ -171,6 +172,27 @@ export default function Dashboard() {
     window.open(`https://wa.me/${wa}?text=${message}`, "_blank");
   }
 
+  // ── Contadores usando estado derivado (consistente con el badge visual) ──
+
+  const serviceCounts = useMemo(
+    () =>
+      services.reduce(
+        (acc, s) => {
+          const status = getServiceStatus(s);
+          acc[status] = (acc[status] ?? 0) + 1;
+          return acc;
+        },
+        { active: 0, pending: 0, expired: 0, warning: 0 },
+      ),
+    [services],
+  );
+
+  // ── Dominios registrados en todos los servicios del usuario ─────────────
+  const dominiosArray = useMemo(
+    () => [...new Set(services.map((s) => s.url_dominio).filter(Boolean))],
+    [services],
+  );
+
   // ── Número de soporte normalizado ────────────────────────────────────────
   const supportWa = normalizeWhatsapp(whatsappNumber || "3167195500");
 
@@ -233,22 +255,6 @@ export default function Dashboard() {
       </div>
     );
   }
-
-  // ── Contadores usando estado derivado (consistente con el badge visual) ──
-
-  const serviceCounts = services.reduce(
-    (acc, s) => {
-      const status = getServiceStatus(s);
-      acc[status] = (acc[status] ?? 0) + 1;
-      return acc;
-    },
-    { active: 0, pending: 0, expired: 0, warning: 0 },
-  );
-
-  // ── Dominios registrados en todos los servicios del usuario ─────────────
-  const dominiosArray = [
-    ...new Set(services.map((s) => s.url_dominio).filter(Boolean)),
-  ];
 
   // ── Render principal ─────────────────────────────────────────────────────
 

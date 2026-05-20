@@ -82,9 +82,8 @@ export default function AdminUsers() {
       const { data, error } = await supabase
         .from("profiles")
         .select(
-          "id, name, email, whatsapp, status, accesos, user_services(id, owner)",
-        )
-        .order("name", { ascending: true });
+          "id, name, email, whatsapp, status, accesos, user_services(id, owner, expires_at)",
+        );
       if (error) throw error;
       const usersWithCount = (data || []).map((u) => ({
         ...u,
@@ -92,7 +91,28 @@ export default function AdminUsers() {
           ? u.user_services.length
           : 0,
       }));
-      setUsers(usersWithCount);
+
+      // Calcular el mínimo de días hasta renovación por usuario (si existe)
+      const usersWithRenewal = usersWithCount.map((u) => {
+        const daysList = Array.isArray(u.user_services)
+          ? u.user_services
+              .map((s) => getDaysRemaining(s.expires_at))
+              .filter((d) => d !== null && typeof d === "number")
+          : [];
+        const minDays = daysList.length > 0 ? Math.min(...daysList) : null;
+        return { ...u, min_days_to_renewal: minDays };
+      });
+
+      // Ordenar de menor a mayor por días hasta renovación (nulos al final)
+      usersWithRenewal.sort((a, b) => {
+        if (a.min_days_to_renewal === null && b.min_days_to_renewal === null)
+          return 0;
+        if (a.min_days_to_renewal === null) return 1;
+        if (b.min_days_to_renewal === null) return -1;
+        return a.min_days_to_renewal - b.min_days_to_renewal;
+      });
+
+      setUsers(usersWithRenewal);
     } catch (err) {
       console.error("Error cargando usuarios:", err);
       console.error("Error details:", JSON.stringify(err, null, 2));
@@ -124,7 +144,21 @@ export default function AdminUsers() {
         .select("*, services(id, name, type)")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
-      setUserServices(data || []);
+
+      // Ordenar los servicios por días restantes (menor -> mayor). Los nulls (sin fecha) van al final.
+      const services = data || [];
+      const servicesWithDays = services
+        .map((s) => ({ ...s, daysRemaining: getDaysRemaining(s.expires_at) }))
+        .sort((a, b) => {
+          const da = a.daysRemaining;
+          const db = b.daysRemaining;
+          if (da === null && db === null) return 0;
+          if (da === null) return 1;
+          if (db === null) return -1;
+          return da - db;
+        });
+
+      setUserServices(servicesWithDays);
     } catch (err) {
       console.error("Error cargando servicios del usuario:", err);
       setUserServices([]);
@@ -286,10 +320,9 @@ export default function AdminUsers() {
     }
     setChangingPassword(true);
     try {
-      const { error } = await admin.auth.admin.updateUserById(
-        passwordUser.id,
-        { password: newPassword },
-      );
+      const { error } = await admin.auth.admin.updateUserById(passwordUser.id, {
+        password: newPassword,
+      });
       if (error) throw error;
       notify("Contraseña actualizada correctamente", "success");
       setShowPasswordModal(false);
@@ -406,8 +439,6 @@ export default function AdminUsers() {
       console.error("Error eliminando servicio:", error);
     }
   }
-
-
 
   async function handleSaveServiceAccesses(serviceId, content) {
     try {

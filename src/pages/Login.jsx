@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import Footer from "../components/Footer";
 import logo from "../assets/logo.svg";
+import logoMark from "../assets/logo-mark.svg";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -101,7 +102,11 @@ export default function Login() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <img src={logo} alt="Logo Nils pineda" />
+              <img
+                src={logoMark}
+                className="w-12 h-12 mx-auto"
+                alt="Logo Nils pineda"
+              />
             </a>
 
             <p className="text-muted-foreground mt-2">Gestión de clientes</p>
