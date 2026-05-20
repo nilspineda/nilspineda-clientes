@@ -2,6 +2,7 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import Footer from "../components/Footer";
+import logo from "../assets/logo.svg";
 
 const navItems = [
   {
@@ -36,9 +37,9 @@ function Sidebar({ isOpen, onClose }) {
       } lg:translate-x-0`}
     >
       <div className="p-4 border-b border-border-dark flex items-center justify-between lg:p-6">
-        <div>
-          <Link to="/admin" className="text-xl font-bold text-white">
-            Nilspineda
+        <div className="flex flex-col">
+          <Link to="/admin">
+            <img src={logo} alt="Logo" className="h-8 w-auto" />
           </Link>
           <p className="text-sm text-gray-400 mt-1">Panel Admin</p>
         </div>
