@@ -5,12 +5,15 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publish
 const serviceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
-export const supabaseAdmin = serviceKey
-  ? createClient(supabaseUrl, serviceKey, {
+let _supabaseAdmin = null
+export const getSupabaseAdmin = () => {
+  if (!_supabaseAdmin && serviceKey) {
+    _supabaseAdmin = createClient(supabaseUrl, serviceKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
-        storageKey: 'sb-admin-auth-token',
       },
     })
-  : null
+  }
+  return _supabaseAdmin
+}

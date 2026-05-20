@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { supabase, supabaseAdmin } from "../lib/supabaseClient";
+import { supabase, getSupabaseAdmin } from "../lib/supabaseClient";
 import LexicalEditor from "../components/LexicalEditor";
 import { notify } from "../utils/notify";
 
@@ -20,7 +20,7 @@ export default function ServiceCredentials() {
   async function fetchService() {
     if (!isAdmin && !user) return;
     try {
-      const client = isAdmin ? supabaseAdmin || supabase : supabase;
+      const client = isAdmin ? getSupabaseAdmin() || supabase : supabase;
       let query = client
         .from("user_services")
         .select("*, services(*)")
@@ -42,7 +42,7 @@ export default function ServiceCredentials() {
   async function handleSave(content) {
     setSaving(true);
     try {
-      const client = isAdmin ? supabaseAdmin || supabase : supabase;
+      const client = isAdmin ? getSupabaseAdmin() || supabase : supabase;
       const { error } = await client
         .from("user_services")
         .update({ accesos: content })
