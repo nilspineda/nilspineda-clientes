@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { supabase, supabaseAdmin } from "../../lib/supabaseClient";
+import { supabase, getSupabaseAdmin } from "../../lib/supabaseClient";
 import { useAuth } from "../../hooks/useAuth";
 import {
   normalizeWhatsapp,
@@ -153,7 +153,8 @@ export default function AdminUsers() {
         const normalizedWhatsapp = normalizeWhatsapp(formData.whatsapp);
 
         // Usar API de Admin para crear usuario (no crea sesión automática)
-        if (!supabaseAdmin) {
+        const admin = getSupabaseAdmin();
+        if (!admin) {
           notify(
             "Error: No hay configuración de admin. Configura la service key.",
             "error",
@@ -161,7 +162,7 @@ export default function AdminUsers() {
           return;
         }
 
-        const { data, error } = await supabaseAdmin.auth.admin.createUser({
+        const { data, error } = await admin.auth.admin.createUser({
           email: formData.email,
           password: formData.password,
           email_confirm: true,
@@ -275,7 +276,8 @@ export default function AdminUsers() {
       notify("Error: No hay usuario seleccionado", "error");
       return;
     }
-    if (!supabaseAdmin) {
+    const admin = getSupabaseAdmin();
+    if (!admin) {
       notify(
         "Error: Service key no configurada. Contacta al desarrollador.",
         "error",
@@ -284,7 +286,7 @@ export default function AdminUsers() {
     }
     setChangingPassword(true);
     try {
-      const { error } = await supabaseAdmin.auth.admin.updateUserById(
+      const { error } = await admin.auth.admin.updateUserById(
         passwordUser.id,
         { password: newPassword },
       );

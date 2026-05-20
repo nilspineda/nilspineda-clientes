@@ -119,7 +119,7 @@ export default function AdminIndex() {
   async function fetchClientPayments(clientId) {
     const { data } = await supabase
       .from("payments")
-      .select("*, services(name)")
+      .select("*, user_services(name, services(name))")
       .eq("user_id", clientId)
       .order("payment_date", { ascending: false });
     setClientPayments(data || []);
@@ -1030,11 +1030,13 @@ export default function AdminIndex() {
               className="input"
             >
               <option value="">Seleccionar servicio</option>
-              {services.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
+              {allServices
+                .filter((us) => us.user_id === paymentForm.user_id)
+                .map((us) => (
+                  <option key={us.id} value={us.id}>
+                    {us.name || us.services?.name || "Servicio"}
+                  </option>
+                ))}
             </select>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

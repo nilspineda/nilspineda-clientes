@@ -1,80 +1,107 @@
-import { useState, useEffect, createContext, useContext } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { useState, useEffect, createContext, useContext } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { sendTelemetry } from "../utils/telemetry";
 
-const AuthContext = createContext(null)
+const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
-  const [profile, setProfile] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [isOffline, setIsOffline] = useState(false)
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
 
   useEffect(() => {
-    const handleOnline = () => setIsOffline(false)
-    const handleOffline = () => setIsOffline(true)
-    
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
-    
-    setIsOffline(!navigator.onLine)
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    setIsOffline(!navigator.onLine);
 
     async function initializeAuth() {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        setUser(session?.user ?? null)
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        setUser(session?.user ?? null);
         if (session?.user) {
-          await fetchProfile(session.user.id, true)
+          await fetchProfile(session.user.id, true);
         } else {
-          setLoading(false)
+          setLoading(false);
         }
       } catch (err) {
-        console.error('Auth init error:', err)
-        setLoading(false)
+        console.error("Auth init error:", err);
+        try {
+          sendTelemetry("auth_init_error", {
+            message: err?.message || String(err),
+          });
+        } catch (e) {}
+        setLoading(false);
       }
     }
 
-    initializeAuth()
+    initializeAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        await fetchProfile(session.user.id, true)
-      } else {
-        setProfile(null)
-        setLoading(false)
-      }
-    })
+    const authListener = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await fetchProfile(session.user.id, true);
+        } else {
+          setProfile(null);
+          setLoading(false);
+        }
+      },
+    );
+
+    const subscription = authListener?.data?.subscription;
 
     return () => {
-      subscription.unsubscribe()
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
-    }
-  }, [])
+      if (subscription && typeof subscription.unsubscribe === "function") {
+        subscription.unsubscribe();
+      }
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   async function fetchProfile(userId, retry = true) {
     try {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
-      
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
       if (error) {
-        console.error('Error fetching profile:', error)
-        setProfile({ id: userId, role: 'user', name: 'Usuario' })
+        console.error("Error fetching profile:", error);
+        try {
+          sendTelemetry("fetch_profile_error", {
+            message: error?.message || String(error),
+            userId,
+          });
+        } catch (e) {}
+        setProfile({ id: userId, role: "user", name: "Usuario" });
       } else {
-        setProfile(data)
+        setProfile(data);
       }
     } catch (err) {
-      console.error('Exception fetching profile:', err)
+      console.error("Exception fetching profile:", err);
+      try {
+        sendTelemetry("fetch_profile_exception", {
+          message: err?.message || String(err),
+          userId,
+          retry,
+        });
+      } catch (e) {}
       if (retry && !isOffline) {
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        return fetchProfile(userId, false)
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        return fetchProfile(userId, false);
       }
-      setProfile({ id: userId, role: 'user', name: 'Usuario' })
+      setProfile({ id: userId, role: "user", name: "Usuario" });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -82,14 +109,14 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
-    })
-    if (error) throw error
-    return data
+    });
+    if (error) throw error;
+    return data;
   }
 
   async function signOut() {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   }
 
   const value = {
@@ -99,20 +126,16 @@ export function AuthProvider({ children }) {
     isOffline,
     signIn,
     signOut,
-    isAdmin: profile?.role === 'admin',
-  }
+    isAdmin: profile?.role === "admin",
+  };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext)
+  const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider')
+    throw new Error("useAuth must be used within an AuthProvider");
   }
-  return context
+  return context;
 }
