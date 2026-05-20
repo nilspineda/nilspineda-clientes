@@ -9,30 +9,103 @@ import {
 } from "../../utils/formatUtils";
 import { notify } from "../../utils/notify";
 import { formatDate } from "../../utils/dateUtils";
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleEdit(user)}
-                        className="px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary text-primary hover:text-foreground font-medium text-sm transition-all"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleDelete(user.id)}
-                        className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-foreground font-medium text-sm transition-all"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  </td>
-    setSelectedUser(user);
-    const { data } = await supabase
-      .from("user_services")
-      .select("*, services(id, name, type)")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+import Modal from "../../components/Modal";
+import AccessEditor from "../../components/AccessEditor";
+import {
+  getPaymentsByUserService,
+  updatePaymentStatus,
+} from "../../utils/paymentUtils";
 
-    setUserServices(data || []);
+export default function AdminUsers() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const [showForm, setShowForm] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    whatsapp: "",
+    email: "",
+    password: "",
+  });
+  const [showSendCreds, setShowSendCreds] = useState(false);
+  const [newUserWhatsapp, setNewUserWhatsapp] = useState("");
+
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [userServices, setUserServices] = useState([]);
+
+  const [showServiceModal, setShowServiceModal] = useState(false);
+  const [editingService, setEditingService] = useState(null);
+  const [serviceForm, setServiceForm] = useState({
+    service_id: "",
+    price: "",
+    owner: 0,
+    expires_at: "",
+    next_billing_date: "",
+    url_dominio: "",
+    notes: "",
+    billing_type: "monthly",
+    no_expiry: false,
+  });
+  const [baseServices, setBaseServices] = useState([]);
+
+  const [showPaymentsModal, setShowPaymentsModal] = useState(false);
+  const [servicePayments, setServicePayments] = useState([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  async function fetchUsers() {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, name, email, whatsapp, status, accesos, user_services(id)")
+        .order("name", { ascending: true });
+      if (error) throw error;
+      const usersWithCount = (data || []).map((u) => ({
+        ...u,
+        service_count: Array.isArray(u.user_services) ? u.user_services.length : 0,
+      }));
+      setUsers(usersWithCount);
+    } catch (err) {
+      console.error("Error cargando usuarios:", err);
+      console.error("Error details:", JSON.stringify(err, null, 2));
+      notify("Error al cargar usuarios: " + (err?.message || err), "error");
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function fetchBaseServices() {
+    try {
+      const { data } = await supabase
+        .from("services")
+        .select("id, name, type")
+        .order("name", { ascending: true });
+      setBaseServices(data || []);
+    } catch (err) {
+      console.error("Error cargando servicios base:", err);
+      setBaseServices([]);
+    }
+  }
+
+  async function viewUserDetails(user) {
+    setSelectedUser(user);
+    try {
+      const { data } = await supabase
+        .from("user_services")
+        .select("*, services(id, name, type)")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      setUserServices(data || []);
+    } catch (err) {
+      console.error("Error cargando servicios del usuario:", err);
+      setUserServices([]);
+    }
   }
 
   async function handleSubmit(e) {
@@ -64,7 +137,7 @@ import { formatDate } from "../../utils/dateUtils";
 
         if (error) throw error;
 
-        if (data.user) {
+        if (data?.user) {
           const { error: profileError } = await supabase
             .from("profiles")
             .insert({
@@ -84,7 +157,7 @@ import { formatDate } from "../../utils/dateUtils";
       }
     } catch (error) {
       console.error("Error guardando usuario:", error);
-      notify("Error al guardar usuario: " + error.message, "error");
+      notify("Error al guardar usuario: " + (error.message || error), "error");
     }
   }
 
@@ -137,7 +210,6 @@ import { formatDate } from "../../utils/dateUtils";
         .from("profiles")
         .update({ status: newStatus })
         .eq("id", user.id);
-
       if (error) throw error;
       setUsers(
         users.map((u) => (u.id === user.id ? { ...u, status: newStatus } : u)),
@@ -175,6 +247,8 @@ import { formatDate } from "../../utils/dateUtils";
         : "",
       url_dominio: service.url_dominio || "",
       notes: service.notes || "",
+      billing_type: service.billing_type || "monthly",
+      no_expiry: service.no_expiry === true,
     });
     fetchBaseServices();
     setShowServiceModal(true);
@@ -195,14 +269,14 @@ import { formatDate } from "../../utils/dateUtils";
         service_id: serviceForm.service_id,
         price: serviceForm.price ? parseFloat(serviceForm.price) : null,
         owner: serviceForm.owner,
-        expires_at: serviceForm.expires_at || null,
+        billing_type: serviceForm.billing_type,
+        no_expiry: serviceForm.no_expiry,
+        expires_at: serviceForm.no_expiry ? null : (serviceForm.expires_at || null),
         next_billing_date: serviceForm.next_billing_date || null,
         url_dominio: serviceForm.url_dominio || null,
         notes: serviceForm.notes || null,
-        status: serviceForm.expires_at ? "active" : "pending",
+        status: serviceForm.no_expiry || serviceForm.expires_at ? "active" : "pending",
       };
-
-      console.log("Guardando servicio:", { data, userId: selectedUser.id });
 
       let result;
       if (editingService) {
@@ -218,11 +292,8 @@ import { formatDate } from "../../utils/dateUtils";
           .select();
       }
 
-      console.log("Resultado:", result);
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
+      if (result.error)
+        throw new Error(result.error.message || "Error guardando servicio");
 
       notify(
         editingService ? "Servicio actualizado" : "Servicio agregado",
@@ -232,7 +303,7 @@ import { formatDate } from "../../utils/dateUtils";
       viewUserDetails(selectedUser);
     } catch (error) {
       console.error("Error guardando servicio:", error);
-      notify("Error al guardar servicio: " + error.message, "error");
+      notify("Error al guardar servicio: " + (error.message || error), "error");
     }
   }
 
@@ -247,27 +318,34 @@ import { formatDate } from "../../utils/dateUtils";
   }
 
   async function handleSaveAccesses(content) {
-    await supabase
-      .from("profiles")
-      .update({ accesos: content })
-      .eq("id", selectedUser.id);
-
-    setSelectedUser({ ...selectedUser, accesos: content });
-    fetchUsers();
+    try {
+      await supabase
+        .from("profiles")
+        .update({ accesos: content })
+        .eq("id", selectedUser.id);
+      setSelectedUser({ ...selectedUser, accesos: content });
+      fetchUsers();
+    } catch (err) {
+      console.error("Error guardando accesos:", err);
+      notify("Error al guardar accesos", "error");
+    }
   }
 
   async function handleSaveServiceAccesses(serviceId, content) {
-    await supabase
-      .from("user_services")
-      .update({ accesos: content })
-      .eq("id", serviceId);
-
-    const updatedServices = userServices.map((s) =>
-      s.id === serviceId ? { ...s, accesos: content } : s,
-    );
-    setUserServices(updatedServices);
-    if (selectedService?.id === serviceId) {
-      setSelectedService({ ...selectedService, accesos: content });
+    try {
+      await supabase
+        .from("user_services")
+        .update({ accesos: content })
+        .eq("id", serviceId);
+      const updatedServices = userServices.map((s) =>
+        s.id === serviceId ? { ...s, accesos: content } : s,
+      );
+      setUserServices(updatedServices);
+      if (selectedService?.id === serviceId) {
+        setSelectedService({ ...selectedService, accesos: content });
+      }
+    } catch (err) {
+      console.error("Error guardando accesos de servicio:", err);
     }
   }
 
@@ -480,13 +558,7 @@ import { formatDate } from "../../utils/dateUtils";
                                     {ownerLabel}
                                   </span>
                                   <span
-                                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                                      service.status === "active"
-                                        ? "bg-green-500/20 text-green-400"
-                                        : service.status === "pending"
-                                          ? "bg-yellow-500/20 text-yellow-400"
-                                          : "bg-red-500/20 text-red-400"
-                                    }`}
+                                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${service.status === "active" ? "bg-green-500/20 text-green-400" : service.status === "pending" ? "bg-yellow-500/20 text-yellow-400" : "bg-red-500/20 text-red-400"}`}
                                   >
                                     {service.status === "active"
                                       ? "Activo"
@@ -495,15 +567,7 @@ import { formatDate } from "../../utils/dateUtils";
                                         : "Vencido"}
                                   </span>
                                   <span
-                                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                                      paymentStatus.color === "green"
-                                        ? "bg-green-500/20 text-green-400"
-                                        : paymentStatus.color === "orange"
-                                          ? "bg-orange-500/20 text-orange-400"
-                                          : paymentStatus.color === "red"
-                                            ? "bg-red-500/20 text-red-400"
-                                            : "bg-gray-500/20 text-gray-400"
-                                    }`}
+                                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${paymentStatus.color === "green" ? "bg-green-500/20 text-green-400" : paymentStatus.color === "orange" ? "bg-orange-500/20 text-orange-400" : paymentStatus.color === "red" ? "bg-red-500/20 text-red-400" : "bg-gray-500/20 text-gray-400"}`}
                                   >
                                     {paymentStatus.label}
                                   </span>
@@ -515,18 +579,7 @@ import { formatDate } from "../../utils/dateUtils";
                                 </h3>
                                 {service.services?.type && (
                                   <span
-                                    className={`text-xs px-2 py-0.5 rounded ${
-                                      service.services.type === "dominio"
-                                        ? "bg-blue-500/20 text-blue-400"
-                                        : service.services.type === "hosting"
-                                          ? "bg-purple-500/20 text-purple-400"
-                                          : service.services.type === "correo"
-                                            ? "bg-yellow-500/20 text-yellow-400"
-                                            : service.services.type ===
-                                                "membresia"
-                                              ? "bg-green-500/20 text-green-400"
-                                              : "bg-gray-500/20 text-gray-400"
-                                    }`}
+                                    className={`text-xs px-2 py-0.5 rounded ${service.services.type === "dominio" ? "bg-blue-500/20 text-blue-400" : service.services.type === "hosting" ? "bg-purple-500/20 text-purple-400" : service.services.type === "correo" ? "bg-yellow-500/20 text-yellow-400" : service.services.type === "membresia" ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"}`}
                                   >
                                     {service.services.type}
                                   </span>
@@ -545,31 +598,57 @@ import { formatDate } from "../../utils/dateUtils";
                                     className="px-2 sm:px-3 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500 text-purple-400 hover:text-foreground text-xs sm:text-sm font-medium transition-all flex items-center gap-1"
                                     title="Credenciales"
                                   >
-                                  <svg
-                                    className="w-3.5 h-3.5 sm:w-4 sm:h-4"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-                                    />
-                                  </svg>
-                                  <span className="hidden sm:inline">
-                                    Credenciales
-                                  </span>
-                                </Link>
-                                {service.owner === 1 && (
+                                    <svg
+                                      className="w-3.5 h-3.5 sm:w-4 sm:h-4"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+                                      />
+                                    </svg>
+                                    <span className="hidden sm:inline">
+                                      Credenciales
+                                    </span>
+                                  </Link>
+                                  {service.owner === 1 && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        viewServicePayments(service);
+                                      }}
+                                      className="px-2 sm:px-3 py-1.5 rounded-lg bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-foreground text-xs sm:text-sm font-medium transition-all flex items-center gap-1"
+                                      title="Ver pagos"
+                                    >
+                                      <svg
+                                        className="w-3.5 h-3.5 sm:w-4 sm:h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                                        />
+                                      </svg>
+                                      <span className="hidden sm:inline">
+                                        Pagos
+                                      </span>
+                                    </button>
+                                  )}
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      viewServicePayments(service);
+                                      openEditService(service);
                                     }}
-                                    className="px-2 sm:px-3 py-1.5 rounded-lg bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-foreground text-xs sm:text-sm font-medium transition-all flex items-center gap-1"
-                                    title="Ver pagos"
+                                    className="p-1.5 sm:p-2 rounded-lg bg-primary/10 hover:bg-primary text-primary hover:text-foreground transition-all"
+                                    title="Editar servicio"
                                   >
                                     <svg
                                       className="w-3.5 h-3.5 sm:w-4 sm:h-4"
@@ -581,75 +660,48 @@ import { formatDate } from "../../utils/dateUtils";
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
                                         strokeWidth={2}
-                                        d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
                                       />
                                     </svg>
-                                    <span className="hidden sm:inline">
-                                      Pagos
-                                    </span>
                                   </button>
-                                )}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openEditService(service);
-                                  }}
-                                  className="p-1.5 sm:p-2 rounded-lg bg-primary/10 hover:bg-primary text-primary hover:text-foreground transition-all"
-                                >
-                                  <svg
-                                    className="w-3.5 h-3.5 sm:w-4 sm:h-4"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteService(service.id);
+                                    }}
+                                    className="p-1.5 sm:p-2 rounded-lg bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-foreground transition-all"
+                                    title="Eliminar servicio"
                                   >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                                    />
-                                  </svg>
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteService(service.id);
-                                  }}
-                                  className="p-1.5 sm:p-2 rounded-lg bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-foreground transition-all"
-                                >
-                                  <svg
-                                    className="w-3.5 h-3.5 sm:w-4 sm:h-4"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                    />
-                                  </svg>
-                                </button>
+                                    <svg
+                                      className="w-3.5 h-3.5 sm:w-4 sm:h-4"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                      />
+                                    </svg>
+                                  </button>
                                 </div>
-                                {service.expires_at && daysRemaining !== null && (
-                                  <div
-                                    className={`mt-2 flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-md text-lg sm:text-2xl font-extrabold ${
-                                      daysRemaining >= 20
-                                        ? "bg-green-500/20 text-green-400 border-2 border-green-500/30"
-                                        : daysRemaining >= 7
-                                          ? "bg-orange-500/20 text-orange-400 border-2 border-orange-500/30"
-                                          : daysRemaining >= 0
-                                            ? "bg-yellow-500/20 text-yellow-400 border-2 border-yellow-500/30"
-                                            : "bg-red-500/20 text-red-400 border-2 border-red-500/30"
-                                    }`}
-                                  >
-                                    <div className="flex items-center justify-center gap-1">
-                                      <span className="text-2xl sm:text-3xl font-extrabold">{daysRemaining}</span>
-                                      <span className="text-xs font-normal">d</span>
+                                {service.expires_at &&
+                                  daysRemaining !== null && (
+                                    <div
+                                      className={`mt-2 flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-md text-lg sm:text-2xl font-extrabold ${daysRemaining >= 20 ? "bg-green-500/20 text-green-400 border-2 border-green-500/30" : daysRemaining >= 7 ? "bg-orange-500/20 text-orange-400 border-2 border-orange-500/30" : daysRemaining >= 0 ? "bg-yellow-500/20 text-yellow-400 border-2 border-yellow-500/30" : "bg-red-500/20 text-red-400 border-2 border-red-500/30"}`}
+                                    >
+                                      <div className="flex items-center justify-center gap-1">
+                                        <span className="text-2xl sm:text-3xl font-extrabold">
+                                          {daysRemaining}
+                                        </span>
+                                        <span className="text-xs font-normal">
+                                          d
+                                        </span>
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
+                                  )}
                               </div>
                             </div>
 
@@ -797,14 +849,14 @@ import { formatDate } from "../../utils/dateUtils";
                   )}
                 </div>
               </div>
-            </div>
 
-            <div className="bg-card rounded-3xl border border-border overflow-hidden">
-              <div className="p-5 lg:p-6">
-                <AccessEditor
-                  value={selectedUser.accesos}
-                  onChange={handleSaveAccesses}
-                />
+              <div className="bg-card rounded-3xl border border-border overflow-hidden">
+                <div className="p-5 lg:p-6">
+                  <AccessEditor
+                    value={selectedUser.accesos}
+                    onChange={handleSaveAccesses}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -852,11 +904,24 @@ import { formatDate } from "../../utils/dateUtils";
                   placeholder="0"
                   className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">
-                  Fecha vencimiento
-                </label>
+</div>
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={serviceForm.no_expiry}
+                  onChange={(e) =>
+                    setServiceForm({
+                      ...serviceForm,
+                      no_expiry: e.target.checked,
+                      expires_at: e.target.checked ? "" : serviceForm.expires_at,
+                    })
+                  }
+                  className="w-4 h-4 rounded border-border bg-muted text-primary focus:ring-primary"
+                />
+                Sin fecha de vencimiento
+              </label>
+              {!serviceForm.no_expiry && (
                 <input
                   type="date"
                   value={serviceForm.expires_at}
@@ -868,6 +933,72 @@ import { formatDate } from "../../utils/dateUtils";
                   }
                   className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                 />
+              )}
+            </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
+                Tipo de facturación
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label
+                  className={`flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${serviceForm.billing_type === "monthly" ? "border-primary bg-primary/10" : "border-border hover:bg-muted"}`}
+                >
+                  <input
+                    type="radio"
+                    name="billing_type"
+                    value="monthly"
+                    checked={serviceForm.billing_type === "monthly"}
+                    onChange={() =>
+                      setServiceForm({ ...serviceForm, billing_type: "monthly" })
+                    }
+                    className="hidden"
+                  />
+                  <svg
+                    className="w-5 h-5"
+                    style={{
+                      color:
+                        serviceForm.billing_type === "monthly"
+                          ? "var(--primary)"
+                          : "var(--muted-foreground)",
+                    }}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="font-medium text-sm">Mensual</span>
+                </label>
+                <label
+                  className={`flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${serviceForm.billing_type === "annual" ? "border-primary bg-primary/10" : "border-border hover:bg-muted"}`}
+                >
+                  <input
+                    type="radio"
+                    name="billing_type"
+                    value="annual"
+                    checked={serviceForm.billing_type === "annual"}
+                    onChange={() =>
+                      setServiceForm({ ...serviceForm, billing_type: "annual" })
+                    }
+                    className="hidden"
+                  />
+                  <svg
+                    className="w-5 h-5"
+                    style={{
+                      color:
+                        serviceForm.billing_type === "annual"
+                          ? "var(--primary)"
+                          : "var(--muted-foreground)",
+                    }}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="font-medium text-sm">Anual</span>
+                </label>
               </div>
             </div>
             <div>
@@ -1268,162 +1399,37 @@ import { formatDate } from "../../utils/dateUtils";
                   <td className="px-6 py-4">
                     <button
                       onClick={() => toggleUserStatus(user)}
-                      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-300 ${
-                        user.status === "active"
-                          ? "bg-green-500/20 border border-green-500/30"
-                          : "bg-red-500/20 border border-red-500/30"
-                      }`}
+                      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-300 ${user.status === "active" ? "bg-green-500/20 border border-green-500/30" : "bg-red-500/20 border border-red-500/30"}`}
                     >
                       <span
-                        className={`inline-block h-5 w-5 transform rounded-full transition-all duration-300 ${
-                          user.status === "active"
-                            ? "translate-x-6 bg-green-400"
-                            : "translate-x-1 bg-red-400"
-                        }`}
+                        className={`inline-block h-5 w-5 transform rounded-full transition-all duration-300 ${user.status === "active" ? "translate-x-6 bg-green-400" : "translate-x-1 bg-red-400"}`}
                       />
                     </button>
                   </td>
                   <td className="px-6 py-4">
-                              <div className="flex flex-col items-end gap-2 sm:gap-2 flex-shrink-0">
-                                <div className="flex items-center gap-2">
-                                  <Link
-                                    to={`/service/${service.id}/credentials`}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="px-3 py-2 rounded-lg bg-purple-500/10 hover:bg-purple-500 text-purple-400 hover:text-foreground text-sm sm:text-sm font-medium transition-all flex items-center gap-2"
-                                    title="Credenciales"
-                                  >
-                                    <svg
-                                      className="w-4 h-4 sm:w-4 sm:h-4"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-                                      />
-                                    </svg>
-                                    <span className="hidden sm:inline">Credenciales</span>
-                                  </Link>
-                                  {service.owner === 1 && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        viewServicePayments(service);
-                                      }}
-                                      className="px-3 py-2 rounded-lg bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-foreground text-sm sm:text-sm font-medium transition-all flex items-center gap-2"
-                                      title="Ver pagos"
-                                    >
-                                      <svg
-                                        className="w-4 h-4 sm:w-4 sm:h-4"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
-                                        />
-                                      </svg>
-                                      <span className="hidden sm:inline">Pagos</span>
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openEditService(service);
-                                    }}
-                                    className="px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary text-primary hover:text-foreground transition-all"
-                                    title="Editar servicio"
-                                  >
-                                    <svg
-                                      className="w-4 h-4 sm:w-4 sm:h-4"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                                      />
-                                    </svg>
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteService(service.id);
-                                    }}
-                                    className="px-3 py-2 rounded-lg bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-foreground transition-all"
-                                    title="Eliminar servicio"
-                                  >
-                                    <svg
-                                      className="w-4 h-4 sm:w-4 sm:h-4"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                      />
-                                    </svg>
-                                  </button>
-                                </div>
-                                {service.expires_at && daysRemaining !== null && (
-                                  <div
-                                    className={`mt-2 flex items-center justify-center w-20 h-14 sm:w-24 sm:h-16 rounded-lg text-lg sm:text-xl font-extrabold ${
-                                      daysRemaining >= 20
-                                        ? "bg-green-500/20 text-green-400 border-2 border-green-500/30"
-                                        : daysRemaining >= 7
-                                          ? "bg-orange-500/20 text-orange-400 border-2 border-orange-500/30"
-                                          : daysRemaining >= 0
-                                            ? "bg-yellow-500/20 text-yellow-400 border-2 border-yellow-500/30"
-                                            : "bg-red-500/20 text-red-400 border-2 border-red-500/30"
-                                    }`}
-                                  >
-                                    <div className="flex items-center justify-center gap-1">
-                                      <span className="text-xl sm:text-2xl font-extrabold">{daysRemaining}</span>
-                                      <span className="text-xs font-normal">d</span>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            : "bg-red-500/10 text-red-400 border border-red-500/20"
-                      }`}
-                    >
-                      {statusInfo.label}
-                    </span>
-                    {payment.status === "pending" && (
-                      <button
-                        onClick={() => handleMarkPaymentPaid(payment.id)}
-                        className="px-3 py-1.5 rounded-lg bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-foreground text-xs font-medium transition-all"
-                      >
-                        Marcar Pagado
-                      </button>
-                    )}
-                    {payment.status === "paid" && (
-                      <button
-                        onClick={() => handleMarkPaymentPending(payment.id)}
-                        className="px-3 py-1.5 rounded-lg bg-orange-500/10 hover:bg-orange-500 text-orange-400 hover:text-foreground text-xs font-medium transition-all"
-                      >
-                        Marcar Pendiente
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </Modal>
+                    <div className="flex flex-col items-end gap-2 sm:gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleEdit(user)}
+                          className="px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary text-primary hover:text-foreground font-medium text-sm transition-all"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleDelete(user.id)}
+                          className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-foreground font-medium text-sm transition-all"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

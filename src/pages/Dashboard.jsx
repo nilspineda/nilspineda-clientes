@@ -19,6 +19,7 @@ import { getPaymentsByUserService } from "../utils/paymentUtils";
  */
 function getServiceStatus(service) {
   const days = getDaysRemaining(service.expires_at);
+  if (service.no_expiry === true) return "active";
   if (days === null) return "pending";
   if (days < 0) return "expired";
   if (days <= 5) return "warning";
