@@ -134,15 +134,27 @@ export default function AdminUsers() {
         resetForm();
       } else {
         const normalizedWhatsapp = normalizeWhatsapp(formData.whatsapp);
-        const { data, error } = await supabase.auth.signUp({
+
+        // Usar API de Admin para crear usuario (no crea sesión automática)
+        if (!supabaseAdmin) {
+          notify("Error: No hay configuración de admin. Configura la service key.", "error");
+          return;
+        }
+
+        const { data, error } = await supabaseAdmin.auth.admin.createUser({
           email: formData.email,
           password: formData.password,
-          options: {
-            data: { name: formData.name, whatsapp: normalizedWhatsapp },
-          },
+          email_confirm: true,
+          user_metadata: { name: formData.name, whatsapp: normalizedWhatsapp },
         });
 
-        if (error) throw error;
+        if (error) {
+          if (error.message.includes("already been registered") || error.message.includes("already exists")) {
+            notify("El email ya está registrado. Usa otro email.", "error");
+            return;
+          }
+          throw error;
+        }
 
         if (data?.user) {
           const { error: profileError } = await supabase
@@ -151,13 +163,14 @@ export default function AdminUsers() {
               id: data.user.id,
               name: formData.name,
               whatsapp: normalizedWhatsapp,
+              email: formData.email,
             });
 
-          if (profileError) throw profileError;
+          if (profileError && !profileError.message.includes("duplicate key")) {
+            console.error("Error creando perfil:", profileError);
+          }
 
-          notify("Usuario creado correctamente", "success");
-          setNewUserWhatsapp(normalizedWhatsapp);
-          setShowSendCreds(true);
+          notify("Usuario creado correctamente. El usuario puede iniciar sesión.", "success");
           fetchUsers();
           resetForm();
         }
@@ -237,7 +250,7 @@ export default function AdminUsers() {
       return;
     }
     if (!supabaseAdmin) {
-      notify("Error: Configuración de admin no disponible", "error");
+      notify("Error: Service key no configurada. Contacta al desarrollador.", "error");
       return;
     }
     setChangingPassword(true);
