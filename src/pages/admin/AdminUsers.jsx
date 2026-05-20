@@ -11,7 +11,6 @@ import {
 import { notify } from "../../utils/notify";
 import { formatDate } from "../../utils/dateUtils";
 import Modal from "../../components/Modal";
-import AccessEditor from "../../components/AccessEditor";
 import {
   getPaymentsByUserService,
   updatePaymentStatus,
@@ -82,7 +81,9 @@ export default function AdminUsers() {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, name, email, whatsapp, status, accesos, user_services(id)")
+        .select(
+          "id, name, email, whatsapp, status, accesos, user_services(id, owner)",
+        )
         .order("name", { ascending: true });
       if (error) throw error;
       const usersWithCount = (data || []).map((u) => ({
@@ -404,19 +405,7 @@ export default function AdminUsers() {
     }
   }
 
-  async function handleSaveAccesses(content) {
-    try {
-      await supabase
-        .from("profiles")
-        .update({ accesos: content })
-        .eq("id", selectedUser.id);
-      setSelectedUser({ ...selectedUser, accesos: content });
-      fetchUsers();
-    } catch (err) {
-      console.error("Error guardando accesos:", err);
-      notify("Error al guardar accesos", "error");
-    }
-  }
+
 
   async function handleSaveServiceAccesses(serviceId, content) {
     try {
@@ -644,11 +633,11 @@ export default function AdminUsers() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
             <div className="lg:col-span-2 space-y-6">
-              {isAdmin && (
+              {isAdmin && (userServices || []).some((s) => s.owner !== 1) && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    openUserPayments(user);
+                    openUserPayments(selectedUser);
                   }}
                   className="px-3 py-1.5 rounded-xl bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-foreground font-medium text-sm transition-all"
                 >
@@ -658,7 +647,7 @@ export default function AdminUsers() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setPasswordUser(user);
+                  setPasswordUser(selectedUser);
                   setShowPasswordModal(true);
                 }}
                 className="px-3 py-1.5 rounded-xl bg-yellow-500/10 hover:bg-yellow-500 text-yellow-400 hover:text-foreground font-medium text-sm transition-all"
@@ -823,7 +812,7 @@ export default function AdminUsers() {
                                       Credenciales
                                     </span>
                                   </Link>
-                                  {service.owner === 1 && (
+                                  {isAdmin && service.owner !== 1 && (
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -1060,14 +1049,7 @@ export default function AdminUsers() {
                 </div>
               </div>
 
-              <div className="bg-card rounded-3xl border border-border overflow-hidden">
-                <div className="p-5 lg:p-6">
-                  <AccessEditor
-                    value={selectedUser.accesos}
-                    onChange={handleSaveAccesses}
-                  />
-                </div>
-              </div>
+              {/* Accesos section removed per request */}
             </div>
           </div>
         </div>
@@ -1687,17 +1669,20 @@ export default function AdminUsers() {
                   <td className="px-6 py-4">
                     <div className="flex flex-col items-end gap-2 sm:gap-2 flex-shrink-0">
                       <div className="flex items-center gap-2">
-                        {isAdmin && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openUserPayments(user);
-                            }}
-                            className="px-3 py-1.5 rounded-xl bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-foreground font-medium text-sm transition-all"
-                          >
-                            Pagos
-                          </button>
-                        )}
+                        {isAdmin &&
+                          (user.user_services || []).some(
+                            (s) => s.owner !== 1,
+                          ) && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openUserPayments(user);
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-foreground font-medium text-sm transition-all"
+                            >
+                              Pagos
+                            </button>
+                          )}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

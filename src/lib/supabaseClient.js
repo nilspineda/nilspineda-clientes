@@ -4,8 +4,5 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://cpvikfjbcbsodb
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_46fyrbxZKO9hxk55EOWeyw_ZzQpIdMF'
 const serviceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY
 
-console.log('VITE_SUPABASE_SERVICE_KEY exists:', !!serviceKey)
-console.log('VITE_SUPABASE_SERVICE_KEY:', serviceKey ? '***' + serviceKey.slice(-10) : 'undefined')
-
 export const supabase = createClient(supabaseUrl, supabaseKey)
 export const supabaseAdmin = serviceKey ? createClient(supabaseUrl, serviceKey) : null

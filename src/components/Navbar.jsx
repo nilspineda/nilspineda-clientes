@@ -1,6 +1,7 @@
 ﻿import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
+import logo from "../assets/logo.svg";
 
 export default function Navbar() {
   const { user, profile, signOut, isAdmin } = useAuth();
@@ -19,9 +20,9 @@ export default function Navbar() {
       <div className="max-w-6xl mx-auto flex justify-between items-center">
         <Link
           to={isAdmin ? "/admin" : "/dashboard"}
-          className="text-xl font-bold text-gray-900"
+          className="flex items-center"
         >
-          Nilspineda
+          <img src={logo} alt="Logo" className="h-8 w-auto" />
         </Link>
 
         <div className="flex items-center gap-4">

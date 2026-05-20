@@ -3,6 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useTheme } from "../context/ThemeContext";
 import Footer from "../components/Footer";
+import Logo from "../assets/logo.svg";
 
 function SidebarContent() {
   const { profile, isAdmin, signOut } = useAuth();
@@ -55,7 +56,7 @@ function SidebarContent() {
           className="text-xl font-bold"
           style={{ color: "var(--foreground)" }}
         >
-          Nilspineda
+          <img src={Logo} alt="Logo" className="h-8 w-auto" />
         </Link>
         <p
           className="text-sm mt-1"
@@ -354,7 +355,7 @@ function SidebarLinks({ onClose }) {
       path: "/admin/services",
       label: "Servicios",
       icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10",
-},
+    },
     {
       path: "/admin/payments",
       label: "Pagos",
@@ -400,7 +401,7 @@ function SidebarLinks({ onClose }) {
 export default function DashboardLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
-  const { signOut, profile } = useAuth();
+  const { signOut, profile, isAdmin } = useAuth();
   const { toggleTheme } = useTheme();
 
   async function handleSignOut() {
@@ -474,12 +475,24 @@ export default function DashboardLayout() {
               />
             </svg>
           </button>
-          <span
-            className="font-semibold"
-            style={{ color: "var(--foreground)" }}
+          <div
+            className="p-5 border-b"
+            style={{ borderColor: "var(--border)" }}
           >
-            Nilspineda
-          </span>
+            <Link
+              to={isAdmin ? "/admin" : "/dashboard"}
+              className="text-xl font-bold"
+              style={{ color: "var(--foreground)" }}
+            >
+              <img src={Logo} alt="Logo" className="h-8 w-auto" />
+            </Link>
+            <p
+              className="text-sm mt-1"
+              style={{ color: "var(--sidebar-foreground)" }}
+            >
+              {isAdmin ? "Panel Admin" : "Mi Cuenta"}
+            </p>
+          </div>
           <ThemeToggle />
         </header>
 
@@ -509,12 +522,23 @@ export default function DashboardLayout() {
           className="p-5 border-b flex items-center justify-between"
           style={{ borderColor: "var(--border)" }}
         >
-          <span
-            className="text-xl font-bold"
-            style={{ color: "var(--foreground)" }}
-          >
-            Nilspineda
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <Link
+              to={isAdmin ? "/admin" : "/dashboard"}
+              className="text-xl font-bold"
+              style={{ color: "var(--foreground)" }}
+            >
+              <img src={Logo} alt="Logo" className="h-8 w-auto" />
+            </Link>
+            <div>
+              <div
+                className="text-sm mt-1"
+                style={{ color: "var(--sidebar-foreground)" }}
+              >
+                {isAdmin ? "Panel Admin" : "Mi Cuenta"}
+              </div>
+            </div>
+          </div>
           <button
             onClick={() => setMobileMenuOpen(false)}
             className="p-2 rounded-xl hover:bg-[var(--sidebar-accent)]"

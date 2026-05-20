@@ -246,10 +246,9 @@ export default function Dashboard() {
   );
 
   // ── Dominios registrados en todos los servicios del usuario ─────────────
-  const dominios =
-    [...new Set(services.map((s) => s.url_dominio).filter(Boolean))].join(
-      ", ",
-    ) || "No registrado";
+  const dominiosArray = [
+    ...new Set(services.map((s) => s.url_dominio).filter(Boolean)),
+  ];
 
   // ── Render principal ─────────────────────────────────────────────────────
 
@@ -396,7 +395,7 @@ export default function Dashboard() {
             <div className="space-y-3">
               <InfoItem
                 label="Dominio"
-                value={dominios}
+                value={dominiosArray.length ? dominiosArray : "No registrado"}
                 icon="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
                 color="blue"
               />
@@ -785,7 +784,34 @@ function InfoItem({ label, value, icon, color, href }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs text-gray-500 font-medium">{label}</p>
-        <p className="text-sm font-semibold text-white truncate">{value}</p>
+        {Array.isArray(value) ? (
+          <div className="flex flex-col gap-1">
+            {value.map((v, i) => {
+              const hrefVal = normalizeUrl(String(v || "")) || null;
+              const labelVal = String(v || "").replace(/^https?:\/\//i, "");
+              return hrefVal ? (
+                <a
+                  key={i}
+                  href={hrefVal}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm font-semibold text-white truncate hover:underline"
+                >
+                  {labelVal}
+                </a>
+              ) : (
+                <span
+                  key={i}
+                  className="text-sm font-semibold text-white truncate"
+                >
+                  {labelVal}
+                </span>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm font-semibold text-white truncate">{value}</p>
+        )}
       </div>
       {href && (
         <svg
