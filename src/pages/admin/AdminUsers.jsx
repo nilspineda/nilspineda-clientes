@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase, supabaseAdmin } from "../../lib/supabaseClient";
+import { useAuth } from "../../hooks/useAuth";
 import {
   normalizeWhatsapp,
   formatWhatsapp,
@@ -52,6 +53,21 @@ export default function AdminUsers() {
   const [showPaymentsModal, setShowPaymentsModal] = useState(false);
   const [servicePayments, setServicePayments] = useState([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
+
+  // User-level payments modal (admin only)
+  const [showUserPaymentsModal, setShowUserPaymentsModal] = useState(false);
+  const [paymentsForUser, setPaymentsForUser] = useState([]);
+  const [loadingUserPayments, setLoadingUserPayments] = useState(false);
+  const [userServicesForPayments, setUserServicesForPayments] = useState([]);
+  const [paymentsUser, setPaymentsUser] = useState(null);
+  const [paymentForm, setPaymentForm] = useState({
+    service_id: "",
+    amount: "",
+    payment_date: "",
+    payment_method: "transferencia",
+  });
+  const [registeringPayment, setRegisteringPayment] = useState(false);
+  const { isAdmin } = useAuth();
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -137,7 +153,10 @@ export default function AdminUsers() {
 
         // Usar API de Admin para crear usuario (no crea sesión automática)
         if (!supabaseAdmin) {
-          notify("Error: No hay configuración de admin. Configura la service key.", "error");
+          notify(
+            "Error: No hay configuración de admin. Configura la service key.",
+            "error",
+          );
           return;
         }
 
@@ -149,7 +168,10 @@ export default function AdminUsers() {
         });
 
         if (error) {
-          if (error.message.includes("already been registered") || error.message.includes("already exists")) {
+          if (
+            error.message.includes("already been registered") ||
+            error.message.includes("already exists")
+          ) {
             notify("El email ya está registrado. Usa otro email.", "error");
             return;
           }
@@ -170,7 +192,10 @@ export default function AdminUsers() {
             console.error("Error creando perfil:", profileError);
           }
 
-          notify("Usuario creado correctamente. El usuario puede iniciar sesión.", "success");
+          notify(
+            "Usuario creado correctamente. El usuario puede iniciar sesión.",
+            "success",
+          );
           fetchUsers();
           resetForm();
         }
@@ -245,24 +270,28 @@ export default function AdminUsers() {
       notify("La contraseña debe tener al menos 6 caracteres", "error");
       return;
     }
-    if (!selectedUser?.id) {
+    if (!passwordUser?.id) {
       notify("Error: No hay usuario seleccionado", "error");
       return;
     }
     if (!supabaseAdmin) {
-      notify("Error: Service key no configurada. Contacta al desarrollador.", "error");
+      notify(
+        "Error: Service key no configurada. Contacta al desarrollador.",
+        "error",
+      );
       return;
     }
     setChangingPassword(true);
     try {
       const { error } = await supabaseAdmin.auth.admin.updateUserById(
-        selectedUser.id,
-        { password: newPassword }
+        passwordUser.id,
+        { password: newPassword },
       );
       if (error) throw error;
       notify("Contraseña actualizada correctamente", "success");
       setShowPasswordModal(false);
       setNewPassword("");
+      setPasswordUser(null);
     } catch (err) {
       console.error("Error cambiando contraseña:", err);
       notify("Error al cambiar contraseña: " + (err.message || err), "error");
@@ -422,6 +451,85 @@ export default function AdminUsers() {
     setLoadingPayments(false);
   }
 
+  async function openUserPayments(user) {
+    if (!isAdmin) return;
+    setPaymentsUser(user);
+    setLoadingUserPayments(true);
+    setShowUserPaymentsModal(true);
+    try {
+      const [paymentsRes, servicesRes] = await Promise.all([
+        supabase
+          .from("payments")
+          .select(
+            "*, user_services(id, name, url_dominio, owner, services(id, name))",
+          )
+          .eq("user_id", user.id)
+          .order("payment_date", { ascending: false }),
+        supabase
+          .from("user_services")
+          .select("id, name, url_dominio, owner, services(id, name)")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      setPaymentsForUser(paymentsRes.data || []);
+      setUserServicesForPayments(servicesRes.data || []);
+    } catch (err) {
+      console.error("Error cargando pagos del usuario:", err);
+      setPaymentsForUser([]);
+      setUserServicesForPayments([]);
+    } finally {
+      setLoadingUserPayments(false);
+    }
+  }
+
+  async function handleRegisterPayment(e) {
+    e.preventDefault();
+    const userId = paymentsUser?.id;
+    if (!userId) return;
+    if (!paymentForm.amount) {
+      notify("Ingresa un monto", "error");
+      return;
+    }
+    setRegisteringPayment(true);
+    try {
+      const payload = {
+        user_id: userId,
+        service_id: paymentForm.service_id || null,
+        amount: parseFloat(paymentForm.amount),
+        payment_date: paymentForm.payment_date || new Date().toISOString(),
+        payment_method: paymentForm.payment_method,
+        status: "paid",
+      };
+
+      const { error } = await supabase.from("payments").insert(payload);
+      if (error) throw error;
+      notify("Pago registrado correctamente", "success");
+      // refresh list
+      await openUserPayments(paymentsUser);
+      setPaymentForm({
+        service_id: "",
+        amount: "",
+        payment_date: "",
+        payment_method: "transferencia",
+      });
+    } catch (err) {
+      console.error("Error registrando pago:", err);
+      notify("Error al registrar pago: " + (err.message || err), "error");
+    } finally {
+      setRegisteringPayment(false);
+    }
+  }
+
+  async function handleMarkPaymentPaidUser(paymentId) {
+    const result = await updatePaymentStatus(paymentId, "paid");
+    if (result.success) {
+      setPaymentsForUser((prev) =>
+        prev.map((p) => (p.id === paymentId ? { ...p, status: "paid" } : p)),
+      );
+    }
+  }
+
   async function handleMarkPaymentPaid(paymentId) {
     const result = await updatePaymentStatus(paymentId, "paid");
     if (result.success) {
@@ -536,6 +644,27 @@ export default function AdminUsers() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
             <div className="lg:col-span-2 space-y-6">
+              {isAdmin && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openUserPayments(user);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-foreground font-medium text-sm transition-all"
+                >
+                  Pagos
+                </button>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPasswordUser(user);
+                  setShowPasswordModal(true);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-yellow-500/10 hover:bg-yellow-500 text-yellow-400 hover:text-foreground font-medium text-sm transition-all"
+              >
+                Cambiar Pass
+              </button>
               <div className="bg-card rounded-3xl border border-border overflow-hidden">
                 <div className="flex items-center gap-3 p-5 lg:p-6 border-b border-border">
                   <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
@@ -1265,6 +1394,7 @@ export default function AdminUsers() {
             onClose={() => {
               setShowPasswordModal(false);
               setNewPassword("");
+              setPasswordUser(null);
             }}
             title="Cambiar Contraseña"
             size="sm"
@@ -1273,7 +1403,7 @@ export default function AdminUsers() {
               <p className="text-muted-foreground text-sm">
                 Ingresa la nueva contraseña para el usuario{" "}
                 <span className="text-foreground font-medium">
-                  {selectedUser?.name}
+                  {passwordUser?.name}
                 </span>
               </p>
               <div>
@@ -1293,6 +1423,7 @@ export default function AdminUsers() {
                   onClick={() => {
                     setShowPasswordModal(false);
                     setNewPassword("");
+                    setPasswordUser(null);
                   }}
                   className="flex-1 px-4 py-3 border border-border rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground transition-colors font-medium"
                 >
@@ -1556,10 +1687,21 @@ export default function AdminUsers() {
                   <td className="px-6 py-4">
                     <div className="flex flex-col items-end gap-2 sm:gap-2 flex-shrink-0">
                       <div className="flex items-center gap-2">
+                        {isAdmin && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openUserPayments(user);
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-foreground font-medium text-sm transition-all"
+                          >
+                            Pagos
+                          </button>
+                        )}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedUser(user);
+                            setPasswordUser(user);
                             setShowPasswordModal(true);
                           }}
                           className="px-3 py-1.5 rounded-xl bg-yellow-500/10 hover:bg-yellow-500 text-yellow-400 hover:text-foreground font-medium text-sm transition-all"
@@ -1587,6 +1729,185 @@ export default function AdminUsers() {
           </table>
         </div>
       </div>
+      {showUserPaymentsModal && (
+        <Modal
+          isOpen={showUserPaymentsModal}
+          onClose={() => {
+            setShowUserPaymentsModal(false);
+            setPaymentsForUser([]);
+            setUserServicesForPayments([]);
+            setPaymentsUser(null);
+            setPaymentForm({
+              service_id: "",
+              amount: "",
+              payment_date: "",
+              payment_method: "transferencia",
+            });
+          }}
+          title={`Pagos - ${paymentsUser?.name || "Usuario"}`}
+          size="lg"
+        >
+          <div className="space-y-4">
+            <form onSubmit={handleRegisterPayment} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-2">
+                    Servicio (opcional)
+                  </label>
+                  <select
+                    value={paymentForm.service_id}
+                    onChange={(e) =>
+                      setPaymentForm({
+                        ...paymentForm,
+                        service_id: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground"
+                  >
+                    <option value="">Sin asignar</option>
+                    {userServicesForPayments.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name || s.services?.name}{" "}
+                        {s.url_dominio ? `(${s.url_dominio})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-2">
+                    Monto
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={paymentForm.amount}
+                    onChange={(e) =>
+                      setPaymentForm({ ...paymentForm, amount: e.target.value })
+                    }
+                    className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-2">
+                    Fecha
+                  </label>
+                  <input
+                    type="date"
+                    value={paymentForm.payment_date}
+                    onChange={(e) =>
+                      setPaymentForm({
+                        ...paymentForm,
+                        payment_date: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={registeringPayment}
+                  className="flex-1 bg-primary text-foreground px-6 py-3 rounded-xl hover:bg-primary-light transition-colors font-medium"
+                >
+                  {registeringPayment ? "Registrando..." : "Registrar Pago"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowUserPaymentsModal(false);
+                    setPaymentForm({
+                      service_id: "",
+                      amount: "",
+                      payment_date: "",
+                      payment_method: "transferencia",
+                    });
+                    setPaymentsUser(null);
+                  }}
+                  className="flex-1 px-6 py-3 border border-border rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+
+            <div>
+              {loadingUserPayments ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : paymentsForUser.length === 0 ? (
+                <p className="text-center text-muted-foreground py-6">
+                  No hay pagos registrados
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs text-muted-foreground">
+                          Servicio
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs text-muted-foreground">
+                          Monto
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs text-muted-foreground">
+                          Fecha
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs text-muted-foreground">
+                          Estado
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs text-muted-foreground">
+                          Acciones
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border-dark">
+                      {paymentsForUser.map((p) => (
+                        <tr key={p.id}>
+                          <td className="px-4 py-3">
+                            {p.user_services?.name ||
+                              p.user_services?.services?.name ||
+                              "-"}
+                            {p.user_services?.url_dominio && (
+                              <div className="text-xs text-muted-foreground">
+                                {p.user_services.url_dominio}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {formatCurrency(p.amount || 0)}
+                          </td>
+                          <td className="px-4 py-3">
+                            {formatDate(p.payment_date)}
+                          </td>
+                          <td className="px-4 py-3">{p.status}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              {p.user_services?.owner === 0 &&
+                                p.status !== "paid" && (
+                                  <button
+                                    onClick={() =>
+                                      handleMarkPaymentPaidUser(p.id)
+                                    }
+                                    className="px-3 py-1.5 rounded-xl bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-foreground text-sm font-medium"
+                                  >
+                                    Marcar Pagado
+                                  </button>
+                                )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

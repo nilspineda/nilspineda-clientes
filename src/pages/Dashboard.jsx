@@ -7,6 +7,7 @@ import {
   normalizeWhatsapp,
   formatWhatsapp,
   formatCurrency,
+  normalizeUrl,
 } from "../utils/formatUtils";
 import { getPaymentsByUserService } from "../utils/paymentUtils";
 
@@ -62,15 +63,15 @@ export default function Dashboard() {
         if (service.owner === 1) {
           const result = await getPaymentsByUserService(service.id);
           if (result.success && result.data) {
-            const paymentsWithService = result.data.map(p => ({
+            const paymentsWithService = result.data.map((p) => ({
               ...p,
-              service_name: service.services?.name || 'Servicio'
+              service_name: service.services?.name || "Servicio",
             }));
             allPayments.push(...paymentsWithService);
           }
         }
       }
-      setPendingPayments(allPayments.filter(p => p.status === 'pending'));
+      setPendingPayments(allPayments.filter((p) => p.status === "pending"));
     } catch (err) {
       console.error("Error al cargar datos:", err);
       setFetchError("No se pudo cargar la información. Intenta recargar.");
@@ -151,8 +152,20 @@ export default function Dashboard() {
   // ── Renovar servicio vía WhatsApp ────────────────────────────────────────
 
   function handleRenew(service) {
+    const raw =
+      service.url_dominio ||
+      service.services?.url ||
+      service.services?.name ||
+      service.name ||
+      "";
+    let hostname = raw;
+    try {
+      if (raw) hostname = new URL(normalizeUrl(raw)).hostname;
+    } catch (e) {
+      hostname = raw;
+    }
     const message = encodeURIComponent(
-      `Hola, quiero renovar mi servicio: ${service.services?.name}`,
+      `Hola, quiero renovar el dominio: ${hostname}`,
     );
     const wa = normalizeWhatsapp(whatsappNumber || "3167195500");
     window.open(`https://wa.me/${wa}?text=${message}`, "_blank");
@@ -481,15 +494,15 @@ export default function Dashboard() {
 
             <div className="grid grid-cols-2 gap-3 mt-4">
               <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-yellow-500/10 to-yellow-500/5 p-4 text-center border border-yellow-500/20">
-              <p className="text-xl lg:text-2xl font-bold text-yellow-400">
-                {serviceCounts.warning}
-              </p>
+                <p className="text-xl lg:text-2xl font-bold text-yellow-400">
+                  {serviceCounts.warning}
+                </p>
                 <p className="text-xs text-yellow-400/70">Pendientes</p>
               </div>
               <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-red-500/10 to-red-500/5 p-4 text-center border border-red-500/20">
-              <p className="text-xl lg:text-2xl font-bold text-red-400">
-                {serviceCounts.expired}
-              </p>
+                <p className="text-xl lg:text-2xl font-bold text-red-400">
+                  {serviceCounts.expired}
+                </p>
                 <p className="text-xs text-red-400/70">Vencidos</p>
               </div>
             </div>
@@ -525,7 +538,8 @@ export default function Dashboard() {
                         {formatCurrency(payment.amount)}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {payment.service_name} - {formatDate(payment.payment_date)}
+                        {payment.service_name} -{" "}
+                        {formatDate(payment.payment_date)}
                       </p>
                     </div>
                     <span className="px-3 py-1.5 rounded-lg bg-orange-500/20 text-orange-400 text-xs font-medium">
