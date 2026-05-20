@@ -53,6 +53,10 @@ export default function AdminUsers() {
   const [servicePayments, setServicePayments] = useState([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
 
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -67,7 +71,9 @@ export default function AdminUsers() {
       if (error) throw error;
       const usersWithCount = (data || []).map((u) => ({
         ...u,
-        service_count: Array.isArray(u.user_services) ? u.user_services.length : 0,
+        service_count: Array.isArray(u.user_services)
+          ? u.user_services.length
+          : 0,
       }));
       setUsers(usersWithCount);
     } catch (err) {
@@ -118,6 +124,7 @@ export default function AdminUsers() {
           .update({
             name: formData.name,
             whatsapp: normalizeWhatsapp(formData.whatsapp),
+            email: formData.email || null,
           })
           .eq("id", editingUser.id);
 
@@ -220,6 +227,37 @@ export default function AdminUsers() {
     }
   }
 
+  async function handleChangePassword() {
+    if (!newPassword || newPassword.length < 6) {
+      notify("La contraseña debe tener al menos 6 caracteres", "error");
+      return;
+    }
+    if (!selectedUser?.id) {
+      notify("Error: No hay usuario seleccionado", "error");
+      return;
+    }
+    if (!supabaseAdmin) {
+      notify("Error: Configuración de admin no disponible", "error");
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(
+        selectedUser.id,
+        { password: newPassword }
+      );
+      if (error) throw error;
+      notify("Contraseña actualizada correctamente", "success");
+      setShowPasswordModal(false);
+      setNewPassword("");
+    } catch (err) {
+      console.error("Error cambiando contraseña:", err);
+      notify("Error al cambiar contraseña: " + (err.message || err), "error");
+    } finally {
+      setChangingPassword(false);
+    }
+  }
+
   function openAddService() {
     setEditingService(null);
     setServiceForm({
@@ -271,11 +309,16 @@ export default function AdminUsers() {
         owner: serviceForm.owner,
         billing_type: serviceForm.billing_type,
         no_expiry: serviceForm.no_expiry,
-        expires_at: serviceForm.no_expiry ? null : (serviceForm.expires_at || null),
+        expires_at: serviceForm.no_expiry
+          ? null
+          : serviceForm.expires_at || null,
         next_billing_date: serviceForm.next_billing_date || null,
         url_dominio: serviceForm.url_dominio || null,
         notes: serviceForm.notes || null,
-        status: serviceForm.no_expiry || serviceForm.expires_at ? "active" : "pending",
+        status:
+          serviceForm.no_expiry || serviceForm.expires_at
+            ? "active"
+            : "pending",
       };
 
       let result;
@@ -301,6 +344,7 @@ export default function AdminUsers() {
       );
       setShowServiceModal(false);
       viewUserDetails(selectedUser);
+      fetchUsers();
     } catch (error) {
       console.error("Error guardando servicio:", error);
       notify("Error al guardar servicio: " + (error.message || error), "error");
@@ -312,6 +356,7 @@ export default function AdminUsers() {
     try {
       await supabase.from("user_services").delete().eq("id", serviceId);
       viewUserDetails(selectedUser);
+      fetchUsers();
     } catch (error) {
       console.error("Error eliminando servicio:", error);
     }
@@ -542,6 +587,15 @@ export default function AdminUsers() {
                           service.owner === 1
                             ? "bg-green-500/20 text-green-400"
                             : "bg-blue-500/20 text-blue-400";
+                        const websiteName = (() => {
+                          if (!service.url_dominio) return null;
+                          try {
+                            return new URL(normalizeUrl(service.url_dominio))
+                              .hostname;
+                          } catch (e) {
+                            return service.url_dominio;
+                          }
+                        })();
                         return (
                           <div
                             key={service.id}
@@ -573,21 +627,33 @@ export default function AdminUsers() {
                                   </span>
                                 </div>
                                 <h3 className="font-extrabold text-foreground text-lg sm:text-2xl mb-1">
-                                  {service.services?.name ||
+                                  {websiteName ? (
+                                    <a
+                                      href={normalizeUrl(service.url_dominio)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="hover:underline"
+                                    >
+                                      {websiteName}
+                                    </a>
+                                  ) : (
+                                    service.services?.name ||
                                     service.name ||
-                                    "Servicio sin nombre"}
+                                    "Servicio sin nombre"
+                                  )}
                                 </h3>
+                                {websiteName &&
+                                  (service.services?.name || service.name) && (
+                                    <p className="text-sm text-muted-foreground mt-1">
+                                      {service.services?.name || service.name}
+                                    </p>
+                                  )}
                                 {service.services?.type && (
                                   <span
                                     className={`text-xs px-2 py-0.5 rounded ${service.services.type === "dominio" ? "bg-blue-500/20 text-blue-400" : service.services.type === "hosting" ? "bg-purple-500/20 text-purple-400" : service.services.type === "correo" ? "bg-yellow-500/20 text-yellow-400" : service.services.type === "membresia" ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"}`}
                                   >
                                     {service.services.type}
                                   </span>
-                                )}
-                                {service.url_dominio && (
-                                  <p className="text-xl sm:text-2xl font-semibold text-muted-foreground truncate max-w-[280px] sm:max-w-xs mt-0.5">
-                                    {service.url_dominio}
-                                  </p>
                                 )}
                               </div>
                               <div className="flex flex-col items-end gap-2 sm:gap-2 flex-shrink-0">
@@ -708,7 +774,9 @@ export default function AdminUsers() {
                             <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
                               <div>
                                 <p className="text-xs text-muted-foreground">
-                                  Precio mensual
+                                  {service.billing_type === "annual"
+                                    ? "Precio anual"
+                                    : "Precio mensual"}
                                 </p>
                                 <p className="text-xl font-bold text-primary">
                                   {formatCurrency(service.price || 0)}
@@ -904,37 +972,39 @@ export default function AdminUsers() {
                   placeholder="0"
                   className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                 />
-</div>
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={serviceForm.no_expiry}
-                  onChange={(e) =>
-                    setServiceForm({
-                      ...serviceForm,
-                      no_expiry: e.target.checked,
-                      expires_at: e.target.checked ? "" : serviceForm.expires_at,
-                    })
-                  }
-                  className="w-4 h-4 rounded border-border bg-muted text-primary focus:ring-primary"
-                />
-                Sin fecha de vencimiento
-              </label>
-              {!serviceForm.no_expiry && (
-                <input
-                  type="date"
-                  value={serviceForm.expires_at}
-                  onChange={(e) =>
-                    setServiceForm({
-                      ...serviceForm,
-                      expires_at: e.target.value,
-                    })
-                  }
-                  className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                />
-              )}
-            </div>
+              </div>
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={serviceForm.no_expiry}
+                    onChange={(e) =>
+                      setServiceForm({
+                        ...serviceForm,
+                        no_expiry: e.target.checked,
+                        expires_at: e.target.checked
+                          ? ""
+                          : serviceForm.expires_at,
+                      })
+                    }
+                    className="w-4 h-4 rounded border-border bg-muted text-primary focus:ring-primary"
+                  />
+                  Sin fecha de vencimiento
+                </label>
+                {!serviceForm.no_expiry && (
+                  <input
+                    type="date"
+                    value={serviceForm.expires_at}
+                    onChange={(e) =>
+                      setServiceForm({
+                        ...serviceForm,
+                        expires_at: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                  />
+                )}
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-2">
@@ -950,7 +1020,10 @@ export default function AdminUsers() {
                     value="monthly"
                     checked={serviceForm.billing_type === "monthly"}
                     onChange={() =>
-                      setServiceForm({ ...serviceForm, billing_type: "monthly" })
+                      setServiceForm({
+                        ...serviceForm,
+                        billing_type: "monthly",
+                      })
                     }
                     className="hidden"
                   />
@@ -966,7 +1039,12 @@ export default function AdminUsers() {
                     stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
                   </svg>
                   <span className="font-medium text-sm">Mensual</span>
                 </label>
@@ -995,7 +1073,12 @@ export default function AdminUsers() {
                     stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
                   </svg>
                   <span className="font-medium text-sm">Anual</span>
                 </label>
@@ -1162,6 +1245,57 @@ export default function AdminUsers() {
             </div>
           </form>
         </Modal>
+
+        {showPasswordModal && (
+          <Modal
+            isOpen={showPasswordModal}
+            onClose={() => {
+              setShowPasswordModal(false);
+              setNewPassword("");
+            }}
+            title="Cambiar Contraseña"
+            size="sm"
+          >
+            <div className="space-y-4">
+              <p className="text-muted-foreground text-sm">
+                Ingresa la nueva contraseña para el usuario{" "}
+                <span className="text-foreground font-medium">
+                  {selectedUser?.name}
+                </span>
+              </p>
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                  Nueva contraseña
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setNewPassword("");
+                  }}
+                  className="flex-1 px-4 py-3 border border-border rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleChangePassword}
+                  disabled={changingPassword || newPassword.length < 6}
+                  className="flex-1 px-4 py-3 bg-primary text-foreground rounded-xl hover:bg-primary-light transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {changingPassword ? "Cambiando..." : "Guardar"}
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )}
       </div>
     );
   }
@@ -1409,6 +1543,16 @@ export default function AdminUsers() {
                   <td className="px-6 py-4">
                     <div className="flex flex-col items-end gap-2 sm:gap-2 flex-shrink-0">
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedUser(user);
+                            setShowPasswordModal(true);
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-yellow-500/10 hover:bg-yellow-500 text-yellow-400 hover:text-foreground font-medium text-sm transition-all"
+                        >
+                          Cambiar Pass
+                        </button>
                         <button
                           onClick={() => handleEdit(user)}
                           className="px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary text-primary hover:text-foreground font-medium text-sm transition-all"
