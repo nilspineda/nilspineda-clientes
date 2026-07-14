@@ -13,11 +13,11 @@ import { getPaymentsByUserService } from "@/utils/paymentUtils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import StatusBadge from "@/components/StatusBadge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+
 import {
   Package,
   Globe,
@@ -30,7 +30,6 @@ import {
   MessageCircle,
   Zap,
   User,
-  Edit3,
   ChevronLeft,
   ArrowUpRight,
   Info,
@@ -82,9 +81,6 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("renewals")
   const [searchTerm, setSearchTerm] = useState("")
   const [whatsappNumber, setWhatsappNumber] = useState("")
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [editForm, setEditForm] = useState({ whatsapp: "", email: "" })
-  const [savingProfile, setSavingProfile] = useState(false)
   const [fetchError, setFetchError] = useState(null)
 
   const fetchData = useCallback(async () => {
@@ -173,33 +169,6 @@ export default function Dashboard() {
     }
   }, [isAdmin, fetchAdminData, fetchData])
   useEffect(() => { fetchSettings() }, [fetchSettings])
-
-  useEffect(() => {
-    if (profile) {
-      setEditForm({
-        whatsapp: profile.whatsapp ?? "",
-        email: profile.email ?? "",
-      })
-    }
-  }, [profile])
-
-  async function handleUpdateProfile(e) {
-    e.preventDefault()
-    if (!editForm.email && !editForm.whatsapp) return
-    setSavingProfile(true)
-    try {
-      await pb.collection('users').update(user.id, {
-        whatsapp: normalizeWhatsapp(editForm.whatsapp),
-        email: editForm.email.trim(),
-      })
-      setShowEditModal(false)
-      await Promise.all([fetchData(), refreshProfile?.()])
-    } catch (err) {
-      console.error("Error al actualizar perfil:", err)
-    } finally {
-      setSavingProfile(false)
-    }
-  }
 
   function handleRenew(service) {
     const raw =
@@ -495,74 +464,6 @@ export default function Dashboard() {
             </TabsContent>
           </Tabs>
         </Card>
-
-        <button
-          onClick={() => setShowEditModal(true)}
-          className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted hover:bg-muted/80 transition-all w-full text-left max-w-xs"
-        >
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Edit3 className="w-5 h-5 text-primary" />
-          </div>
-          <div className="flex-1">
-            <p className="text-xs text-primary/70 font-medium">Acciones</p>
-            <p className="text-sm font-semibold text-primary">Editar perfil</p>
-          </div>
-          <ArrowRight className="w-4 h-4 text-primary/50" />
-        </button>
-
-        <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Editar Perfil</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleUpdateProfile} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-whatsapp">WhatsApp</Label>
-                <Input
-                  id="edit-whatsapp"
-                  type="text"
-                  value={editForm.whatsapp}
-                  onChange={(e) => setEditForm((f) => ({ ...f, whatsapp: e.target.value }))}
-                  placeholder="3012345678"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-email">Email</Label>
-                <Input
-                  id="edit-email"
-                  type="email"
-                  value={editForm.email}
-                  onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
-                  placeholder="cliente@ejemplo.com"
-                />
-              </div>
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowEditModal(false)}
-                  className="flex-1"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={savingProfile || (!editForm.email && !editForm.whatsapp)}
-                  className="flex-1"
-                >
-                  {savingProfile ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Guardando...
-                    </>
-                  ) : (
-                    "Guardar cambios"
-                  )}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
       </div>
     )
   }
@@ -770,19 +671,6 @@ export default function Dashboard() {
               )}
             </div>
 
-            <button
-              onClick={() => setShowEditModal(true)}
-              className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted hover:bg-muted/80 transition-all w-full text-left"
-            >
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Edit3 className="w-5 h-5 text-primary" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-primary/70 font-medium">Acciones</p>
-                <p className="text-sm font-semibold text-primary">Editar perfil</p>
-              </div>
-              <ArrowRight className="w-4 h-4 text-primary/50" />
-            </button>
           </CardContent>
         </Card>
 
@@ -895,59 +783,6 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar Perfil</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleUpdateProfile} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-whatsapp">WhatsApp</Label>
-              <Input
-                id="edit-whatsapp"
-                type="text"
-                value={editForm.whatsapp}
-                onChange={(e) => setEditForm((f) => ({ ...f, whatsapp: e.target.value }))}
-                placeholder="3012345678"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-email">Email</Label>
-              <Input
-                id="edit-email"
-                type="email"
-                value={editForm.email}
-                onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
-                placeholder="cliente@ejemplo.com"
-              />
-            </div>
-            <div className="flex gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowEditModal(false)}
-                className="flex-1"
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                disabled={savingProfile || (!editForm.email && !editForm.whatsapp)}
-                className="flex-1"
-              >
-                {savingProfile ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Guardando...
-                  </>
-                ) : (
-                  "Guardar cambios"
-                )}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

@@ -28,11 +28,13 @@ import {
   Users,
   Package,
   Home,
+  User,
 } from "lucide-react"
 
 const clienteLinks = [
   { path: "/dashboard", label: "Dashboard", icon: Home },
   { path: "/payments", label: "Pagos", icon: Wallet },
+  { path: "/profile", label: "Mi Perfil", icon: User },
 ]
 
 const adminLinks = [

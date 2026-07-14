@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 
+import ErrorBoundary from "./components/ErrorBoundary";
 import ProtectedRoute from "./components/ProtectedRoute";
 import DashboardLayout from "./layouts/DashboardLayout";
 import AdminLayout from "./layouts/AdminLayout";
@@ -13,6 +14,7 @@ const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
 const AdminServices = lazy(() => import("./pages/admin/AdminServices"));
 const AdminPayments = lazy(() => import("./pages/admin/AdminPayments"));
 const Payments = lazy(() => import("./pages/Payments"));
+const Profile = lazy(() => import("./pages/Profile"));
 
 function Spinner() {
   return (
@@ -31,7 +33,8 @@ function AppRoutes() {
   if (loading) return <Spinner />;
 
   return (
-    <Suspense fallback={<Spinner />}>
+    <ErrorBoundary>
+      <Suspense fallback={<Spinner />}>
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route
@@ -44,6 +47,7 @@ function AppRoutes() {
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="/payments" element={<Payments />} />
             <Route
               path="/service/:serviceId/credentials"
@@ -65,7 +69,8 @@ function AppRoutes() {
           element={<Navigate to={user ? "/dashboard" : "/login"} replace />}
         />
       </Routes>
-    </Suspense>
+      </Suspense>
+    </ErrorBoundary>
   );
 }
 
