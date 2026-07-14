@@ -8,6 +8,10 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Package, Plus, Search, Edit3, Trash2, Zap, Loader2, Tags, Check } from "lucide-react"
 
+function slugify(text) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+}
+
 const DEFAULT_TYPES = [
   { value: "dominio", name: "Dominio", color: "default" },
   { value: "hosting", name: "Hosting", color: "secondary" },
@@ -38,7 +42,7 @@ export default function AdminServices() {
   const [searchTerm, setSearchTerm] = useState("")
   const [serviceUsage, setServiceUsage] = useState({})
   const [formData, setFormData] = useState({ name: "", type: "dominio" })
-  const [typeForm, setTypeForm] = useState({ name: "", value: "", color: "default" })
+  const [typeForm, setTypeForm] = useState({ name: "", color: "default" })
 
   useEffect(() => { fetchAll() }, [])
 
@@ -114,22 +118,23 @@ export default function AdminServices() {
 
   function resetTypeForm() {
     setEditingType(null)
-    setTypeForm({ name: "", value: "", color: "default" })
+    setTypeForm({ name: "", color: "default" })
   }
 
   function handleEditType(type) {
     setEditingType(type)
-    setTypeForm({ name: type.name, value: type.value, color: type.color || "default" })
+    setTypeForm({ name: type.name, color: type.color || "default" })
   }
 
   async function handleTypeSubmit(e) {
     e.preventDefault()
-    if (!typeForm.name.trim() || !typeForm.value.trim()) {
-      notify("Nombre y valor son requeridos", "error")
+    if (!typeForm.name.trim()) {
+      notify("El nombre es requerido", "error")
       return
     }
     try {
-      const payload = { name: typeForm.name.trim(), value: typeForm.value.trim(), color: typeForm.color }
+      const value = slugify(typeForm.name.trim())
+      const payload = { name: typeForm.name.trim(), value, color: typeForm.color }
       if (editingType) {
         await pb.collection('service_types').update(editingType.id, payload)
         notify("Tipo actualizado correctamente", "success")
@@ -229,15 +234,11 @@ export default function AdminServices() {
       <Modal isOpen={showTypesModal} onClose={() => setShowTypesModal(false)} title="Gestionar Tipos de Servicio" size="md">
         <div className="space-y-4">
           <form onSubmit={handleTypeSubmit} className="flex items-end gap-2 border-b border-border pb-4">
-            <div className="flex-1">
+            <div className="flex-[2]">
               <label className="block text-xs font-medium text-muted-foreground mb-1">Nombre</label>
               <input type="text" placeholder="Ej: Dominio" value={typeForm.name} onChange={(e) => setTypeForm({ ...typeForm, name: e.target.value })} required className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Valor</label>
-              <input type="text" placeholder="Ej: dominio" value={typeForm.value} onChange={(e) => setTypeForm({ ...typeForm, value: e.target.value })} required className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
-            </div>
-            <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1">Color</label>
               <select value={typeForm.color} onChange={(e) => setTypeForm({ ...typeForm, color: e.target.value })} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                 {COLOR_OPTIONS.map((c) => (<option key={c.value} value={c.value}>{c.label}</option>))}
@@ -256,7 +257,6 @@ export default function AdminServices() {
                 <div key={type.id || type.value} className="flex items-center justify-between p-3 rounded-lg border border-border">
                   <div className="flex items-center gap-3">
                     <Badge variant={type.color}>{type.name}</Badge>
-                    <span className="text-xs text-muted-foreground">{type.value}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Button variant="ghost" size="sm" onClick={() => handleEditType(type)}>
