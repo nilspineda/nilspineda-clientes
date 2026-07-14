@@ -6,43 +6,61 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Package, Plus, Search, Edit3, Trash2, Zap, Loader2 } from "lucide-react"
+import { Package, Plus, Search, Edit3, Trash2, Zap, Loader2, Tags, Check } from "lucide-react"
 
-const SERVICE_TYPES = [
-  { value: "dominio", label: "Dominio", color: "default" },
-  { value: "hosting", label: "Hosting", color: "secondary" },
-  { value: "correo", label: "Correo", color: "outline" },
-  { value: "membresia", label: "Membresía", color: "default" },
-  { value: "personalizado", label: "Personalizado", color: "secondary" },
+const DEFAULT_TYPES = [
+  { value: "dominio", name: "Dominio", color: "default" },
+  { value: "hosting", name: "Hosting", color: "secondary" },
+  { value: "correo", name: "Correo", color: "outline" },
+  { value: "membresia", name: "Membresía", color: "default" },
+  { value: "personalizado", name: "Personalizado", color: "secondary" },
 ]
 
-function getTypeInfo(type) {
-  return SERVICE_TYPES.find((t) => t.value === type) || SERVICE_TYPES[4]
+const COLOR_OPTIONS = [
+  { value: "default", label: "Default", class: "bg-primary/10 text-primary border-primary/20" },
+  { value: "secondary", label: "Secondary", class: "bg-secondary text-secondary-foreground" },
+  { value: "outline", label: "Outline", class: "border-border text-muted-foreground" },
+  { value: "destructive", label: "Destructive", class: "bg-destructive/10 text-destructive border-destructive/20" },
+]
+
+function getTypeInfo(type, types) {
+  return types.find((t) => t.value === type)
 }
 
 export default function AdminServices() {
   const [services, setServices] = useState([])
+  const [serviceTypes, setServiceTypes] = useState(DEFAULT_TYPES)
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [showTypesModal, setShowTypesModal] = useState(false)
   const [editingService, setEditingService] = useState(null)
+  const [editingType, setEditingType] = useState(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [serviceUsage, setServiceUsage] = useState({})
   const [formData, setFormData] = useState({ name: "", type: "dominio" })
+  const [typeForm, setTypeForm] = useState({ name: "", value: "", color: "default" })
 
-  useEffect(() => { fetchServices() }, [])
+  useEffect(() => { fetchAll() }, [])
 
-  async function fetchServices() {
+  async function fetchAll() {
+    setLoading(true)
     try {
-      const servicesData = await pb.collection('services').getFullList({ sort: '-created', requestKey: null })
-      const userServices = await pb.collection('user_services').getFullList({ requestKey: null })
+      const [servicesData, userServices, typesData] = await Promise.all([
+        pb.collection('services').getFullList({ sort: '-created', requestKey: null }),
+        pb.collection('user_services').getFullList({ requestKey: null }),
+        pb.collection('service_types').getFullList({ sort: 'name', requestKey: null }).catch(() => []),
+      ])
       const counts = {}
       userServices.forEach((s) => {
         if (s.service_id) counts[s.service_id] = (counts[s.service_id] || 0) + 1
       })
       setServiceUsage(counts)
       setServices(servicesData || [])
+      if (typesData && typesData.length > 0) {
+        setServiceTypes(typesData)
+      }
     } catch (err) {
-      console.error("Error fetching services:", err)
+      console.error("Error fetching data:", err)
     }
     setLoading(false)
   }
@@ -62,7 +80,7 @@ export default function AdminServices() {
         await pb.collection('services').create(payload)
         notify("Servicio creado correctamente", "success")
       }
-      fetchServices()
+      fetchAll()
       resetForm()
     } catch (error) {
       console.error("Error guardando servicio:", error)
@@ -73,12 +91,12 @@ export default function AdminServices() {
   function resetForm() {
     setShowModal(false)
     setEditingService(null)
-    setFormData({ name: "", type: "dominio" })
+    setFormData({ name: "", type: serviceTypes[0]?.value || "dominio" })
   }
 
   function handleEdit(service) {
     setEditingService(service)
-    setFormData({ name: service.name, type: service.type || "dominio" })
+    setFormData({ name: service.name, type: service.type || serviceTypes[0]?.value || "dominio" })
     setShowModal(true)
   }
 
@@ -86,11 +104,56 @@ export default function AdminServices() {
     if (!confirm("¿Estás seguro de eliminar este servicio?")) return
     try {
       await pb.collection('services').delete(id)
-      fetchServices()
+      fetchAll()
       notify("Servicio eliminado correctamente", "success")
     } catch (error) {
       console.error("Error eliminando servicio:", error)
       notify("Error al eliminar servicio", "error")
+    }
+  }
+
+  function resetTypeForm() {
+    setEditingType(null)
+    setTypeForm({ name: "", value: "", color: "default" })
+  }
+
+  function handleEditType(type) {
+    setEditingType(type)
+    setTypeForm({ name: type.name, value: type.value, color: type.color || "default" })
+  }
+
+  async function handleTypeSubmit(e) {
+    e.preventDefault()
+    if (!typeForm.name.trim() || !typeForm.value.trim()) {
+      notify("Nombre y valor son requeridos", "error")
+      return
+    }
+    try {
+      const payload = { name: typeForm.name.trim(), value: typeForm.value.trim(), color: typeForm.color }
+      if (editingType) {
+        await pb.collection('service_types').update(editingType.id, payload)
+        notify("Tipo actualizado correctamente", "success")
+      } else {
+        await pb.collection('service_types').create(payload)
+        notify("Tipo creado correctamente", "success")
+      }
+      resetTypeForm()
+      fetchAll()
+    } catch (error) {
+      console.error("Error guardando tipo:", error)
+      notify("Error al guardar tipo: " + error.message, "error")
+    }
+  }
+
+  async function handleDeleteType(id) {
+    if (!confirm("¿Estás seguro de eliminar este tipo?")) return
+    try {
+      await pb.collection('service_types').delete(id)
+      fetchAll()
+      notify("Tipo eliminado correctamente", "success")
+    } catch (error) {
+      console.error("Error eliminando tipo:", error)
+      notify("Error al eliminar tipo", "error")
     }
   }
 
@@ -118,10 +181,16 @@ export default function AdminServices() {
             <p className="text-sm text-muted-foreground">{filteredServices.length} servicios</p>
           </div>
         </div>
-        <Button onClick={() => setShowModal(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nuevo Servicio
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => { resetTypeForm(); setShowTypesModal(true) }}>
+            <Tags className="w-4 h-4 mr-2" />
+            Tipos
+          </Button>
+          <Button onClick={() => setShowModal(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nuevo Servicio
+          </Button>
+        </div>
       </div>
 
       <Card className="p-4">
@@ -136,6 +205,7 @@ export default function AdminServices() {
         </div>
       </Card>
 
+      {/* Service Modal */}
       <Modal isOpen={showModal} onClose={resetForm} title={editingService ? "Editar Servicio" : "Nuevo Servicio"} size="md">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -145,7 +215,7 @@ export default function AdminServices() {
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1.5">Tipo de servicio</label>
             <select value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-              {SERVICE_TYPES.map((type) => (<option key={type.value} value={type.value}>{type.label}</option>))}
+              {serviceTypes.map((type) => (<option key={type.value || type.id} value={type.value}>{type.name}</option>))}
             </select>
           </div>
           <div className="flex gap-3 pt-2">
@@ -153,6 +223,56 @@ export default function AdminServices() {
             <Button type="button" variant="outline" onClick={resetForm} className="flex-1">Cancelar</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Types Management Modal */}
+      <Modal isOpen={showTypesModal} onClose={() => setShowTypesModal(false)} title="Gestionar Tipos de Servicio" size="md">
+        <div className="space-y-4">
+          <form onSubmit={handleTypeSubmit} className="flex items-end gap-2 border-b border-border pb-4">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Nombre</label>
+              <input type="text" placeholder="Ej: Dominio" value={typeForm.name} onChange={(e) => setTypeForm({ ...typeForm, name: e.target.value })} required className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Valor</label>
+              <input type="text" placeholder="Ej: dominio" value={typeForm.value} onChange={(e) => setTypeForm({ ...typeForm, value: e.target.value })} required className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Color</label>
+              <select value={typeForm.color} onChange={(e) => setTypeForm({ ...typeForm, color: e.target.value })} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                {COLOR_OPTIONS.map((c) => (<option key={c.value} value={c.value}>{c.label}</option>))}
+              </select>
+            </div>
+            <Button type="submit" size="sm" className="h-9">
+              {editingType ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            </Button>
+          </form>
+
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {serviceTypes.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No hay tipos creados.</p>
+            ) : (
+              serviceTypes.map((type) => (
+                <div key={type.id || type.value} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                  <div className="flex items-center gap-3">
+                    <Badge variant={type.color}>{type.name}</Badge>
+                    <span className="text-xs text-muted-foreground">{type.value}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" onClick={() => handleEditType(type)}>
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </Button>
+                    {type.id && (
+                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteType(type.id)}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </Modal>
 
       <Card className="overflow-hidden">
@@ -171,7 +291,7 @@ export default function AdminServices() {
                 <tr><td colSpan={4} className="px-6 py-12 text-center text-muted-foreground">No hay servicios creados.</td></tr>
               ) : (
                 services.map((service) => {
-                  const typeInfo = getTypeInfo(service.type)
+                  const typeInfo = getTypeInfo(service.type, serviceTypes)
                   return (
                     <tr key={service.id} className="hover:bg-muted/50 transition-all">
                       <td className="px-6 py-4">
@@ -182,7 +302,9 @@ export default function AdminServices() {
                           <span className="text-foreground font-semibold">{service.name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4"><Badge variant={typeInfo.color}>{typeInfo.label}</Badge></td>
+                      <td className="px-6 py-4">
+                        {typeInfo ? <Badge variant={typeInfo.color}>{typeInfo.name}</Badge> : <Badge variant="outline">{service.type}</Badge>}
+                      </td>
                       <td className="px-6 py-4"><span className="px-3 py-1.5 rounded-md bg-muted text-muted-foreground font-medium text-sm">{serviceUsage[service.id] || 0} clientes</span></td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
