@@ -9,39 +9,70 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Wallet, Download, Plus, Search, Edit3, Trash2, MessageCircle, Loader2 } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Wallet, Download, Plus, Search, Edit3, Trash2, MessageCircle, Loader2, Landmark } from "lucide-react"
 
 export default function AdminPayments() {
   const [payments, setPayments] = useState([])
   const [users, setUsers] = useState([])
   const [userServices, setUserServices] = useState([])
+  const [paymentAccounts, setPaymentAccounts] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingPayment, setEditingPayment] = useState(null)
   const [filterStatus, setFilterStatus] = useState("all")
-  const [dateFrom, setDateFrom] = useState("")
-  const [dateTo, setDateTo] = useState("")
+  const [filterMonth, setFilterMonth] = useState(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+  })
+  const [filterAccount, setFilterAccount] = useState("")
   const [searchClient, setSearchClient] = useState("")
+  const [newAccountName, setNewAccountName] = useState("")
   const [formData, setFormData] = useState({
-    user_id: "", service_id: "", amount: "", payment_date: "", payment_method: "transferencia",
+    user_id: "", service_id: "", amount: "", payment_date: "", payment_method: "transferencia", payment_account: "",
   })
 
   useEffect(() => { fetchData() }, [])
 
   async function fetchData() {
     try {
-      const [paymentsData, usersData, userServicesData] = await Promise.all([
-        pb.collection('payments').getFullList({ sort: '-payment_date', expand: 'user_service_id,user_id', requestKey: null }),
+      const [paymentsData, usersData, userServicesData, accountsData] = await Promise.all([
+        pb.collection('payments').getFullList({ sort: '-payment_date', expand: 'user_service_id,user_id,payment_account', requestKey: null }),
         pb.collection('users').getFullList({ filter: 'role = "user"', requestKey: null }),
         pb.collection('user_services').getFullList({ sort: '-created', expand: 'service_id', requestKey: null }),
+        pb.collection('payment_accounts').getFullList({ sort: 'name', requestKey: null }),
       ])
       setPayments(paymentsData || [])
       setUsers(usersData || [])
       setUserServices(userServicesData || [])
+      setPaymentAccounts(accountsData || [])
     } catch (err) {
       console.error("Error fetching data:", err)
     }
     setLoading(false)
+  }
+
+  async function createAccount() {
+    if (!newAccountName.trim()) return
+    try {
+      await pb.collection('payment_accounts').create({ name: newAccountName.trim() })
+      setNewAccountName("")
+      notify("Cuenta creada", "success")
+      fetchData()
+    } catch (err) {
+      notify("Error al crear cuenta", "error")
+    }
+  }
+
+  async function deleteAccount(id) {
+    if (!confirm("¿Eliminar esta cuenta?")) return
+    try {
+      await pb.collection('payment_accounts').delete(id)
+      notify("Cuenta eliminada", "success")
+      fetchData()
+    } catch (err) {
+      notify("Error al eliminar cuenta", "error")
+    }
   }
 
   async function handleSubmit(e) {
@@ -53,6 +84,7 @@ export default function AdminPayments() {
         amount: parseFloat(formData.amount),
         payment_date: formData.payment_date || new Date().toISOString(),
         payment_method: formData.payment_method,
+        payment_account: formData.payment_account || null,
         status: "paid",
       }
       if (editingPayment) {
@@ -73,7 +105,7 @@ export default function AdminPayments() {
   function resetForm() {
     setShowModal(false)
     setEditingPayment(null)
-    setFormData({ user_id: "", service_id: "", amount: "", payment_date: "", payment_method: "transferencia" })
+    setFormData({ user_id: "", service_id: "", amount: "", payment_date: "", payment_method: "transferencia", payment_account: "" })
   }
 
   function handleEdit(payment) {
@@ -84,6 +116,7 @@ export default function AdminPayments() {
       amount: payment.amount || "",
       payment_date: payment.payment_date ? payment.payment_date.split("T")[0] : "",
       payment_method: payment.payment_method || "transferencia",
+      payment_account: typeof payment.payment_account === 'object' ? payment.payment_account?.id : (payment.payment_account || ""),
     })
     setShowModal(true)
   }
@@ -109,45 +142,50 @@ export default function AdminPayments() {
     }
   }
 
-  // Rest of the helper functions...
   const filteredPayments = payments.filter((p) => {
     const matchStatus = filterStatus === "all" || p.status === filterStatus
-    const matchDateFrom = !dateFrom || new Date(p.payment_date) >= new Date(dateFrom)
-    const matchDateTo = !dateTo || new Date(p.payment_date) <= new Date(dateTo + "T23:59:59")
+    const matchMonth = !filterMonth || p.payment_date?.startsWith(filterMonth)
     const matchSearch = !searchClient || p.expand?.user_id?.name?.toLowerCase().includes(searchClient.toLowerCase())
-    return matchStatus && matchDateFrom && matchDateTo && matchSearch
+    const matchAccount = !filterAccount || (
+      typeof p.payment_account === 'object' ? p.payment_account?.id === filterAccount : p.payment_account === filterAccount
+    )
+    return matchStatus && matchMonth && matchSearch && matchAccount
   })
 
   const getServicesForUser = (userId) => userServices.filter((s) => s.user_id === userId)
 
-  const totalAmount = filteredPayments
+  const totalPaid = filteredPayments
     .filter((p) => p.status === "paid")
     .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
 
-  const monthlyStats = () => {
-    const now = new Date()
-    const thisMonth = payments.filter((p) => {
-      const d = new Date(p.payment_date)
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && p.status === "paid"
-    })
-    const lastMonth = payments.filter((p) => {
-      const d = new Date(p.payment_date)
-      const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-      return d.getMonth() === lm.getMonth() && d.getFullYear() === lm.getFullYear() && p.status === "paid"
-    })
-    return {
-      thisMonth: thisMonth.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0),
-      lastMonth: lastMonth.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0),
-      count: thisMonth.length,
-    }
-  }
+  const totalPending = filteredPayments
+    .filter((p) => p.status === "pending")
+    .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
+
+  const accountTotals = paymentAccounts.map((acc) => {
+    const paidSum = payments
+      .filter((p) => {
+        const accId = typeof p.payment_account === 'object' ? p.payment_account?.id : p.payment_account
+        return accId === acc.id && p.status === "paid"
+      })
+      .reduce((s, p) => s + (parseFloat(p.amount) || 0), 0)
+    return { ...acc, total: paidSum }
+  })
+
+  const monthLabel = filterMonth
+    ? new Date(filterMonth + "-01").toLocaleDateString("es-CO", { month: "long", year: "numeric" })
+    : "Todos"
 
   function exportCSV() {
-    const headers = ["Cliente", "Servicio", "Monto", "Fecha", "Método", "Estado"]
+    const headers = ["Cliente", "Servicio", "Monto", "Fecha", "Método", "Cuenta", "Estado"]
     const escapeCsv = (v) => {
       if (v === null || v === undefined) return '""'
       const s = String(v)
       return `"${s.replace(/"/g, '""')}"`
+    }
+    const accName = (p) => {
+      if (typeof p.payment_account === 'object') return p.payment_account?.name || ""
+      return p.expand?.payment_account?.name || p.payment_account || ""
     }
     const rows = filteredPayments.map((p) => [
       p.expand?.user_id?.name || "-",
@@ -155,6 +193,7 @@ export default function AdminPayments() {
       formatCurrency(p.amount),
       formatDate(p.payment_date),
       p.payment_method,
+      accName(p),
       p.status,
     ])
     const csv = [headers, ...rows].map((r) => r.map(escapeCsv).join(",")).join("\n")
@@ -162,7 +201,7 @@ export default function AdminPayments() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `pagos_${new Date().toISOString().split("T")[0]}.csv`
+    a.download = `pagos_${filterMonth || new Date().toISOString().split("T")[0]}.csv`
     a.click()
   }
 
@@ -174,9 +213,6 @@ export default function AdminPayments() {
     )
   }
 
-  const stats = monthlyStats()
-  const currentMonth = new Date().toLocaleDateString("es-CO", { month: "long", year: "numeric" })
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -186,7 +222,7 @@ export default function AdminPayments() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-foreground">Pagos</h1>
-            <p className="text-sm text-muted-foreground">Total filtrado: {formatCurrency(totalAmount)}</p>
+            <p className="text-sm text-muted-foreground">{filteredPayments.length} pagos en {monthLabel}</p>
           </div>
         </div>
       </div>
@@ -204,44 +240,176 @@ export default function AdminPayments() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="p-5">
-          <p className="text-sm text-muted-foreground">{currentMonth}</p>
-          <p className="text-3xl font-bold text-green-500">{formatCurrency(stats.thisMonth)}</p>
+          <p className="text-sm text-muted-foreground">{monthLabel}</p>
+          <p className="text-3xl font-bold text-green-500">{formatCurrency(totalPaid)}</p>
         </Card>
         <Card className="p-5">
-          <p className="text-sm text-muted-foreground">Mes anterior</p>
-          <p className="text-3xl font-bold text-foreground">{formatCurrency(stats.lastMonth)}</p>
+          <p className="text-sm text-muted-foreground">Pendiente</p>
+          <p className="text-3xl font-bold text-orange-500">{formatCurrency(totalPending)}</p>
         </Card>
         <Card className="p-5">
-          <p className="text-sm text-muted-foreground">Pagos este mes</p>
-          <p className="text-3xl font-bold text-foreground">{stats.count}</p>
+          <p className="text-sm text-muted-foreground">Pagados</p>
+          <p className="text-3xl font-bold text-foreground">{filteredPayments.filter(p => p.status === "paid").length}</p>
         </Card>
       </div>
 
-      <Card className="p-4">
-        <div className="flex flex-wrap gap-4 items-end">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Buscar cliente..." value={searchClient} onChange={(e) => setSearchClient(e.target.value)} className="pl-9 w-full sm:w-48 h-9" />
-          </div>
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm">
-            <option value="all">Todos los estados</option>
-            <option value="paid">Pagado</option>
-            <option value="pending">Pendiente</option>
-            <option value="failed">Fallido</option>
-          </select>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-muted-foreground">Desde:</label>
-            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm" />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-muted-foreground">Hasta:</label>
-            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm" />
-          </div>
-          {(filterStatus !== "all" || dateFrom || dateTo) && (
-            <button onClick={() => { setFilterStatus("all"); setDateFrom(""); setDateTo("") }} className="text-sm text-muted-foreground hover:text-foreground">Limpiar filtros</button>
-          )}
-        </div>
-      </Card>
+      <Tabs defaultValue="payments">
+        <TabsList>
+          <TabsTrigger value="payments">Pagos</TabsTrigger>
+          <TabsTrigger value="accounts">Cuentas</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="payments" className="space-y-4 mt-4">
+          <Card className="p-4">
+            <div className="flex flex-wrap gap-4 items-end">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input placeholder="Buscar cliente..." value={searchClient} onChange={(e) => setSearchClient(e.target.value)} className="pl-9 w-full sm:w-48 h-9" />
+              </div>
+              <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm">
+                <option value="all">Todos los estados</option>
+                <option value="paid">Pagado</option>
+                <option value="pending">Pendiente</option>
+                <option value="failed">Fallido</option>
+              </select>
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-muted-foreground">Mes:</label>
+                <input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm" />
+              </div>
+              <select value={filterAccount} onChange={(e) => setFilterAccount(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm">
+                <option value="">Todas las cuentas</option>
+                {paymentAccounts.map((a) => (<option key={a.id} value={a.id}>{a.name}</option>))}
+              </select>
+              {(filterStatus !== "all" || filterAccount) && (
+                <button onClick={() => { setFilterStatus("all"); setFilterAccount("") }} className="text-sm text-muted-foreground hover:text-foreground">Limpiar filtros</button>
+              )}
+            </div>
+          </Card>
+
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted/50 border-b">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Cliente</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Servicio</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Monto</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Fecha</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Método</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Cuenta</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Estado</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {filteredPayments.length === 0 ? (
+                    <tr><td colSpan={8} className="px-6 py-12 text-center text-muted-foreground">No hay pagos registrados.</td></tr>
+                  ) : (
+                    filteredPayments.map((payment) => {
+                      const accName = typeof payment.payment_account === 'object'
+                        ? payment.payment_account?.name
+                        : payment.expand?.payment_account?.name || ""
+                      return (
+                        <tr key={payment.id} className="hover:bg-muted/50 transition-all">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              {payment.expand?.user_id?.whatsapp && (
+                                <a href={`https://wa.me/${normalizeWhatsapp(payment.expand.user_id.whatsapp)}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-md bg-green-500/10 flex items-center justify-center hover:bg-green-500/20 transition-colors">
+                                  <MessageCircle className="w-4 h-4 text-green-500" />
+                                </a>
+                              )}
+                              <span className="font-semibold text-foreground">{payment.expand?.user_id?.name}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-muted-foreground">
+                            {payment.expand?.user_service_id?.name || payment.expand?.user_service_id?.expand?.service_id?.name || "-"}
+                            {payment.expand?.user_service_id?.url_dominio && <span className="block text-xs text-blue-500">{payment.expand?.user_service_id?.url_dominio}</span>}
+                          </td>
+                          <td className="px-6 py-4"><span className="px-3 py-1.5 rounded-md bg-green-500/10 border border-green-500/20 text-green-500 font-bold">{formatCurrency(payment.amount)}</span></td>
+                          <td className="px-6 py-4 text-muted-foreground text-sm">{formatDate(payment.payment_date)}</td>
+                          <td className="px-6 py-4"><span className="px-2 py-1 rounded text-xs bg-muted text-muted-foreground capitalize">{payment.payment_method}</span></td>
+                          <td className="px-6 py-4">
+                            {accName ? (
+                              <span className="text-xs font-medium text-foreground">{accName}</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <select value={payment.status} onChange={(e) => updateStatus(payment.id, e.target.value)} className={`text-sm border rounded-md px-3 py-1.5 ${payment.status === "paid" ? "bg-green-500/10 border-green-500/30 text-green-500" : payment.status === "pending" ? "bg-orange-500/10 border-orange-500/30 text-orange-500" : "bg-destructive/10 border-destructive/30 text-destructive"}`}>
+                              <option value="paid">Pagado</option>
+                              <option value="pending">Pendiente</option>
+                              <option value="failed">Fallido</option>
+                            </select>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <Button variant="ghost" size="sm" onClick={() => handleEdit(payment)}><Edit3 className="w-4 h-4 mr-1" />Editar</Button>
+                              <Button variant="ghost" size="sm" onClick={() => handleDelete(payment.id)} className="text-destructive hover:text-destructive"><Trash2 className="w-4 h-4 mr-1" />Eliminar</Button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="accounts" className="space-y-4 mt-4">
+          <Card className="p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <Input
+                placeholder="Nombre de la cuenta (ej. Bancolombia, Nequi)"
+                value={newAccountName}
+                onChange={(e) => setNewAccountName(e.target.value)}
+                className="flex-1"
+              />
+              <Button onClick={createAccount}>
+                <Plus className="w-4 h-4 mr-2" />
+                Agregar
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {paymentAccounts.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No hay cuentas registradas</p>
+              ) : (
+                paymentAccounts.map((acc) => (
+                  <div key={acc.id} className="flex items-center justify-between p-3 rounded-lg border">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Landmark className="w-4 h-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-foreground">{acc.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Total cobrado: {formatCurrency(accountTotals.find((a) => a.id === acc.id)?.total || 0)}
+                        </p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => deleteAccount(acc.id)} className="text-destructive">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))
+              )}
+              <div className="flex items-center justify-between p-3 rounded-lg border border-primary/20 bg-primary/5">
+                <p className="font-bold text-foreground">Total cobrado general</p>
+                <p className="font-bold text-xl text-primary">
+                  {formatCurrency(
+                    paymentAccounts.reduce((s, a) => {
+                      const found = accountTotals.find((at) => at.id === a.id)
+                      return s + (found?.total || 0)
+                    }, 0)
+                  )}
+                </p>
+              </div>
+            </div>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <Modal isOpen={showModal} onClose={resetForm} title={editingPayment ? "Editar Pago" : "Registrar Pago"} size="md">
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -271,17 +439,23 @@ export default function AdminPayments() {
               <input type="date" value={formData.payment_date} onChange={(e) => setFormData({ ...formData, payment_date: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1.5">Método de pago</label>
-            <select value={formData.payment_method} onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-              <option value="transferencia">Transferencia</option>
-              <option value="efectivo">Efectivo</option>
-              <option value="mercadopago">MercadoPago</option>
-              <option value="nequi">Nequi</option>
-              <option value="daviplata">Daviplata</option>
-              <option value="tarjeta">Tarjeta</option>
-              <option value="otro">Otro</option>
-            </select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-1.5">Método de pago</label>
+              <select value={formData.payment_method} onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <option value="transferencia">Transferencia</option>
+                <option value="efectivo">Efectivo</option>
+                <option value="nequi">Nequi</option>
+                <option value="bancolombia">Bancolombia</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-1.5">Cuenta (opcional)</label>
+              <select value={formData.payment_account} onChange={(e) => setFormData({ ...formData, payment_account: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <option value="">Sin cuenta</option>
+                {paymentAccounts.map((a) => (<option key={a.id} value={a.id}>{a.name}</option>))}
+              </select>
+            </div>
           </div>
           <div className="flex gap-3 pt-2">
             <Button type="submit" className="flex-1">{editingPayment ? "Guardar Cambios" : "Registrar Pago"}</Button>
@@ -289,64 +463,6 @@ export default function AdminPayments() {
           </div>
         </form>
       </Modal>
-
-      <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-muted/50 border-b">
-              <tr>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Cliente</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Servicio</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Monto</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Fecha</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Método</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Estado</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {filteredPayments.length === 0 ? (
-                <tr><td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">No hay pagos registrados.</td></tr>
-              ) : (
-                filteredPayments.map((payment) => (
-                  <tr key={payment.id} className="hover:bg-muted/50 transition-all">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        {payment.expand?.user_id?.whatsapp && (
-                          <a href={`https://wa.me/${normalizeWhatsapp(payment.expand.user_id.whatsapp)}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-md bg-green-500/10 flex items-center justify-center hover:bg-green-500/20 transition-colors">
-                            <MessageCircle className="w-4 h-4 text-green-500" />
-                          </a>
-                        )}
-                        <span className="font-semibold text-foreground">{payment.expand?.user_id?.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-muted-foreground">
-                      {payment.expand?.user_service_id?.name || payment.expand?.user_service_id?.expand?.service_id?.name || "-"}
-                      {payment.expand?.user_service_id?.url_dominio && <span className="block text-xs text-blue-500">{payment.expand?.user_service_id?.url_dominio}</span>}
-                    </td>
-                    <td className="px-6 py-4"><span className="px-3 py-1.5 rounded-md bg-green-500/10 border border-green-500/20 text-green-500 font-bold">{formatCurrency(payment.amount)}</span></td>
-                    <td className="px-6 py-4 text-muted-foreground text-sm">{formatDate(payment.payment_date)}</td>
-                    <td className="px-6 py-4"><span className="px-2 py-1 rounded text-xs bg-muted text-muted-foreground capitalize">{payment.payment_method}</span></td>
-                    <td className="px-6 py-4">
-                      <select value={payment.status} onChange={(e) => updateStatus(payment.id, e.target.value)} className={`text-sm border rounded-md px-3 py-1.5 ${payment.status === "paid" ? "bg-green-500/10 border-green-500/30 text-green-500" : payment.status === "pending" ? "bg-orange-500/10 border-orange-500/30 text-orange-500" : "bg-destructive/10 border-destructive/30 text-destructive"}`}>
-                        <option value="paid">Pagado</option>
-                        <option value="pending">Pendiente</option>
-                        <option value="failed">Fallido</option>
-                      </select>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(payment)}><Edit3 className="w-4 h-4 mr-1" />Editar</Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(payment.id)} className="text-destructive hover:text-destructive"><Trash2 className="w-4 h-4 mr-1" />Eliminar</Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
     </div>
   )
 }

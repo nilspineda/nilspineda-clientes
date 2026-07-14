@@ -9,7 +9,6 @@ import Login from "./pages/Login";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const ServiceCredentials = lazy(() => import("./pages/ServiceCredentials"));
-const AdminIndex = lazy(() => import("./pages/admin/AdminIndex"));
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
 const AdminServices = lazy(() => import("./pages/admin/AdminServices"));
 const AdminPayments = lazy(() => import("./pages/admin/AdminPayments"));
@@ -38,14 +37,7 @@ function AppRoutes() {
         <Route
           path="/login"
           element={
-            user ? (
-              <Navigate
-                to={profile?.role === "admin" ? "/admin" : "/dashboard"}
-                replace
-              />
-            ) : (
-              <Login />
-            )
+            user ? <Navigate to="/dashboard" replace /> : <Login />
           }
         />
 
@@ -62,7 +54,6 @@ function AppRoutes() {
 
         <Route element={<ProtectedRoute requireAdmin />}>
           <Route element={<AdminLayout />}>
-            <Route path="/admin" element={<AdminIndex />} />
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/admin/services" element={<AdminServices />} />
             <Route path="/admin/payments" element={<AdminPayments />} />
@@ -71,18 +62,7 @@ function AppRoutes() {
 
         <Route
           path="*"
-          element={
-            <Navigate
-              to={
-                user
-                  ? profile?.role === "admin"
-                    ? "/admin"
-                    : "/dashboard"
-                  : "/login"
-              }
-              replace
-            />
-          }
+          element={<Navigate to={user ? "/dashboard" : "/login"} replace />}
         />
       </Routes>
     </Suspense>
@@ -91,7 +71,7 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>

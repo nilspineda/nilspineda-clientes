@@ -20,7 +20,6 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip"
 import {
-  LayoutDashboard,
   Wallet,
   LogOut,
   Menu,
@@ -32,13 +31,12 @@ import {
 } from "lucide-react"
 
 const clienteLinks = [
-  { path: "/dashboard", label: "Panel", icon: Home },
+  { path: "/dashboard", label: "Dashboard", icon: Home },
   { path: "/payments", label: "Pagos", icon: Wallet },
 ]
 
 const adminLinks = [
-  { path: "/dashboard", label: "Panel", icon: Home },
-  { path: "/admin", label: "Admin", icon: LayoutDashboard },
+  { path: "/dashboard", label: "Dashboard", icon: Home },
   { path: "/admin/users", label: "Clientes", icon: Users },
   { path: "/admin/services", label: "Servicios", icon: Package },
   { path: "/admin/payments", label: "Pagos", icon: Wallet },
@@ -115,7 +113,7 @@ function Sidebar({ collapsed, onToggle, onClose }) {
         "flex items-center border-b border-border/50 h-16 shrink-0",
         collapsed ? "justify-center px-2" : "justify-between px-4"
       )}>
-        <Link to={isAdmin ? "/admin" : "/dashboard"} className={cn(
+        <Link to="/dashboard" className={cn(
           "flex items-center min-w-0",
           collapsed ? "justify-center" : "flex-1 gap-2"
         )}>
@@ -201,12 +199,18 @@ export default function DashboardLayout() {
     const saved = localStorage.getItem("dashboard-sidebar-collapsed")
     return saved === "true"
   })
+  const [colombiaTime, setColombiaTime] = useState(new Date())
   const navigate = useNavigate()
   const { signOut, profile, isAdmin } = useAuth()
 
   useEffect(() => {
     localStorage.setItem("dashboard-sidebar-collapsed", collapsed)
   }, [collapsed])
+
+  useEffect(() => {
+    const timer = setInterval(() => setColombiaTime(new Date()), 60000)
+    return () => clearInterval(timer)
+  }, [])
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed(prev => !prev)
@@ -254,27 +258,14 @@ export default function DashboardLayout() {
       )}>
         {/* Top bar */}
         <header className="sticky top-0 z-20 flex items-center justify-end gap-4 h-16 px-6 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-2 h-8 px-2">
-                  <Avatar className="w-6 h-6">
-                    <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
-                      {profile?.name?.charAt(0)?.toUpperCase() || "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm font-medium hidden sm:inline">
-                    {profile?.name}
-                  </span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Cerrar sesión
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="capitalize">
+              {colombiaTime.toLocaleDateString('es-CO', { timeZone: 'America/Bogota', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </span>
+            <span className="hidden sm:inline">
+              {colombiaTime.toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit' })}
+            </span>
+            <span className="text-xs text-muted-foreground/60">COL</span>
           </div>
         </header>
 

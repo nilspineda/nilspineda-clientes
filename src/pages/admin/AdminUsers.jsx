@@ -10,11 +10,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
-import { getPaymentsByUserService, updatePaymentStatus } from "@/utils/paymentUtils"
+import { generateMonthlyPayments, getPaymentsByUserService, updatePaymentStatus } from "@/utils/paymentUtils"
 import {
   Users, UserPlus, Mail, Phone, MessageCircle, ChevronLeft, Edit3, Trash2, Plus,
   Eye, EyeOff, Loader2, ExternalLink, Key, Calendar, DollarSign, CreditCard,
-  User, Package, Info, Activity, ToggleLeft, ToggleRight, ArrowUpRight, Lock,
+  User, Package, Info, Activity, ToggleLeft, ToggleRight, ArrowUpRight, Lock, RefreshCw,
 } from "lucide-react"
 
 export default function AdminUsers() {
@@ -31,7 +31,7 @@ export default function AdminUsers() {
   const [editingService, setEditingService] = useState(null)
   const [serviceForm, setServiceForm] = useState({
     service_id: "", price: "", owner: 0, expires_at: "", next_billing_date: "",
-    url_dominio: "", notes: "", billing_type: "monthly", no_expiry: false,
+    url_dominio: "", notes: "", billing_type: "monthly", no_expiry: false, tarjeta: "", start_date: "", requiere_abono: false,
   })
   const [baseServices, setBaseServices] = useState([])
   const [showPaymentsModal, setShowPaymentsModal] = useState(false)
@@ -45,11 +45,16 @@ export default function AdminUsers() {
   const [paymentsUser, setPaymentsUser] = useState(null)
   const [paymentForm, setPaymentForm] = useState({ service_id: "", amount: "", payment_date: "", payment_method: "transferencia" })
   const [registeringPayment, setRegisteringPayment] = useState(false)
-  const { isAdmin } = useAuth()
+  const { isAdmin, profile } = useAuth()
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [newPassword, setNewPassword] = useState("")
   const [changingPassword, setChangingPassword] = useState(false)
   const [passwordUser, setPasswordUser] = useState(null)
+  const [paymentAccounts, setPaymentAccounts] = useState([])
+  const [showAccountDialog, setShowAccountDialog] = useState(false)
+  const [pendingPayAccount, setPendingPayAccount] = useState("")
+  const [pendingPaymentId, setPendingPaymentId] = useState(null)
+
 
   useEffect(() => { fetchUsers() }, [])
 
@@ -118,7 +123,22 @@ export default function AdminUsers() {
           if (db === null) return -1
           return da - db
         })
-      setUserServices(servicesWithDays)
+      const servicesWithPayment = await Promise.all(servicesWithDays.map(async (s) => {
+        if (s.requiere_abono) {
+          const payments = await pb.collection('payments').getFullList({
+            filter: `user_service_id = "${s.id}"`,
+            requestKey: null,
+          })
+          const totalPaid = payments
+            .filter(p => p.status === 'paid')
+            .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
+          const totalExpected = payments
+            .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
+          return { ...s, totalPaid, totalExpected }
+        }
+        return s
+      }))
+      setUserServices(servicesWithPayment)
     } catch (err) {
       console.error("Error cargando servicios del usuario:", err)
       setUserServices([])
@@ -129,11 +149,19 @@ export default function AdminUsers() {
     e.preventDefault()
     try {
       if (editingUser) {
-        await pb.collection('users').update(editingUser.id, {
+        const updateData = {
           name: formData.name,
           whatsapp: normalizeWhatsapp(formData.whatsapp),
           email: formData.email || null,
-        })
+        }
+        if (formData.password) {
+          updateData.password = formData.password
+          updateData.passwordConfirm = formData.password
+        }
+        await pb.collection('users').update(editingUser.id, updateData)
+        if (formData.password) {
+          try { await pb.collection('users').update(editingUser.id, { plain_password: formData.password }) } catch (e) { console.warn("plain_password falló, ¿existe el campo?", e) }
+        }
         notify("Usuario actualizado correctamente", "success")
         fetchUsers()
         resetForm()
@@ -148,6 +176,7 @@ export default function AdminUsers() {
           role: "user",
           status: "active",
         })
+        try { await pb.collection('users').update(data.id, { plain_password: formData.password }) } catch (e) { console.warn("plain_password falló, ¿existe el campo?", e) }
         notify("Usuario creado correctamente. El usuario puede iniciar sesión.", "success")
         setNewUserWhatsapp(normalizedWhatsapp)
         setShowSendCreds(true)
@@ -156,16 +185,45 @@ export default function AdminUsers() {
       }
     } catch (error) {
       console.error("Error guardando usuario:", error)
+      console.error("Detalles:", JSON.stringify(error.data || error.response || {}, null, 2))
       if (error.message?.includes("already exists")) {
         notify("El email ya está registrado. Usa otro email.", "error")
+      } else if (error.data?.data) {
+        const details = Object.entries(error.data.data).map(([k, v]) => `${k}: ${v?.message || v?.code}`).join(", ")
+        notify("Error: " + details || (error.message || error), "error")
       } else {
         notify("Error al guardar usuario: " + (error.message || error), "error")
       }
     }
   }
 
+  function sendUserCredentials(user) {
+    const password = user.plain_password
+    if (!password) {
+      notify("No hay contraseña guardada. Edita el usuario y establece una contraseña primero.", "error")
+      return
+    }
+    const message = encodeURIComponent(
+      `Hola ${user.name}, bienvenido/a.\n\n` +
+      `Tus credenciales de acceso: https://clientes.nilspineda.com\n` +
+      `Email: ${user.email}\n` +
+      `Contraseña: ${password}\n\n` +
+      `Puedes cambiar tu contraseña desde tu perfil.\n\n` +
+      `Gracias por confiar en nuestros servicios.`
+    )
+    const whatsappNum = normalizeWhatsapp(user.whatsapp).replace(/\D/g, "")
+    window.open(`https://wa.me/${whatsappNum}?text=${message}`, "_blank")
+  }
+
   function sendCredentials() {
-    const message = encodeURIComponent(`¡Bienvenido/a!\n\nTus credenciales de acceso:\n\n📧 Email: ${formData.email}\n🔐 Contraseña: ${formData.password}\n\nPuedes cambiar tu contraseña desde tu perfil.\n\n¡Gracias por confiar en nuestros servicios!`)
+    const message = encodeURIComponent(
+      `Hola ${formData.name || ''}, bienvenido/a.\n\n` +
+      `Tus credenciales de acceso: https://clientes.nilspineda.com\n` +
+      `Email: ${formData.email}\n` +
+      `Contraseña: ${formData.password}\n\n` +
+      `Puedes cambiar tu contraseña desde tu perfil.\n\n` +
+      `Gracias por confiar en nuestros servicios.`
+    )
     const whatsappNum = newUserWhatsapp.replace(/\D/g, "")
     window.open(`https://wa.me/${whatsappNum}?text=${message}`, "_blank")
     setShowSendCreds(false)
@@ -234,7 +292,7 @@ export default function AdminUsers() {
 
   function openAddService() {
     setEditingService(null)
-    setServiceForm({ service_id: "", price: "", owner: 0, expires_at: "", next_billing_date: "", url_dominio: "", notes: "", billing_type: "monthly", no_expiry: false })
+    setServiceForm({ service_id: "", price: "", owner: 0, expires_at: "", next_billing_date: "", url_dominio: "", notes: "", billing_type: "monthly", no_expiry: false, tarjeta: "", start_date: "", requiere_abono: false })
     fetchBaseServices()
     setShowServiceModal(true)
   }
@@ -251,6 +309,9 @@ export default function AdminUsers() {
       notes: service.notes || "",
       billing_type: service.billing_type || "monthly",
       no_expiry: service.no_expiry === true,
+      tarjeta: service.tarjeta || "",
+      start_date: service.start_date ? service.start_date.split("T")[0] : "",
+      requiere_abono: service.requiere_abono === true,
     })
     fetchBaseServices()
     setShowServiceModal(true)
@@ -271,6 +332,9 @@ export default function AdminUsers() {
         service_id: serviceForm.service_id,
         price: serviceForm.price ? parseFloat(serviceForm.price) : null,
         owner: serviceForm.owner,
+        tarjeta: serviceForm.tarjeta || null,
+        start_date: serviceForm.start_date || null,
+        requiere_abono: serviceForm.requiere_abono,
         billing_type: serviceForm.billing_type,
         no_expiry: serviceForm.no_expiry,
         expires_at: serviceForm.no_expiry ? null : (serviceForm.expires_at || null),
@@ -283,7 +347,11 @@ export default function AdminUsers() {
       if (editingService) {
         await pb.collection('user_services').update(editingService.id, data)
       } else {
-        await pb.collection('user_services').create({ ...data, user_id: selectedUser.id })
+        const newService = await pb.collection('user_services').create({ ...data, user_id: selectedUser.id })
+        const baseService = baseServices.find(s => s.id === serviceForm.service_id)
+        if (baseService?.type === "membresia" && data.owner === 0) {
+          try { await generateMonthlyPayments(newService.id) } catch (err) { console.error(err) }
+        }
       }
 
       notify(editingService ? "Servicio actualizado" : "Servicio agregado", "success")
@@ -387,6 +455,16 @@ export default function AdminUsers() {
     }
   }
 
+  async function fetchPaymentAccounts() {
+    try {
+      const data = await pb.collection('payment_accounts').getFullList({ sort: 'name', requestKey: null })
+      setPaymentAccounts(data || [])
+    } catch (err) {
+      console.error("Error cargando cuentas:", err)
+      setPaymentAccounts([])
+    }
+  }
+
   async function handleMarkPaymentPaidUser(paymentId) {
     const result = await updatePaymentStatus(paymentId, "paid")
     if (result.success) {
@@ -394,11 +472,17 @@ export default function AdminUsers() {
     }
   }
 
-  async function handleMarkPaymentPaid(paymentId) {
-    const result = await updatePaymentStatus(paymentId, "paid")
-    if (result.success) {
-      setServicePayments((prev) => prev.map((p) => (p.id === paymentId ? { ...p, status: "paid" } : p)))
+  async function handleMarkPaymentPaid(paymentId, accountId) {
+    const payload = { status: "paid" }
+    if (accountId) payload.payment_account = accountId
+    try {
+      await pb.collection('payments').update(paymentId, payload)
+      notify('Pago actualizado correctamente', 'success')
+      setServicePayments((prev) => prev.map((p) => (p.id === paymentId ? { ...p, status: "paid", payment_account: accountId } : p)))
       viewUserDetails(selectedUser)
+    } catch (err) {
+      console.error('Error updating payment status:', err)
+      notify('Error al actualizar el pago', 'error')
     }
   }
 
@@ -406,6 +490,31 @@ export default function AdminUsers() {
     const result = await updatePaymentStatus(paymentId, "pending")
     if (result.success) {
       setServicePayments((prev) => prev.map((p) => (p.id === paymentId ? { ...p, status: "pending" } : p)))
+    }
+  }
+
+  async function handleRenewService(service) {
+    if (!confirm(`¿Renovar "${service.expand?.service_id?.name || 'este servicio'}" por 1 año más?`)) return
+    try {
+      const currentExpiry = new Date(service.expires_at)
+      const newExpiry = new Date(currentExpiry)
+      newExpiry.setFullYear(newExpiry.getFullYear() + 1)
+      await pb.collection('user_services').update(service.id, {
+        expires_at: newExpiry.toISOString().split('T')[0],
+        status: 'active',
+      })
+      const pending = await pb.collection('payments').getFullList({
+        filter: `user_service_id = "${service.id}" && status = "pending"`,
+        requestKey: null,
+      })
+      for (const p of pending) { await pb.collection('payments').delete(p.id) }
+      await generateMonthlyPayments(service.id)
+      notify(`Servicio renovado hasta ${formatDate(newExpiry.toISOString())}`, "success")
+      viewUserDetails(selectedUser)
+      fetchUsers()
+    } catch (err) {
+      console.error("Error renovando servicio:", err)
+      notify("Error al renovar servicio", "error")
     }
   }
 
@@ -446,6 +555,25 @@ export default function AdminUsers() {
               <div>
                 <p className="text-sm text-muted-foreground">Cliente</p>
                 <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{selectedUser.name}</h1>
+                <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
+                  {selectedUser.email && (
+                    <span className="inline-flex items-center gap-1">
+                      <Mail className="w-3.5 h-3.5" />
+                      {selectedUser.email}
+                    </span>
+                  )}
+                  {selectedUser.whatsapp && (
+                    <span className="inline-flex items-center gap-1">
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      {formatWhatsapp(selectedUser.whatsapp) || selectedUser.whatsapp}
+                    </span>
+                  )}
+                  {selectedUser.lastLogin && (
+                    <span className="inline-flex items-center gap-1 text-xs">
+                      Ultimo ingreso: {formatDate(selectedUser.lastLogin)}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-muted border border-border flex items-center justify-center">
                 <span className="text-4xl font-bold text-foreground">{selectedUser.name?.charAt(0).toUpperCase() || "U"}</span>
@@ -474,6 +602,12 @@ export default function AdminUsers() {
                   <Button variant="outline" size="sm" onClick={() => openUserPayments(selectedUser)} className="gap-2">
                     <DollarSign className="w-4 h-4" />
                     Pagos
+                  </Button>
+                )}
+                {selectedUser.whatsapp && (
+                  <Button variant="outline" size="sm" onClick={() => sendUserCredentials(selectedUser)} className="gap-2 text-green-500 border-green-500/30 hover:bg-green-500/10">
+                    <MessageCircle className="w-4 h-4" />
+                    Enviar Credenciales
                   </Button>
                 )}
                 <Button variant="outline" size="sm" onClick={() => { setPasswordUser(selectedUser); setShowPasswordModal(true) }} className="gap-2">
@@ -548,6 +682,12 @@ export default function AdminUsers() {
                                       <span className="hidden sm:inline">Pagos</span>
                                     </button>
                                   )}
+                                  {service.expand?.service_id?.type === "membresia" && daysRemaining !== null && daysRemaining <= 30 && (
+                                    <button onClick={(e) => { e.stopPropagation(); handleRenewService(service) }} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white text-xs font-medium transition-all">
+                                      <RefreshCw className="w-3 h-3" />
+                                      <span className="hidden sm:inline">Renovar</span>
+                                    </button>
+                                  )}
                                   <button onClick={(e) => { e.stopPropagation(); openEditService(service) }} className="p-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all">
                                     <Edit3 className="w-3.5 h-3.5" />
                                   </button>
@@ -575,12 +715,37 @@ export default function AdminUsers() {
                                 <p className="text-xs text-muted-foreground">{service.billing_type === "annual" ? "Precio anual" : "Precio mensual"}</p>
                                 <p className="text-xl font-bold text-primary">{formatCurrency(service.price || 0)}</p>
                               </div>
-                              {service.expires_at && <div className="text-right"><p className="text-sm text-muted-foreground">Vence: {formatDate(service.expires_at)}</p></div>}
+                              <div className="text-right">
+                                {service.expires_at && <p className="text-sm text-muted-foreground">Vence: {formatDate(service.expires_at)}</p>}
+                                {service.start_date && service.no_expiry && <p className="text-sm text-muted-foreground">Inicio: {formatDate(service.start_date)}</p>}
+                              </div>
                             </div>
-                            {service.next_billing_date && service.owner === 1 && (
-                              <div className="mt-3 pt-3 border-t flex items-center justify-between">
-                                <p className="text-xs text-green-500 font-medium">Próximo cobro al cliente:</p>
-                                <p className="text-sm font-semibold text-green-500">{formatDate(service.next_billing_date)}</p>
+                            {service.owner === 1 && (
+                              <div className="mt-3 pt-3 border-t space-y-2">
+                                {service.next_billing_date && (
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-xs text-green-500 font-medium">Próximo cobro:</p>
+                                    <p className="text-sm font-semibold text-green-500">{formatDate(service.next_billing_date)}</p>
+                                  </div>
+                                )}
+                {service.tarjeta && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground font-medium">Tarjeta:</p>
+                    <p className="text-sm font-semibold text-foreground">****{service.tarjeta}</p>
+                  </div>
+                )}
+                              </div>
+                            )}
+                            {service.requiere_abono && service.totalExpected > 0 && (
+                              <div className="mt-3 pt-3 border-t space-y-1">
+                                <p className="text-xs text-muted-foreground">
+                                  Abonado: <span className="font-semibold text-foreground">{formatCurrency(service.totalPaid || 0)}</span> de <span className="font-semibold text-foreground">{formatCurrency(service.totalExpected)}</span>
+                                </p>
+                                {(service.totalPaid || 0) < service.totalExpected && (
+                                  <p className="text-xs font-medium text-destructive">
+                                    Restante: {formatCurrency(service.totalExpected - (service.totalPaid || 0))}
+                                  </p>
+                                )}
                               </div>
                             )}
                           </div>
@@ -601,30 +766,26 @@ export default function AdminUsers() {
                   <h2 className="text-lg font-bold text-foreground">Soporte</h2>
                 </div>
                 <div className="p-5 space-y-4">
-                  {selectedUser.email && (
-                    <a href={`mailto:${selectedUser.email}`} className="flex items-center gap-4 p-4 rounded-lg border border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 transition-all group">
-                      <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                        <Mail className="w-5 h-5 text-blue-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-blue-500/70 font-medium">Email</p>
-                        <p className="text-sm font-semibold text-foreground truncate">{selectedUser.email}</p>
-                      </div>
-                      <ArrowUpRight className="w-4 h-4 text-blue-500" />
-                    </a>
-                  )}
-                  {selectedUser.whatsapp && (
-                    <a href={`https://wa.me/${normalizeWhatsapp(selectedUser.whatsapp)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-lg border border-green-500/20 bg-green-500/5 hover:bg-green-500/10 transition-all group">
-                      <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                        <MessageCircle className="w-5 h-5 text-green-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-green-500/70 font-medium">WhatsApp</p>
-                        <p className="text-sm font-semibold text-foreground truncate">{formatWhatsapp(selectedUser.whatsapp) || selectedUser.whatsapp}</p>
-                      </div>
-                      <ArrowUpRight className="w-4 h-4 text-green-500" />
-                    </a>
-                  )}
+                  <a href={`mailto:${profile?.email || ''}`} className="flex items-center gap-4 p-4 rounded-lg border border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 transition-all group">
+                    <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                      <Mail className="w-5 h-5 text-blue-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-blue-500/70 font-medium">Email del admin</p>
+                      <p className="text-sm font-semibold text-foreground truncate">{profile?.email || 'No registrado'}</p>
+                    </div>
+                    <ArrowUpRight className="w-4 h-4 text-blue-500" />
+                  </a>
+                  <a href={`https://wa.me/${normalizeWhatsapp(profile?.whatsapp || '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-lg border border-green-500/20 bg-green-500/5 hover:bg-green-500/10 transition-all group">
+                    <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                      <MessageCircle className="w-5 h-5 text-green-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-green-500/70 font-medium">WhatsApp del admin</p>
+                      <p className="text-sm font-semibold text-foreground truncate">{formatWhatsapp(profile?.whatsapp) || profile?.whatsapp || 'No registrado'}</p>
+                    </div>
+                    <ArrowUpRight className="w-4 h-4 text-green-500" />
+                  </a>
                 </div>
               </Card>
             </div>
@@ -650,8 +811,10 @@ export default function AdminUsers() {
                   <input type="checkbox" checked={serviceForm.no_expiry} onChange={(e) => setServiceForm({ ...serviceForm, no_expiry: e.target.checked, expires_at: e.target.checked ? "" : serviceForm.expires_at })} className="w-4 h-4 rounded border-primary text-primary" />
                   Sin fecha de vencimiento
                 </label>
-                {!serviceForm.no_expiry && (
+                {!serviceForm.no_expiry ? (
                   <input type="date" value={serviceForm.expires_at} onChange={(e) => setServiceForm({ ...serviceForm, expires_at: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                ) : (
+                  <input type="date" value={serviceForm.start_date} onChange={(e) => setServiceForm({ ...serviceForm, start_date: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
                 )}
               </div>
             </div>
@@ -667,25 +830,26 @@ export default function AdminUsers() {
                 ))}
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-1.5">¿Quién paga?</label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${serviceForm.owner === 0 ? "border-primary bg-primary/10" : "border-border hover:bg-muted"}`}>
-                  <input type="radio" name="owner" value={0} checked={serviceForm.owner === 0} onChange={() => setServiceForm({ ...serviceForm, owner: 0 })} className="hidden" />
-                  <span className="font-medium text-sm">Lo administro</span>
-                </label>
-                <label className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${serviceForm.owner === 1 ? "border-green-500 bg-green-500/10" : "border-border hover:bg-muted"}`}>
-                  <input type="radio" name="owner" value={1} checked={serviceForm.owner === 1} onChange={() => setServiceForm({ ...serviceForm, owner: 1 })} className="hidden" />
-                  <span className="font-medium text-sm">Cliente paga</span>
-                </label>
+            <label className="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-muted transition-all">
+              <input type="checkbox" checked={serviceForm.owner === 1} onChange={(e) => setServiceForm({ ...serviceForm, owner: e.target.checked ? 1 : 0, tarjeta: e.target.checked ? serviceForm.tarjeta : "" })} className="w-4 h-4 rounded border-primary text-primary" />
+              <div>
+                <span className="font-medium text-sm text-foreground">Cliente paga</span>
+                <p className="text-xs text-muted-foreground">El cliente gestiona y paga directamente este servicio</p>
               </div>
-            </div>
+            </label>
             {serviceForm.owner === 1 && (
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1.5">Próximo cobro al cliente</label>
-                <input type="date" value={serviceForm.next_billing_date} onChange={(e) => setServiceForm({ ...serviceForm, next_billing_date: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
-              </div>
+                <label className="block text-sm font-medium text-muted-foreground mb-1.5">4 últimos dígitos de la tarjeta</label>
+                  <input type="text" value={serviceForm.tarjeta} onChange={(e) => setServiceForm({ ...serviceForm, tarjeta: e.target.value.replace(/\D/g, '').slice(0, 4) })} placeholder="1234" maxLength={4} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                </div>
             )}
+            <label className="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-muted transition-all">
+              <input type="checkbox" checked={serviceForm.requiere_abono} onChange={(e) => setServiceForm({ ...serviceForm, requiere_abono: e.target.checked })} className="w-4 h-4 rounded border-primary text-primary" />
+              <div>
+                <span className="font-medium text-sm text-foreground">Requiere abono</span>
+                <p className="text-xs text-muted-foreground">Muestra el progreso de pago y el restante</p>
+              </div>
+            </label>
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-1.5">URL del dominio</label>
               <input type="url" value={serviceForm.url_dominio} onChange={(e) => setServiceForm({ ...serviceForm, url_dominio: e.target.value })} placeholder="https://dominio.com" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
@@ -720,28 +884,75 @@ export default function AdminUsers() {
         <Modal isOpen={showPaymentsModal} onClose={() => setShowPaymentsModal(false)} title={`Pagos - ${selectedService?.expand?.service_id?.name || "Servicio"}`} size="md">
           {loadingPayments ? (
             <div className="flex justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
-          ) : servicePayments.length === 0 ? (
-            <p className="text-center text-muted-foreground py-6">No hay pagos para este servicio</p>
           ) : (
-            <div className="space-y-3">
-              {servicePayments.map((p) => (
-                <div key={p.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
-                  <div>
-                    <p className="font-medium text-foreground">{formatCurrency(p.amount)}</p>
-                    <p className="text-xs text-muted-foreground">{formatDate(p.payment_date)}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={p.status === "paid" ? "default" : "secondary"}>{p.status === "paid" ? "Pagado" : "Pendiente"}</Badge>
-                    {p.status !== "paid" && (
-                      <Button size="sm" variant="outline" onClick={() => handleMarkPaymentPaid(p.id)}>Pagar</Button>
-                    )}
-                    <Button size="sm" variant="ghost" onClick={() => handleMarkPaymentPending(p.id)}>Pendiente</Button>
-                  </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">{servicePayments.length} pagos registrados</p>
+                <Button size="sm" variant="outline" onClick={async () => {
+                  const result = await generateMonthlyPayments(selectedService.id)
+                  if (result.success) {
+                    notify("Pagos generados correctamente", "success")
+                    const paymentsResult = await getPaymentsByUserService(selectedService.id)
+                    setServicePayments(paymentsResult.success ? (paymentsResult.data || []) : [])
+                    viewUserDetails(selectedUser)
+                  }
+                }}>
+                  Generar Pagos
+                </Button>
+              </div>
+              {servicePayments.length === 0 ? (
+                <p className="text-center text-muted-foreground py-6">No hay pagos para este servicio</p>
+              ) : (
+                <div className="space-y-3">
+                  {servicePayments.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                      <div>
+                        <p className="font-medium text-foreground">{formatCurrency(p.amount)}</p>
+                        <p className="text-xs text-muted-foreground">{formatDate(p.payment_date)}</p>
+                        {p.payment_account && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Cuenta: {typeof p.payment_account === 'object' ? p.payment_account.name : p.expand?.payment_account?.name || p.payment_account}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={p.status === "paid" ? "default" : "secondary"}>{p.status === "paid" ? "Pagado" : "Pendiente"}</Badge>
+                        {p.status !== "paid" && (
+                          <Button size="sm" variant="outline" onClick={() => { setPendingPaymentId(p.id); setPendingPayAccount(""); fetchPaymentAccounts(); setShowAccountDialog(true) }}>Pagar</Button>
+                        )}
+                        <Button size="sm" variant="ghost" onClick={() => handleMarkPaymentPending(p.id)}>Pendiente</Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           )}
         </Modal>
+
+        {showAccountDialog && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onClick={() => setShowAccountDialog(false)}>
+            <div className="bg-card border rounded-lg p-5 w-80 shadow-xl" onClick={e => e.stopPropagation()}>
+              <h3 className="font-semibold text-foreground mb-1">Registrar pago</h3>
+              <p className="text-sm text-muted-foreground mb-4">¿A qué cuenta te pagaron?</p>
+              {paymentAccounts.length === 0 ? (
+                <p className="text-xs text-muted-foreground mb-3">No hay cuentas registradas. Créalas desde Control de Pagos.</p>
+              ) : (
+                <select value={pendingPayAccount} onChange={(e) => setPendingPayAccount(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm mb-4">
+                  <option value="">Seleccionar cuenta...</option>
+                  {paymentAccounts.map((a) => (<option key={a.id} value={a.id}>{a.name}</option>))}
+                </select>
+              )}
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={() => setShowAccountDialog(false)} className="flex-1">Cancelar</Button>
+                <Button onClick={async () => {
+                  await handleMarkPaymentPaid(pendingPaymentId, pendingPayAccount || null)
+                  setShowAccountDialog(false)
+                }} className="flex-1">Confirmar</Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -771,12 +982,13 @@ export default function AdminUsers() {
             <label className="block text-sm font-medium text-muted-foreground mb-1.5">Email</label>
             <Input type="email" placeholder="correo@ejemplo.com" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
           </div>
-          {!editingUser && (
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-1.5">Contraseña</label>
-              <Input type="password" placeholder="Contraseña" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} required />
-            </div>
-          )}
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+              Contraseña {!editingUser && <span className="text-destructive">*</span>}
+              {editingUser && <span className="text-muted-foreground text-xs font-normal"> (dejar vacío para mantener)</span>}
+            </label>
+            <Input type="password" placeholder="Contraseña" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} required={!editingUser} />
+          </div>
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1.5">WhatsApp</label>
             <Input type="text" placeholder="+57 3201112233" value={formData.whatsapp} onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })} />
@@ -860,6 +1072,11 @@ export default function AdminUsers() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        {user.whatsapp && (
+                          <Button variant="ghost" size="sm" onClick={() => sendUserCredentials(user)} className="text-green-500 hover:text-green-600">
+                            <MessageCircle className="w-4 h-4 mr-1" />Credenciales
+                          </Button>
+                        )}
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(user)}><Edit3 className="w-4 h-4 mr-1" />Editar</Button>
                         <Button variant="ghost" size="sm" onClick={() => handleDelete(user)} className="text-destructive hover:text-destructive"><Trash2 className="w-4 h-4 mr-1" />Eliminar</Button>
                       </div>

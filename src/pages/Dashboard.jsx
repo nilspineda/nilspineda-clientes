@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import StatusBadge from "@/components/StatusBadge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
@@ -39,6 +40,7 @@ import {
   ExternalLink,
   Key,
   ArrowRight,
+  Search,
   Users,
   DollarSign,
   Activity,
@@ -57,6 +59,14 @@ function getServiceStatus(service) {
   return "active"
 }
 
+function getPaymentStatus(expiresAt) {
+  const days = getDaysRemaining(expiresAt)
+  if (days === null) return { label: "Sin fecha", color: "secondary", urgency: 0 }
+  if (days < 0) return { label: "Vencido", color: "destructive", urgency: 3 }
+  if (days <= 20) return { label: "Por Vencer", color: "outline", urgency: 2 }
+  return { label: "Al día", color: "default", urgency: 1 }
+}
+
 export default function Dashboard() {
   const { user, profile, refreshProfile, isAdmin } = useAuth()
   const [services, setServices] = useState([])
@@ -65,6 +75,12 @@ export default function Dashboard() {
   const [adminStats, setAdminStats] = useState({ users: 0, services: 0, activeServices: 0, totalRevenue: 0 })
   const [upcomingRenewals, setUpcomingRenewals] = useState([])
   const [adminLoading, setAdminLoading] = useState(true)
+  const [allServices, setAllServices] = useState([])
+  const [baseServices, setBaseServices] = useState([])
+  const [filterStatus, setFilterStatus] = useState("all")
+  const [filterService, setFilterService] = useState("all")
+  const [activeTab, setActiveTab] = useState("renewals")
+  const [searchTerm, setSearchTerm] = useState("")
   const [whatsappNumber, setWhatsappNumber] = useState("")
   const [showEditModal, setShowEditModal] = useState(false)
   const [editForm, setEditForm] = useState({ whatsapp: "", email: "" })
@@ -105,11 +121,13 @@ export default function Dashboard() {
     if (!user) return
     setAdminLoading(true)
     try {
-      const [usersData, servicesData, userServicesData, paymentsData] = await Promise.all([
+      const [usersData, servicesData, userServicesData, paymentsData, allUsData, baseSvcsData] = await Promise.all([
         pb.collection('users').getFullList({ requestKey: null }),
         pb.collection('services').getFullList({ requestKey: null }),
         pb.collection('user_services').getFullList({ filter: 'status = "active"', requestKey: null }),
         pb.collection('payments').getFullList({ filter: 'status = "paid"', requestKey: null }),
+        pb.collection('user_services').getFullList({ sort: 'expires_at', expand: 'service_id,user_id', requestKey: null }),
+        pb.collection('services').getFullList({ requestKey: null }),
       ])
       const totalRevenue = paymentsData.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
       setAdminStats({
@@ -118,6 +136,8 @@ export default function Dashboard() {
         activeServices: userServicesData.length,
         totalRevenue,
       })
+      setAllServices(allUsData || [])
+      setBaseServices(baseSvcsData || [])
 
       const now = new Date()
       const twentyDaysLater = new Date(now.getTime() + 20 * 24 * 60 * 60 * 1000)
@@ -137,7 +157,7 @@ export default function Dashboard() {
 
   const fetchSettings = useCallback(async () => {
     try {
-      const data = await pb.collection('settings').getFirstListItem('key = "whatsapp_support"')
+      const data = await pb.collection('settings').getFirstListItem('key = "whatsapp_support"', { requestKey: null })
       if (data) setWhatsappNumber(data.value)
     } catch (err) {
       console.error("Error al cargar configuración:", err)
@@ -219,6 +239,27 @@ export default function Dashboard() {
     [services],
   )
 
+  const filteredServicesList = useMemo(
+    () => allServices.filter((item) => {
+      if (filterService !== "all" && item.service_id !== filterService) return false
+      if (filterStatus !== "all") {
+        const status = getPaymentStatus(item.expires_at)
+        if (filterStatus === "expired" && status.urgency !== 3) return false
+        if (filterStatus === "expiring" && status.urgency !== 2) return false
+        if (filterStatus === "active" && status.urgency !== 1) return false
+      }
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase()
+        const matchesName = item.expand?.user_id?.name?.toLowerCase().includes(term)
+        const matchesDomain = item.url_dominio?.toLowerCase().includes(term)
+        const matchesService = item.expand?.service_id?.name?.toLowerCase().includes(term)
+        if (!matchesName && !matchesDomain && !matchesService) return false
+      }
+      return true
+    }),
+    [allServices, filterService, filterStatus, searchTerm],
+  )
+
   const supportWa = normalizeWhatsapp(whatsappNumber || "3167195500")
 
   if (profile?.status === "suspended") {
@@ -258,9 +299,11 @@ export default function Dashboard() {
 
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">Bienvenido al panel de control</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Dashboard</h1>
+            <p className="text-sm text-muted-foreground mt-1">Bienvenido al panel de administración</p>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -280,12 +323,6 @@ export default function Dashboard() {
             <Link to="/admin/payments">
               <Wallet className="w-4 h-4 mr-2" />
               Registrar Pago
-            </Link>
-          </Button>
-          <Button size="sm" variant="ghost" asChild>
-            <Link to="/admin">
-              <LayoutDashboard className="w-4 h-4 mr-2" />
-              Panel Admin
             </Link>
           </Button>
         </div>
@@ -321,123 +358,157 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-primary" />
-                Renovaciones Próximas
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {upcomingRenewals.length === 0 ? (
-                <p className="text-center py-8 text-muted-foreground text-sm">
-                  No hay renovaciones en los próximos 20 días
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {upcomingRenewals.slice(0, 5).map((item) => {
-                    const days = getDaysRemaining(item.expires_at)
-                    return (
-                      <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-xs font-bold shrink-0 text-primary">
-                              {item.expand?.user_id?.name?.charAt(0).toUpperCase() || "U"}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">
-                                {item.expand?.user_id?.name}
-                              </p>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {item.expand?.service_id?.name || "Servicio"}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0 ml-4">
-                          <p className="text-xs text-muted-foreground">
-                            {item.expires_at ? formatDate(item.expires_at) : "-"}
-                          </p>
-                          <p className={`text-xs font-medium ${
-                            days < 0 ? "text-destructive" : days <= 5 ? "text-orange-500" : "text-green-500"
-                          }`}>
-                            {days !== null
-                              ? (days < 0 ? `${Math.abs(days)} días vencido` : `${days} días`)
-                              : "-"}
-                          </p>
-                        </div>
-                      </div>
-                    )
-                  })}
-                  <Link
-                    to="/admin"
-                    className="flex items-center justify-center gap-1 text-sm text-primary hover:text-primary/80 font-medium pt-2"
+        <Card>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-5 border-b">
+              <TabsList>
+                <TabsTrigger value="renewals">Renovaciones Próximas</TabsTrigger>
+                <TabsTrigger value="all">Todos los Servicios</TabsTrigger>
+              </TabsList>
+              {activeTab === "all" && (
+                <div className="flex gap-2 w-full sm:w-auto flex-wrap">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9 h-9 w-full sm:w-40"
+                    />
+                  </div>
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                   >
-                    Ver todas las renovaciones
-                    <ChevronRight className="w-4 h-4" />
-                  </Link>
+                    <option value="all">Todos los estados</option>
+                    <option value="active">Al día</option>
+                    <option value="expiring">Por Vencer</option>
+                    <option value="expired">Vencidos</option>
+                  </select>
+                  <select
+                    value={filterService}
+                    onChange={(e) => setFilterService(e.target.value)}
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    <option value="all">Cualquier Servicio</option>
+                    {baseServices.map((s) => (<option key={s.id} value={s.id}>{s.name}</option>))}
+                  </select>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
 
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <HeadphonesIcon className="w-5 h-5 text-primary" />
-                  Soporte
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <a
-                  href={`https://wa.me/${supportWa}?text=${encodeURIComponent("Hola, necesito soporte técnico")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-4 p-3 rounded-lg border border-green-500/20 bg-green-500/5 hover:bg-green-500/10 transition-all group"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                    <MessageCircle className="w-5 h-5 text-green-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-green-500/70 font-medium">WhatsApp</p>
-                    <p className="text-sm font-semibold text-foreground">Soporte técnico</p>
-                  </div>
-                  <ArrowUpRight className="w-4 h-4 text-green-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                </a>
-
-                <a
-                  href="mailto:info@nilspineda.com?subject=Soporte técnico"
-                  className="flex items-center gap-4 p-3 rounded-lg border border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 transition-all group"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                    <Mail className="w-5 h-5 text-blue-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-blue-500/70 font-medium">Email</p>
-                    <p className="text-sm font-semibold text-foreground">info@nilspineda.com</p>
-                  </div>
-                  <ArrowUpRight className="w-4 h-4 text-blue-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                </a>
-              </CardContent>
-            </Card>
-
-            <button
-              onClick={() => setShowEditModal(true)}
-              className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted hover:bg-muted/80 transition-all w-full text-left"
-            >
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Edit3 className="w-5 h-5 text-primary" />
+            <TabsContent value="renewals" className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Cliente</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Dominio</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Servicio</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Vencimiento</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Días</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Estado</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Precio</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {upcomingRenewals.length === 0 ? (
+                      <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No hay renovaciones próximas</td></tr>
+                    ) : (
+                      upcomingRenewals.map((item) => {
+                        const days = getDaysRemaining(item.expires_at)
+                        const status = getPaymentStatus(item.expires_at)
+                        return (
+                          <tr key={item.id} className="hover:bg-muted/50 transition-colors">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center text-sm font-bold shrink-0 text-primary">
+                                  {item.expand?.user_id?.name?.charAt(0).toUpperCase() || "U"}
+                                </div>
+                                <span className="font-medium text-foreground truncate">{item.expand?.user_id?.name}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3"><span className="px-2 py-1 rounded bg-blue-500/10 text-blue-500 text-xs">{item.url_dominio || "-"}</span></td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground">{item.expand?.service_id?.name || "-"}</td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground">{item.expires_at ? formatDate(item.expires_at) : "-"}</td>
+                            <td className="px-4 py-3">
+                              <span className={`font-medium text-sm ${days < 0 ? "text-destructive" : days <= 20 ? "text-orange-500" : "text-green-500"}`}>
+                                {days !== null ? (days < 0 ? `${Math.abs(days)} días vencido` : `${days} días`) : "-"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3"><Badge variant={status.color}>{status.label}</Badge></td>
+                            <td className="px-4 py-3 font-bold text-primary text-sm">{formatCurrency(item.price || 0)}</td>
+                          </tr>
+                        )
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
-              <div className="flex-1">
-                <p className="text-xs text-primary/70 font-medium">Acciones</p>
-                <p className="text-sm font-semibold text-primary">Editar perfil</p>
+            </TabsContent>
+
+            <TabsContent value="all" className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Cliente</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Dominio</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Servicio</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Vencimiento</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Días</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Estado</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Precio</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {filteredServicesList.length === 0 ? (
+                      <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No hay datos para mostrar</td></tr>
+                    ) : (
+                      filteredServicesList.map((item) => {
+                        const days = getDaysRemaining(item.expires_at)
+                        const status = getPaymentStatus(item.expires_at)
+                        return (
+                          <tr key={item.id} className="hover:bg-muted/50 transition-colors">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center text-sm font-bold shrink-0 text-primary">
+                                  {item.expand?.user_id?.name?.charAt(0).toUpperCase() || "U"}
+                                </div>
+                                <span className="font-medium text-foreground truncate">{item.expand?.user_id?.name}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3"><span className="px-2 py-1 rounded bg-blue-500/10 text-blue-500 text-xs">{item.url_dominio || "-"}</span></td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground">{item.expand?.service_id?.name || "-"}</td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground">{item.expires_at ? formatDate(item.expires_at) : "-"}</td>
+                            <td className="px-4 py-3"><span className={`font-medium text-sm ${days < 0 ? "text-destructive" : days <= 20 ? "text-orange-500" : "text-green-500"}`}>{days !== null ? (days < 0 ? `${Math.abs(days)} días vencido` : `${days} días`) : "-"}</span></td>
+                            <td className="px-4 py-3"><Badge variant={status.color}>{status.label}</Badge></td>
+                            <td className="px-4 py-3 font-bold text-primary text-sm">{formatCurrency(item.price || 0)}</td>
+                          </tr>
+                        )
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
-              <ArrowRight className="w-4 h-4 text-primary/50" />
-            </button>
+            </TabsContent>
+          </Tabs>
+        </Card>
+
+        <button
+          onClick={() => setShowEditModal(true)}
+          className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted hover:bg-muted/80 transition-all w-full text-left max-w-xs"
+        >
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Edit3 className="w-5 h-5 text-primary" />
           </div>
-        </div>
+          <div className="flex-1">
+            <p className="text-xs text-primary/70 font-medium">Acciones</p>
+            <p className="text-sm font-semibold text-primary">Editar perfil</p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-primary/50" />
+        </button>
 
         <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
           <DialogContent>

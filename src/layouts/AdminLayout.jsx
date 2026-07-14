@@ -1,24 +1,24 @@
-﻿import { useState, useEffect, useCallback } from "react"
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
-import { useAuth } from "@/hooks/useAuth"
-import { cn } from "@/lib/utils"
-import logoSrc from "@/assets/logo.svg"
-import logoMarkSrc from "@/assets/logo-mark.svg"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+﻿import { useState, useEffect, useCallback } from "react";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
+import logoSrc from "@/assets/logo.svg";
+import logoMarkSrc from "@/assets/logo-mark.svg";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
   TooltipProvider,
-} from "@/components/ui/tooltip"
+} from "@/components/ui/tooltip";
 import {
   LayoutDashboard,
   Users,
@@ -29,26 +29,26 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ExternalLink,
-} from "lucide-react"
+} from "lucide-react";
 
 const navItems = [
-  { path: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { path: "/admin/users", label: "Usuarios", icon: Users },
+  { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { path: "/admin/users", label: "Clientes", icon: Users },
   { path: "/admin/services", label: "Servicios", icon: Package },
   { path: "/admin/payments", label: "Pagos", icon: Wallet },
-]
+];
 
 function SidebarNav({ collapsed, onClose }) {
-  const location = useLocation()
+  const location = useLocation();
 
   return (
     <nav className="flex-1 space-y-1 px-2 py-4">
       {navItems.map((item) => {
         const isActive =
-          item.path === "/admin"
-            ? location.pathname === "/admin"
-            : location.pathname.startsWith(item.path)
-        const Icon = item.icon
+          item.path === "/dashboard"
+            ? location.pathname === "/dashboard"
+            : location.pathname.startsWith(item.path);
+        const Icon = item.icon;
 
         if (collapsed) {
           return (
@@ -61,7 +61,7 @@ function SidebarNav({ collapsed, onClose }) {
                     "flex items-center justify-center w-10 h-10 mx-auto rounded-lg text-sm font-medium transition-colors",
                     isActive
                       ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                   )}
                 >
                   <Icon className="w-4 h-4" />
@@ -71,7 +71,7 @@ function SidebarNav({ collapsed, onClose }) {
                 {item.label}
               </TooltipContent>
             </Tooltip>
-          )
+          );
         }
 
         return (
@@ -83,37 +83,42 @@ function SidebarNav({ collapsed, onClose }) {
               "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
               isActive
                 ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
             )}
           >
             <Icon className="w-4 h-4 shrink-0" />
             <span>{item.label}</span>
           </Link>
-        )
+        );
       })}
     </nav>
-  )
+  );
 }
 
 function Sidebar({ collapsed, onToggle, onClose }) {
-  const { profile, signOut } = useAuth()
-  const navigate = useNavigate()
+  const { profile, signOut } = useAuth();
+  const navigate = useNavigate();
 
   async function handleSignOut() {
-    await signOut()
-    navigate("/login")
+    await signOut();
+    navigate("/login");
   }
 
   return (
     <div className="flex flex-col h-full bg-sidebar">
-      <div className={cn(
-        "flex items-center border-b border-border/50 h-16 shrink-0",
-        collapsed ? "justify-center px-2" : "justify-between px-4"
-      )}>
-        <Link to="/admin" className={cn(
-          "flex items-center min-w-0",
-          collapsed ? "justify-center" : "flex-1 gap-2"
-        )}>
+      <div
+        className={cn(
+          "flex items-center border-b border-border/50 h-16 shrink-0",
+          collapsed ? "justify-center px-2" : "justify-between px-4",
+        )}
+      >
+        <Link
+          to="/dashboard"
+          className={cn(
+            "flex items-center min-w-0",
+            collapsed ? "justify-center" : "flex-1 gap-2",
+          )}
+        >
           <img
             src={collapsed ? logoMarkSrc : logoSrc}
             alt="Nilspineda"
@@ -126,19 +131,25 @@ function Sidebar({ collapsed, onToggle, onClose }) {
           onClick={onToggle}
           className={cn(
             "w-7 h-7 text-sidebar-foreground hover:text-sidebar-accent-foreground",
-            collapsed && "w-9 h-9"
+            collapsed && "w-9 h-9",
           )}
         >
-          {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+          {collapsed ? (
+            <PanelLeftOpen className="w-4 h-4" />
+          ) : (
+            <PanelLeftClose className="w-4 h-4" />
+          )}
         </Button>
       </div>
 
       <SidebarNav collapsed={collapsed} onClose={onClose} />
 
-      <div className={cn(
-        "border-t border-border/50 p-2",
-        collapsed && "flex flex-col items-center gap-2"
-      )}>
+      <div
+        className={cn(
+          "border-t border-border/50 p-2",
+          collapsed && "flex flex-col items-center gap-2",
+        )}
+      >
         {collapsed ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -151,7 +162,10 @@ function Sidebar({ collapsed, onToggle, onClose }) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" side="right">
-              <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
+              <DropdownMenuItem
+                onClick={handleSignOut}
+                className="text-destructive focus:text-destructive"
+              >
                 <LogOut className="w-4 h-4 mr-2" />
                 Cerrar sesión
               </DropdownMenuItem>
@@ -190,42 +204,50 @@ function Sidebar({ collapsed, onToggle, onClose }) {
         )}
       </div>
     </div>
-  )
+  );
 }
 
 export default function AdminLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
-    const saved = localStorage.getItem("sidebar-collapsed")
-    return saved === "true"
-  })
-  const { profile, signOut } = useAuth()
-  const navigate = useNavigate()
+    const saved = localStorage.getItem("sidebar-collapsed");
+    return saved === "true";
+  });
+  const [colombiaTime, setColombiaTime] = useState(new Date());
+  const { profile, signOut } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    localStorage.setItem("sidebar-collapsed", collapsed)
-  }, [collapsed])
+    localStorage.setItem("sidebar-collapsed", collapsed);
+  }, [collapsed]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setColombiaTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   const toggleCollapsed = useCallback(() => {
-    setCollapsed(prev => !prev)
-  }, [])
+    setCollapsed((prev) => !prev);
+  }, []);
 
   async function handleSignOut() {
-    await signOut()
-    navigate("/login")
+    await signOut();
+    navigate("/login");
   }
 
-  const sidebarWidth = collapsed ? "w-[72px]" : "w-72"
-  const sidebarMargin = collapsed ? "ml-[72px]" : "ml-72"
+  const sidebarWidth = collapsed ? "w-[72px]" : "w-72";
+  const sidebarMargin = collapsed ? "ml-[72px]" : "ml-72";
 
   return (
     <div className="flex min-h-screen bg-background">
       {/* Desktop sidebar */}
       <TooltipProvider>
-        <aside className={cn(
-          "hidden lg:flex flex-col fixed inset-y-0 left-0 z-30 border-r border-border/50 transition-all duration-300",
-          sidebarWidth
-        )}>
+        <aside
+          className={cn(
+            "hidden lg:flex flex-col fixed inset-y-0 left-0 z-30 border-r border-border/50 transition-all duration-300",
+            sidebarWidth,
+          )}
+        >
           <Sidebar collapsed={collapsed} onToggle={toggleCollapsed} />
         </aside>
       </TooltipProvider>
@@ -242,37 +264,40 @@ export default function AdminLayout() {
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="p-0 w-72">
-          <Sidebar collapsed={false} onToggle={() => {}} onClose={() => setSidebarOpen(false)} />
+          <Sidebar
+            collapsed={false}
+            onToggle={() => {}}
+            onClose={() => setSidebarOpen(false)}
+          />
         </SheetContent>
       </Sheet>
 
-      <main className={cn(
-        "flex-1 min-h-screen flex flex-col transition-all duration-300",
-        sidebarMargin
-      )}>
+      <main
+        className={cn(
+          "flex-1 min-h-screen flex flex-col transition-all duration-300",
+          sidebarMargin,
+        )}
+      >
         {/* Top bar */}
         <header className="sticky top-0 z-20 flex items-center justify-end gap-4 h-16 px-6 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-2 h-8 px-2">
-                  <Avatar className="w-6 h-6">
-                    <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
-                      {profile?.name?.charAt(0)?.toUpperCase() || "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm font-medium hidden sm:inline">
-                    {profile?.name}
-                  </span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Cerrar sesión
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="capitalize font-bold">
+              {colombiaTime.toLocaleDateString("es-CO", {
+                timeZone: "America/Bogota",
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </span>
+            <span className="hidden sm:inline">
+              {colombiaTime.toLocaleTimeString("es-CO", {
+                timeZone: "America/Bogota",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+            <span className="text-xs text-muted-foreground/60">COL</span>
           </div>
         </header>
 
@@ -281,5 +306,5 @@ export default function AdminLayout() {
         </div>
       </main>
     </div>
-  )
+  );
 }

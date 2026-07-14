@@ -3,7 +3,7 @@ import { notify } from './notify'
 
 export async function createRecurringPayments(userServiceId, months = 12) {
   try {
-    const us = await pb.collection('user_services').getOne(userServiceId)
+    const us = await pb.collection('user_services').getOne(userServiceId, { requestKey: null })
     const created = []
     for (let i = 0; i < months; i++) {
       const paymentDate = new Date()
@@ -21,6 +21,59 @@ export async function createRecurringPayments(userServiceId, months = 12) {
     return { success: true, data: created }
   } catch (err) {
     console.error('Error creating recurring payments:', err)
+    return { success: false, error: err }
+  }
+}
+
+export async function generateMonthlyPayments(userServiceId, count = 6) {
+  try {
+    const us = await pb.collection('user_services').getOne(userServiceId, { requestKey: null })
+
+    const existingPayments = await pb.collection('payments').getFullList({
+      filter: `user_service_id = "${userServiceId}"`,
+      requestKey: null,
+    })
+    const existingMonths = new Set(existingPayments.map(p => p.payment_date?.substring(0, 7)))
+
+    const created = []
+    let current, maxMonths
+
+    if (us.no_expiry && us.start_date) {
+      const start = new Date(us.start_date)
+      current = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+      maxMonths = count
+    } else if (us.expires_at) {
+      const today = new Date()
+      current = new Date(today.getFullYear(), today.getMonth() + 1, 10)
+      maxMonths = Infinity
+    } else {
+      return { success: false, error: 'El servicio no tiene fecha de inicio ni vencimiento' }
+    }
+
+    let generated = 0
+    while (generated < maxMonths) {
+      if (!us.no_expiry && us.expires_at && current > new Date(us.expires_at)) break
+
+      const monthKey = current.toISOString().substring(0, 7)
+      if (!existingMonths.has(monthKey)) {
+        const record = await pb.collection('payments').create({
+          user_service_id: userServiceId,
+          user_id: us.user_id,
+          amount: us.price || 0,
+          payment_date: current.toISOString(),
+          payment_method: 'transferencia',
+          status: 'pending',
+        })
+        created.push(record)
+      }
+
+      generated++
+      current = new Date(current.getFullYear(), current.getMonth() + 1, current.getDate())
+    }
+
+    return { success: true, data: created }
+  } catch (err) {
+    console.error('Error generating monthly payments:', err)
     return { success: false, error: err }
   }
 }

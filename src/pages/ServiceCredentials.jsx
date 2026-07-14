@@ -23,7 +23,7 @@ export default function ServiceCredentials() {
   async function fetchService() {
     if (!isAdmin && !user) return
     try {
-      const record = await pb.collection('user_services').getOne(serviceId, { expand: 'service_id' })
+      const record = await pb.collection('user_services').getOne(serviceId, { expand: 'service_id', requestKey: null })
       if (!isAdmin && record.user_id !== user.id) {
         throw new Error("No autorizado")
       }
