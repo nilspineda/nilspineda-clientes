@@ -1,8 +1,8 @@
 ﻿import { useState, useEffect } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import pb from "../../lib/pocketbaseClient";
 import { normalizeUrl, formatCurrency } from "../../utils/formatUtils";
 import { notify } from "../../utils/notify";
-import { getDaysRemaining, getServiceStatus } from "../../utils/dateUtils";
+import { getDaysRemaining } from "../../utils/dateUtils";
 import { createRecurringPayments } from "../../utils/paymentUtils";
 import Modal from "../../components/Modal";
 
@@ -13,89 +13,64 @@ export default function AdminAssignments() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
-    user_id: "",
-    service_id: "",
-    price: "",
-    expires_at: "",
-    url_dominio: "",
-    owner: 0,
-    billing_months: 12,
+    user_id: "", service_id: "", price: "", expires_at: "", url_dominio: "", owner: 0, billing_months: 12,
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   async function fetchData() {
-    const [assignmentsRes, usersRes, servicesRes] = await Promise.all([
-      supabase
-        .from("user_services")
-        .select("*, services(id, name, type), profiles!inner(id, name)")
-        .order("created_at", { ascending: false }),
-      supabase.from("profiles").select("id, name").eq("role", "user"),
-      supabase.from("services").select("id, name, type"),
-    ]);
-
-    setAssignments(assignmentsRes.data || []);
-    setUsers(usersRes.data || []);
-    setServices(servicesRes.data || []);
+    try {
+      const [assignmentsData, usersData, servicesData] = await Promise.all([
+        pb.collection('user_services').getFullList({ sort: '-created', expand: 'service_id,user_id' }),
+        pb.collection('users').getFullList({ filter: 'role = "user"' }),
+        pb.collection('services').getFullList(),
+      ]);
+      setAssignments(assignmentsData || []);
+      setUsers(usersData || []);
+      setServices(servicesData || []);
+    } catch (err) {
+      console.error("Error fetching data:", err);
+    }
     setLoading(false);
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
-
     const url = normalizeUrl(formData.url_dominio);
     const isRecurring = formData.owner === 1;
-
-    const { data, error } = await supabase.from("user_services").insert({
-      user_id: formData.user_id || null,
-      service_id: formData.service_id || null,
-      price: formData.price ? parseFloat(formData.price) : null,
-      expires_at: formData.expires_at || null,
-      url_dominio: url,
-      owner: formData.owner,
-      next_billing_date: isRecurring ? new Date().toISOString() : null,
-      status: formData.expires_at ? "active" : "pending",
-    }).select().single();
-
-    if (error) {
+    try {
+      const data = await pb.collection('user_services').create({
+        user_id: formData.user_id || null,
+        service_id: formData.service_id || null,
+        price: formData.price ? parseFloat(formData.price) : null,
+        expires_at: formData.expires_at || null,
+        url_dominio: url,
+        owner: formData.owner,
+        next_billing_date: isRecurring ? new Date().toISOString() : null,
+        status: formData.expires_at ? "active" : "pending",
+      });
+      if (data && isRecurring && formData.price) {
+        await createRecurringPayments(data.id, formData.billing_months);
+        notify("Pagos recurrentes generados", "success");
+      } else {
+        notify("Servicio asignado correctamente", "success");
+      }
+      fetchData();
+      resetForm();
+    } catch (error) {
       notify("Error al asignar servicio", "error");
       console.error("Error assigning service:", error);
-      return;
     }
-
-    if (data && isRecurring && formData.price) {
-      await createRecurringPayments(data.id, formData.billing_months);
-      notify("Pagos recurrentes generados", "success");
-    } else {
-      notify("Servicio asignado correctamente", "success");
-    }
-
-    fetchData();
-    resetForm();
   }
 
   function resetForm() {
     setShowForm(false);
-    setFormData({
-      user_id: "",
-      service_id: "",
-      price: "",
-      expires_at: "",
-      url_dominio: "",
-      owner: 0,
-      billing_months: 12,
-    });
+    setFormData({ user_id: "", service_id: "", price: "", expires_at: "", url_dominio: "", owner: 0, billing_months: 12 });
   }
 
   async function updateStatus(id, newStatus) {
     try {
-      const { error } = await supabase
-        .from("user_services")
-        .update({ status: newStatus })
-        .eq("id", id);
-      if (error) throw error;
+      await pb.collection('user_services').update(id, { status: newStatus });
       fetchData();
     } catch (error) {
       console.error("Error actualizando estado:", error);
@@ -104,12 +79,8 @@ export default function AdminAssignments() {
 
   async function updateExpiresAt(id, expiresAt) {
     try {
-      const status = getServiceStatus(expiresAt);
-      const { error } = await supabase
-        .from("user_services")
-        .update({ expires_at: expiresAt, status })
-        .eq("id", id);
-      if (error) throw error;
+      const status = expiresAt ? (new Date(expiresAt) > new Date() ? "active" : "expired") : "pending";
+      await pb.collection('user_services').update(id, { expires_at: expiresAt, status });
       fetchData();
     } catch (error) {
       console.error("Error actualizando fecha:", error);
@@ -119,11 +90,7 @@ export default function AdminAssignments() {
   async function handleDelete(id) {
     if (!confirm("¿Eliminar esta asignación?")) return;
     try {
-      const { error } = await supabase
-        .from("user_services")
-        .delete()
-        .eq("id", id);
-      if (error) throw error;
+      await pb.collection('user_services').delete(id);
       fetchData();
       notify("Asignación eliminada correctamente", "success");
     } catch (error) {
@@ -145,182 +112,67 @@ export default function AdminAssignments() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center">
-            <svg
-              className="w-6 h-6 text-primary"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-              />
-            </svg>
+            <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
           </div>
           <h1 className="text-2xl font-bold text-foreground">Asignaciones</h1>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="bg-primary text-foreground px-4 py-2 rounded-xl hover:bg-primary-light transition-colors"
-        >
-          + Asignar Servicio
-        </button>
+        <button onClick={() => setShowForm(true)} className="bg-primary text-foreground px-4 py-2 rounded-xl hover:bg-primary-light transition-colors">+ Asignar Servicio</button>
       </div>
 
-      <Modal
-        isOpen={showForm}
-        onClose={resetForm}
-        title="Asignar Servicio a Usuario"
-        size="md"
-      >
+      <Modal isOpen={showForm} onClose={resetForm} title="Asignar Servicio a Usuario" size="md">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Usuario (opcional)
-            </label>
-            <select
-              value={formData.user_id}
-              onChange={(e) =>
-                setFormData({ ...formData, user_id: e.target.value })
-              }
-              className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-            >
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Usuario (opcional)</label>
+            <select value={formData.user_id} onChange={(e) => setFormData({ ...formData, user_id: e.target.value })} className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
               <option value="">Seleccionar usuario</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
+              {users.map((u) => (<option key={u.id} value={u.id}>{u.name}</option>))}
             </select>
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Servicio (opcional)
-            </label>
-            <select
-              value={formData.service_id}
-              onChange={(e) =>
-                setFormData({ ...formData, service_id: e.target.value })
-              }
-              className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-            >
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Servicio (opcional)</label>
+            <select value={formData.service_id} onChange={(e) => setFormData({ ...formData, service_id: e.target.value })} className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
               <option value="">Seleccionar servicio</option>
-              {services.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
+              {services.map((s) => (<option key={s.id} value={s.id}>{s.name}</option>))}
             </select>
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              URL del Dominio
-            </label>
-            <input
-              type="url"
-              placeholder="https://dominio.com"
-              value={formData.url_dominio}
-              onChange={(e) =>
-                setFormData({ ...formData, url_dominio: e.target.value })
-              }
-              className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-            />
+            <label className="block text-sm font-medium text-muted-foreground mb-2">URL del Dominio</label>
+            <input type="url" placeholder="https://dominio.com" value={formData.url_dominio} onChange={(e) => setFormData({ ...formData, url_dominio: e.target.value })} className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none" />
           </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">
-                Precio mensual
-              </label>
-              <input
-                type="number"
-                placeholder="0.00"
-                value={formData.price}
-                onChange={(e) =>
-                  setFormData({ ...formData, price: e.target.value })
-                }
-                className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-              />
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Precio mensual</label>
+              <input type="number" placeholder="0.00" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">
-                Fecha de vencimiento (opcional)
-              </label>
-              <input
-                type="date"
-                value={formData.expires_at}
-                onChange={(e) =>
-                  setFormData({ ...formData, expires_at: e.target.value })
-                }
-                className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-              />
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Fecha de vencimiento (opcional)</label>
+              <input type="date" value={formData.expires_at} onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })} className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none" />
             </div>
           </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">
-                ¿Quién paga?
-              </label>
-              <select
-                value={formData.owner}
-                onChange={(e) =>
-                  setFormData({ ...formData, owner: parseInt(e.target.value) })
-                }
-                className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-              >
+              <label className="block text-sm font-medium text-muted-foreground mb-2">¿Quién paga?</label>
+              <select value={formData.owner} onChange={(e) => setFormData({ ...formData, owner: parseInt(e.target.value) })} className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
                 <option value={0}>Yo lo gestiono</option>
                 <option value={1}>Cliente paga (recurrente)</option>
               </select>
             </div>
             {formData.owner === 1 && (
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">
-                  Meses de pagos a generar
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="24"
-                  value={formData.billing_months}
-                  onChange={(e) =>
-                    setFormData({ ...formData, billing_months: parseInt(e.target.value) || 12 })
-                  }
-                  className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                />
+                <label className="block text-sm font-medium text-muted-foreground mb-2">Meses de pagos a generar</label>
+                <input type="number" min="1" max="24" value={formData.billing_months} onChange={(e) => setFormData({ ...formData, billing_months: parseInt(e.target.value) || 12 })} className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none" />
               </div>
             )}
           </div>
-
           {formData.owner === 1 && formData.price && (
             <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-4">
-              <p className="text-purple-400 font-medium">
-                Pagos recurrentes: Se generarán {formData.billing_months} pagos de {formatCurrency(parseFloat(formData.price) || 0)} c/u
-              </p>
-              <p className="text-purple-400/70 text-sm mt-1">
-                Total: {formatCurrency((parseFloat(formData.price) || 0) * formData.billing_months)}
-              </p>
+              <p className="text-purple-400 font-medium">Pagos recurrentes: Se generarán {formData.billing_months} pagos de {formatCurrency(parseFloat(formData.price) || 0)} c/u</p>
+              <p className="text-purple-400/70 text-sm mt-1">Total: {formatCurrency((parseFloat(formData.price) || 0) * formData.billing_months)}</p>
             </div>
           )}
-
           <div className="flex flex-col sm:flex-row gap-3 pt-4">
-            <button
-              type="submit"
-              className="flex-1 bg-primary text-foreground px-6 py-3 rounded-xl hover:bg-primary-light transition-colors font-medium"
-            >
-              Asignar Servicio
-            </button>
-            <button
-              type="button"
-              onClick={resetForm}
-              className="px-4 py-3 border border-border rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-            >
-              Cancelar
-            </button>
+            <button type="submit" className="flex-1 bg-primary text-foreground px-6 py-3 rounded-xl hover:bg-primary-light transition-colors font-medium">Asignar Servicio</button>
+            <button type="button" onClick={resetForm} className="px-4 py-3 border border-border rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">Cancelar</button>
           </div>
         </form>
       </Modal>
@@ -330,33 +182,15 @@ export default function AdminAssignments() {
           <table className="w-full">
             <thead className="bg-gradient-to-r from-sidebar-bg to-card-bg border-b border-border">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
-                  Usuario
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
-                  Dominio
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
-                  Servicio
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
-                  Tipo
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
-                  Precio
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
-                  Vencimiento
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
-                  Días
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
-                  Estado
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
-                  Acciones
-                </th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Usuario</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Dominio</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Servicio</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Tipo</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Precio</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Vencimiento</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Días</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Estado</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-dark">
@@ -364,106 +198,46 @@ export default function AdminAssignments() {
                 const daysLeft = getDaysRemaining(assignment.expires_at);
                 const isRecurring = assignment.owner === 1;
                 return (
-                  <tr
-                    key={assignment.id}
-                    className="group hover:bg-gradient-to-r hover:from-primary/5 hover:to-transparent transition-all duration-300"
-                  >
+                  <tr key={assignment.id} className="group hover:bg-gradient-to-r hover:from-primary/5 hover:to-transparent transition-all duration-300">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-bold">
-                          {assignment.profiles?.name?.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="text-foreground font-semibold">
-                          {assignment.profiles?.name}
-                        </span>
+                        <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-bold">{assignment.expand?.user_id?.name?.charAt(0).toUpperCase()}</div>
+                        <span className="text-foreground font-semibold">{assignment.expand?.user_id?.name}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       {assignment.url_dominio ? (
-                        <a
-                          href={assignment.url_dominio}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline text-sm"
-                        >
-                          {assignment.url_dominio.replace(/^https?:\/\//, "")}
-                        </a>
-                      ) : (
-                        "-"
-                      )}
+                        <a href={assignment.url_dominio} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm">{assignment.url_dominio.replace(/^https?:\/\//, "")}</a>
+                      ) : "-"}
                     </td>
-                    <td className="px-6 py-4 text-muted-foreground">
-                      {assignment.services?.name || "-"}
-                    </td>
+                    <td className="px-6 py-4 text-muted-foreground">{assignment.expand?.service_id?.name || "-"}</td>
                     <td className="px-6 py-4">
                       {isRecurring ? (
-                        <span className="px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 font-medium text-sm">
-                          Recurrente
-                        </span>
+                        <span className="px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 font-medium text-sm">Recurrente</span>
                       ) : (
-                        <span className="px-3 py-1.5 rounded-xl bg-gray-500/10 border border-gray-500/20 text-gray-400 font-medium text-sm">
-                          Fijo
-                        </span>
+                        <span className="px-3 py-1.5 rounded-xl bg-gray-500/10 border border-gray-500/20 text-gray-400 font-medium text-sm">Fijo</span>
                       )}
                     </td>
+                    <td className="px-6 py-4"><span className="px-3 py-1.5 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 font-bold">{formatCurrency(assignment.price || 0)}</span></td>
                     <td className="px-6 py-4">
-                      <span className="px-3 py-1.5 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 font-bold">
-                        {formatCurrency(assignment.price || 0)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <input
-                        type="date"
-                        value={
-                          assignment.expires_at
-                            ? assignment.expires_at.split("T")[0]
-                            : ""
-                        }
-                        onChange={(e) =>
-                          updateExpiresAt(assignment.id, e.target.value)
-                        }
-                        className="text-sm bg-muted border border-border rounded-xl px-3 py-2 text-foreground focus:ring-2 focus:ring-primary/50 outline-none"
-                      />
+                      <input type="date" value={assignment.expires_at ? assignment.expires_at.split("T")[0] : ""} onChange={(e) => updateExpiresAt(assignment.id, e.target.value)} className="text-sm bg-muted border border-border rounded-xl px-3 py-2 text-foreground focus:ring-2 focus:ring-primary/50 outline-none" />
                     </td>
                     <td className="px-6 py-4">
                       {daysLeft !== null ? (
-                        <span
-                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold ${
-                            daysLeft < 0
-                              ? "bg-red-500/10 border border-red-500/20 text-red-400"
-                              : daysLeft <= 5
-                                ? "bg-orange-500/10 border border-orange-500/20 text-orange-400"
-                                : "bg-green-500/10 border border-green-500/20 text-green-400"
-                          }`}
-                        >
-                          {daysLeft < 0
-                            ? Math.abs(daysLeft) + " dias vencido"
-                            : daysLeft + " dias"}
+                        <span className={`px-3 py-1.5 rounded-xl text-xs font-semibold ${daysLeft < 0 ? "bg-red-500/10 border border-red-500/20 text-red-400" : daysLeft <= 5 ? "bg-orange-500/10 border border-orange-500/20 text-orange-400" : "bg-green-500/10 border border-green-500/20 text-green-400"}`}>
+                          {daysLeft < 0 ? Math.abs(daysLeft) + " dias vencido" : daysLeft + " dias"}
                         </span>
-                      ) : (
-                        "-"
-                      )}
+                      ) : "-"}
                     </td>
                     <td className="px-6 py-4">
-                      <select
-                        value={assignment.status}
-                        onChange={(e) =>
-                          updateStatus(assignment.id, e.target.value)
-                        }
-                        className="text-sm bg-muted border border-border rounded-xl px-3 py-2 text-foreground focus:ring-2 focus:ring-primary/50 outline-none"
-                      >
+                      <select value={assignment.status} onChange={(e) => updateStatus(assignment.id, e.target.value)} className="text-sm bg-muted border border-border rounded-xl px-3 py-2 text-foreground focus:ring-2 focus:ring-primary/50 outline-none">
                         <option value="active">Activo</option>
                         <option value="pending">Pendiente</option>
                         <option value="expired">Vencido</option>
                       </select>
                     </td>
                     <td className="px-6 py-4">
-                      <button
-                        onClick={() => handleDelete(assignment.id)}
-                        className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-foreground font-medium text-sm transition-all"
-                      >
-                        Eliminar
-                      </button>
+                      <button onClick={() => handleDelete(assignment.id)} className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-foreground font-medium text-sm transition-all">Eliminar</button>
                     </td>
                   </tr>
                 );

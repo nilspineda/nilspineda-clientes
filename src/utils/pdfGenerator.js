@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import { supabase } from "../lib/supabaseClient";
+import pb from "../lib/pocketbaseClient";
 import { formatDate } from "./dateUtils";
 import { formatCurrency } from "./formatUtils";
 
@@ -111,20 +111,9 @@ export async function generateInvoicePDF(payment, user, service) {
 
 export async function uploadInvoicePDF(paymentId, blob) {
   const fileName = `invoice_${paymentId}.pdf`;
-  const arrayBuffer = await blob.arrayBuffer();
-
-  const { data, error } = await supabase.storage
-    .from("invoices")
-    .upload(fileName, arrayBuffer, {
-      contentType: "application/pdf",
-      upsert: true,
-    });
-
-  if (error) throw error;
-
-  const { data: urlData } = supabase.storage
-    .from("invoices")
-    .getPublicUrl(fileName);
-
-  return urlData.publicUrl;
+  const formData = new FormData();
+  formData.append('invoice', new File([blob], fileName, { type: 'application/pdf' }));
+  const record = await pb.collection('payments').update(paymentId, formData);
+  const url = pb.files.getUrl(record, 'invoice');
+  return url;
 }

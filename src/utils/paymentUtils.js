@@ -1,100 +1,88 @@
-import { supabase } from '../lib/supabaseClient'
+import pb from '../lib/pocketbaseClient'
 import { notify } from './notify'
 
 export async function createRecurringPayments(userServiceId, months = 12) {
   try {
-    const { data, error } = await supabase.rpc('create_recurring_payments', {
-      p_user_service_id: userServiceId,
-      p_months: months
-    })
-
-    if (error) {
-      console.error('Error creating recurring payments:', error)
-      return { success: false, error }
+    const us = await pb.collection('user_services').getOne(userServiceId)
+    const created = []
+    for (let i = 0; i < months; i++) {
+      const paymentDate = new Date()
+      paymentDate.setMonth(paymentDate.getMonth() + i)
+      const record = await pb.collection('payments').create({
+        user_service_id: userServiceId,
+        user_id: us.user_id,
+        amount: us.price || 0,
+        payment_date: paymentDate.toISOString(),
+        payment_method: 'transferencia',
+        status: 'pending',
+      })
+      created.push(record)
     }
-
-    return { success: true, data }
+    return { success: true, data: created }
   } catch (err) {
-    console.error('Exception creating recurring payments:', err)
+    console.error('Error creating recurring payments:', err)
     return { success: false, error: err }
   }
 }
 
 export async function updatePendingPaymentsAmount(userServiceId) {
   try {
-    const { data, error } = await supabase.rpc('update_pending_payments_amount', {
-      p_user_service_id: userServiceId
+    const us = await pb.collection('user_services').getOne(userServiceId)
+    const payments = await pb.collection('payments').getFullList({
+      filter: `user_service_id = "${userServiceId}" && status = "pending"`,
     })
-
-    if (error) {
-      console.error('Error updating pending payments:', error)
-      return { success: false, error }
+    for (const p of payments) {
+      await pb.collection('payments').update(p.id, { amount: us.price || 0 })
     }
-
-    return { success: true, data }
+    return { success: true }
   } catch (err) {
-    console.error('Exception updating pending payments:', err)
+    console.error('Error updating pending payments:', err)
     return { success: false, error: err }
   }
 }
 
 export async function getPaymentStats(userServiceId) {
   try {
-    const { data, error } = await supabase.rpc('get_user_service_payment_stats', {
-      p_user_service_id: userServiceId
+    const payments = await pb.collection('payments').getFullList({
+      filter: `user_service_id = "${userServiceId}"`,
     })
-
-    if (error) {
-      console.error('Error getting payment stats:', error)
-      return { success: false, error }
+    const paid = payments.filter(p => p.status === 'paid')
+    const pending = payments.filter(p => p.status === 'pending')
+    const totalPaid = paid.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0)
+    return {
+      success: true,
+      data: {
+        total_paid: paid.length,
+        total_amount: totalPaid,
+        pending_count: pending.length,
+      },
     }
-
-    return { success: true, data: data?.[0] || null }
   } catch (err) {
-    console.error('Exception getting payment stats:', err)
+    console.error('Error getting payment stats:', err)
     return { success: false, error: err }
   }
 }
 
 export async function getPaymentsByUserService(userServiceId) {
   try {
-    const { data, error } = await supabase
-      .from('payments')
-      .select('*')
-      .eq('user_service_id', userServiceId)
-      .order('payment_date', { ascending: true })
-
-    if (error) {
-      console.error('Error fetching payments:', error)
-      return { success: false, error }
-    }
-
+    const data = await pb.collection('payments').getFullList({
+      filter: `user_service_id = "${userServiceId}"`,
+      sort: 'payment_date',
+    })
     return { success: true, data }
   } catch (err) {
-    console.error('Exception fetching payments:', err)
+    console.error('Error fetching payments:', err)
     return { success: false, error: err }
   }
 }
 
 export async function updatePaymentStatus(paymentId, status) {
   try {
-    const { data, error } = await supabase
-      .from('payments')
-      .update({ status })
-      .eq('id', paymentId)
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Error updating payment status:', error)
-      notify('Error al actualizar el pago', 'error')
-      return { success: false, error }
-    }
-
+    const data = await pb.collection('payments').update(paymentId, { status })
     notify('Pago actualizado correctamente', 'success')
     return { success: true, data }
   } catch (err) {
-    console.error('Exception updating payment status:', err)
+    console.error('Error updating payment status:', err)
     notify('Error al actualizar el pago', 'error')
     return { success: false, error: err }
   }
@@ -102,18 +90,16 @@ export async function updatePaymentStatus(paymentId, status) {
 
 export async function regeneratePayments(userServiceId, months = 12) {
   try {
-    await supabase
-      .from('payments')
-      .delete()
-      .eq('user_service_id', userServiceId)
-      .eq('status', 'pending')
-
+    const pending = await pb.collection('payments').getFullList({
+      filter: `user_service_id = "${userServiceId}" && status = "pending"`,
+    })
+    for (const p of pending) {
+      await pb.collection('payments').delete(p.id)
+    }
     const result = await createRecurringPayments(userServiceId, months)
-    
     if (result.success) {
       notify('Pagos regenerados correctamente', 'success')
     }
-    
     return result
   } catch (err) {
     console.error('Exception regenerating payments:', err)
@@ -125,7 +111,7 @@ export function formatPaymentStatus(status) {
   const statusMap = {
     paid: { label: 'Pagado', color: 'green' },
     pending: { label: 'Pendiente', color: 'orange' },
-    failed: { label: 'Fallido', color: 'red' }
+    failed: { label: 'Fallido', color: 'red' },
   }
   return statusMap[status] || { label: status, color: 'gray' }
 }

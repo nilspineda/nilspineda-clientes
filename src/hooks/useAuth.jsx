@@ -1,6 +1,5 @@
 import { useState, useEffect, createContext, useContext } from "react";
-import { supabase } from "../lib/supabaseClient";
-import { sendTelemetry } from "../utils/telemetry";
+import pb from "../lib/pocketbaseClient";
 
 const AuthContext = createContext(null);
 
@@ -19,48 +18,21 @@ export function AuthProvider({ children }) {
 
     setIsOffline(!navigator.onLine);
 
-    async function initializeAuth() {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await fetchProfile(session.user.id, true);
-        } else {
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error("Auth init error:", err);
-        try {
-          sendTelemetry("auth_init_error", {
-            message: err?.message || String(err),
-          });
-        } catch (e) {}
-        setLoading(false);
-      }
+    if (pb.authStore.isValid) {
+      const model = pb.authStore.model;
+      setUser(model);
+      setProfile(model);
     }
+    setLoading(false);
 
-    initializeAuth();
-
-    const authListener = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await fetchProfile(session.user.id, true);
-        } else {
-          setProfile(null);
-          setLoading(false);
-        }
-      },
-    );
-
-    const subscription = authListener?.data?.subscription;
+    const unsubscribe = pb.authStore.onChange((token, model) => {
+      setUser(model);
+      setProfile(model);
+      setLoading(false);
+    });
 
     return () => {
-      if (subscription && typeof subscription.unsubscribe === "function") {
-        subscription.unsubscribe();
-      }
+      if (typeof unsubscribe === "function") unsubscribe();
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
@@ -68,33 +40,11 @@ export function AuthProvider({ children }) {
 
   async function fetchProfile(userId, retry = true) {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
-
-      if (error) {
-        console.error("Error fetching profile:", error);
-        try {
-          sendTelemetry("fetch_profile_error", {
-            message: error?.message || String(error),
-            userId,
-          });
-        } catch (e) {}
-        setProfile({ id: userId, role: "user", name: "Usuario" });
-      } else {
-        setProfile(data);
-      }
+      const record = await pb.collection("users").getOne(userId);
+      setProfile(record);
+      setUser(record);
     } catch (err) {
-      console.error("Exception fetching profile:", err);
-      try {
-        sendTelemetry("fetch_profile_exception", {
-          message: err?.message || String(err),
-          userId,
-          retry,
-        });
-      } catch (e) {}
+      console.error("Error fetching profile:", err);
       if (retry && !isOffline) {
         await new Promise((resolve) => setTimeout(resolve, 2000));
         return fetchProfile(userId, false);
@@ -106,17 +56,18 @@ export function AuthProvider({ children }) {
   }
 
   async function signIn(email, password) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
-    return data;
+    const authData = await pb.collection("users").authWithPassword(email, password);
+    return authData;
   }
 
   async function signOut() {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    pb.authStore.clear();
+  }
+
+  async function refreshProfile() {
+    if (pb.authStore.model?.id) {
+      await fetchProfile(pb.authStore.model.id, true);
+    }
   }
 
   const value = {
@@ -126,6 +77,7 @@ export function AuthProvider({ children }) {
     isOffline,
     signIn,
     signOut,
+    refreshProfile,
     isAdmin: profile?.role === "admin",
   };
 

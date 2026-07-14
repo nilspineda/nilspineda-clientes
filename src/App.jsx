@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useEffect, Suspense, lazy } from "react";
-import { sendTelemetry, telemetryEnabled } from "./utils/telemetry";
+import { Suspense, lazy } from "react";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { ThemeProvider } from "./context/ThemeContext";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -29,30 +28,6 @@ function Spinner() {
 
 function AppRoutes() {
   const { user, profile, loading } = useAuth();
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!telemetryEnabled()) return;
-    (async () => {
-      try {
-        const res = await fetch("/index.html", { cache: "no-cache" });
-        const cacheControl = res.headers.get("cache-control");
-        const etag = res.headers.get("etag");
-        const status = res.status;
-        console.log("index.html headers", { status, cacheControl, etag });
-        try {
-          sendTelemetry("index_html_fetch", { status, cacheControl, etag });
-        } catch (e) {}
-      } catch (e) {
-        console.warn("index fetch error", e);
-        try {
-          sendTelemetry("index_html_fetch_error", {
-            message: e?.message || String(e),
-          });
-        } catch (e) {}
-      }
-    })();
-  }, []);
 
   if (loading) return <Spinner />;
 
