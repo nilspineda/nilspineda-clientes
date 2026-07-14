@@ -160,10 +160,10 @@ export default function AdminServices() {
           <table className="w-full">
             <thead className="bg-muted/50 border-b">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Nombre</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Tipo</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Clientes</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Acciones</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Nombre</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Tipo</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Clientes</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y">

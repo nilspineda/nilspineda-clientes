@@ -41,38 +41,34 @@ export default function Login() {
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-background">
       {/* Left panel - brand */}
-      <div className="hidden lg:flex relative overflow-hidden bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a]">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/10 rounded-full blur-3xl" />
-
+      <div className="hidden lg:flex flex-col items-center justify-center bg-card border-r border-border/50">
         <div
-          className={`relative z-10 flex flex-col items-center justify-center w-full p-12 text-center transition-all duration-1000 ${
+          className={`flex flex-col items-center text-center p-12 transition-all duration-1000 ${
             mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
           }`}
         >
-          <div className="w-20 h-20 rounded-2xl bg-primary flex items-center justify-center mb-6 shadow-lg shadow-primary/30">
+          <div className="w-20 h-20 rounded-2xl bg-primary flex items-center justify-center mb-6">
             <span className="text-3xl font-bold text-primary-foreground">NP</span>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Nilspineda</h1>
-          <p className="text-white/60 text-lg max-w-md leading-relaxed">
+          <h1 className="text-3xl font-bold text-foreground mb-2">Nilspineda</h1>
+          <p className="text-muted-foreground text-lg max-w-md leading-relaxed">
             Gestión de servicios para clientes
           </p>
 
-          <div className="mt-16 flex items-center gap-10 text-white/50">
+          <div className="mt-16 flex items-center gap-10">
             <div className="text-center">
-              <p className="text-3xl font-bold text-white">100%</p>
-              <p className="text-sm mt-1">Seguro</p>
+              <p className="text-3xl font-bold text-foreground">100%</p>
+              <p className="text-sm text-muted-foreground mt-1">Seguro</p>
             </div>
-            <div className="w-px h-14 bg-white/10" />
+            <div className="w-px h-14 bg-border" />
             <div className="text-center">
-              <p className="text-3xl font-bold text-white">24/7</p>
-              <p className="text-sm mt-1">Soporte</p>
+              <p className="text-3xl font-bold text-foreground">24/7</p>
+              <p className="text-sm text-muted-foreground mt-1">Soporte</p>
             </div>
-            <div className="w-px h-14 bg-white/10" />
+            <div className="w-px h-14 bg-border" />
             <div className="text-center">
-              <p className="text-3xl font-bold text-white">Pro</p>
-              <p className="text-sm mt-1">Calidad</p>
+              <p className="text-3xl font-bold text-foreground">Pro</p>
+              <p className="text-sm text-muted-foreground mt-1">Calidad</p>
             </div>
           </div>
         </div>
@@ -87,7 +83,7 @@ export default function Login() {
         >
           {/* Mobile logo */}
           <div className="lg:hidden text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/30">
+            <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
               <span className="text-2xl font-bold text-primary-foreground">NP</span>
             </div>
             <h2 className="text-xl font-bold text-foreground">Nilspineda</h2>

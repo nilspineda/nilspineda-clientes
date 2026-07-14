@@ -438,30 +438,28 @@ export default function AdminUsers() {
             Volver a usuarios
           </Button>
 
-          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary via-primary/80 to-primary/60 p-6 lg:p-8">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-            <div className="relative flex items-center justify-between">
+          <div className="relative overflow-hidden rounded-xl bg-card border border-border p-6 lg:p-8">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-primary-foreground/70">Cliente</p>
-                <h1 className="text-2xl sm:text-3xl font-bold text-primary-foreground">{selectedUser.name}</h1>
+                <p className="text-sm text-muted-foreground">Cliente</p>
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{selectedUser.name}</h1>
               </div>
-              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
-                <span className="text-4xl font-bold text-primary-foreground">{selectedUser.name?.charAt(0).toUpperCase() || "U"}</span>
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-muted border border-border flex items-center justify-center">
+                <span className="text-4xl font-bold text-foreground">{selectedUser.name?.charAt(0).toUpperCase() || "U"}</span>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-white/10">
+            <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-border/50">
               <div className="text-center">
-                <p className="text-2xl font-bold text-primary-foreground">{userServices.filter((s) => s.status === "active").length}</p>
-                <p className="text-xs text-primary-foreground/60">Activos</p>
+                <p className="text-2xl font-bold text-foreground">{userServices.filter((s) => s.status === "active").length}</p>
+                <p className="text-xs text-muted-foreground">Activos</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold text-primary-foreground">{userServices.filter((s) => s.status === "pending").length}</p>
-                <p className="text-xs text-primary-foreground/60">Pendientes</p>
+                <p className="text-2xl font-bold text-foreground">{userServices.filter((s) => s.status === "pending").length}</p>
+                <p className="text-xs text-muted-foreground">Pendientes</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold text-primary-foreground">{userServices.length}</p>
-                <p className="text-xs text-primary-foreground/60">Total</p>
+                <p className="text-2xl font-bold text-foreground">{userServices.length}</p>
+                <p className="text-xs text-muted-foreground">Total</p>
               </div>
             </div>
           </div>
@@ -537,7 +535,7 @@ export default function AdminUsers() {
                               </div>
                               <div className="flex flex-col items-end gap-2 flex-shrink-0">
                                 <div className="flex items-center gap-1.5">
-                                  <Link to={`/service/${service.id}/credentials`} onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-purple-500/10 text-purple-500 hover:bg-purple-500 hover:text-white text-xs font-medium transition-all">
+                                  <Link to={`/service/${service.id}/credentials`} onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-medium transition-all">
                                     <Key className="w-3 h-3" />
                                     <span className="hidden sm:inline">Accesos</span>
                                   </Link>
@@ -811,12 +809,12 @@ export default function AdminUsers() {
           <table className="w-full">
             <thead className="bg-muted/50 border-b">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Usuario</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">WhatsApp</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Servicios</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Vencimiento</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Estado</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Acciones</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Usuario</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">WhatsApp</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Servicios</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Vencimiento</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Estado</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y">

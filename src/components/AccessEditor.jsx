@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { Button } from "@/components/ui/button";
 
 export default function AccessEditor({ value, onChange }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -23,13 +24,14 @@ export default function AccessEditor({ value, onChange }) {
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-white">Accesos y Linkssss</h3>
-          <button
+          <h3 className="text-lg font-bold text-foreground">Accesos y Linkssss</h3>
+          <Button
             onClick={() => setIsEditing(true)}
-            className="px-4 py-2 bg-primary/20 hover:bg-primary text-primary hover:text-white rounded-xl font-medium text-sm transition-all"
+            variant="outline"
+            size="sm"
           >
             Editar
-          </button>
+          </Button>
         </div>
 
         {value ? (
@@ -37,9 +39,9 @@ export default function AccessEditor({ value, onChange }) {
             <RenderMarkdown content={value} />
           </div>
         ) : (
-          <div className="text-center py-8 text-muted-foreground500">
+          <div className="text-center py-8 text-muted-foreground">
             <svg
-              className="w-12 h-12 mx-auto mb-3 text-muted-foreground600"
+              className="w-12 h-12 mx-auto mb-3 text-muted-foreground/60"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -64,22 +66,22 @@ export default function AccessEditor({ value, onChange }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-white">Accesos y Links</h3>
+        <h3 className="text-lg font-bold text-foreground">Accesos y Links</h3>
         <div className="flex gap-2">
-          <button
+          <Button
             onClick={() => insertSection("Panel")}
-            type="button"
-            className="px-3 py-1.5 text-xs bg-muted border border-border rounded-lg text-muted-foreground400 hover:text-white hover:border-primary/50 transition-colors"
+            variant="outline"
+            size="sm"
           >
             + Sección
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => insertLink("Link", "https://")}
-            type="button"
-            className="px-3 py-1.5 text-xs bg-muted border border-border rounded-lg text-muted-foreground400 hover:text-white hover:border-primary/50 transition-colors"
+            variant="outline"
+            size="sm"
           >
             + Link
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -87,29 +89,27 @@ export default function AccessEditor({ value, onChange }) {
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
         placeholder={`Agrega los accesos y links del cliente...\n\nEjemplo:\n## Panel de Control\n- [Admin](https://admin.dominio.com)\n- [CPanel](https://cpanel.dominio.com:2083)\n\n## Bases de Datos\n- [PHPMyAdmin](https://phpmyadmin.dominio.com)\n- Usuario: admin\n- Contraseña: ********`}
-        className="w-full h-80 px-4 py-3 bg-muted border border-border rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-mono text-sm resize-none"
+        className="w-full h-80 px-4 py-3 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-mono text-sm resize-none"
       />
 
       <div className="flex gap-3">
-        <button
-          onClick={handleSave}
-          className="flex-1 bg-primary text-white px-6 py-3 rounded-xl hover:bg-primary-light transition-colors font-medium"
-        >
+        <Button onClick={handleSave} className="flex-1">
           Guardar
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={() => {
             setLocalValue(value || "");
             setIsEditing(false);
           }}
-          className="flex-1 px-6 py-3 border border-border rounded-xl text-muted-foreground400 hover:bg-accent hover:text-white transition-colors font-medium"
+          variant="outline"
+          className="flex-1"
         >
           Cancelar
-        </button>
+        </Button>
       </div>
 
-      <div className="bg-card rounded-xl p-4 border border-border">
-        <p className="text-xs text-muted-foreground500 mb-2">Vista previa:</p>
+      <div className="bg-card rounded-lg p-4 border border-border">
+        <p className="text-xs text-muted-foreground mb-2">Vista previa:</p>
         <div className="prose prose-invert max-w-none text-sm">
           <RenderMarkdown content={localValue} />
         </div>
@@ -122,9 +122,6 @@ function RenderMarkdown({ content }) {
   if (!content) return null;
 
   const lines = content.split("\n");
-  const elements = [];
-  let inList = false;
-  let listItems = [];
 
   const renderLine = (line, index) => {
     if (line.startsWith("## ")) {
@@ -163,14 +160,14 @@ function RenderMarkdown({ content }) {
         );
       }
       return (
-        <p key={index} className="text-muted-foreground300">
+        <p key={index} className="text-muted-foreground">
           {line.replace("- ", "")}
         </p>
       );
     }
     if (line.trim()) {
       return (
-        <p key={index} className="text-muted-foreground300">
+        <p key={index} className="text-muted-foreground">
           {line}
         </p>
       );

@@ -65,7 +65,7 @@ export default function Payments() {
               {payments.map((payment) => (
                 <div
                   key={payment.id}
-                  className="flex items-center justify-between p-4 rounded-lg border bg-card hover:border-primary/30 transition-all"
+                  className="flex items-center justify-between p-4 rounded-lg border bg-card hover:border-border transition-colors"
                 >
                   <div className="flex items-center gap-4 min-w-0">
                     <div

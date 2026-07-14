@@ -295,13 +295,13 @@ export default function AdminPayments() {
           <table className="w-full">
             <thead className="bg-muted/50 border-b">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Cliente</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Servicio</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Monto</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Fecha</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Método</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Estado</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Acciones</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Cliente</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Servicio</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Monto</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Fecha</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Método</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Estado</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y">

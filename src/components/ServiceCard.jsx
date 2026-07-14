@@ -5,13 +5,14 @@ import {
   getServiceStatus,
 } from "../utils/dateUtils";
 import { normalizeUrl } from "../utils/formatUtils";
+import { Button } from "@/components/ui/button"
 
 export default function ServiceCard({ service, onRenew, onDownloadInvoice }) {
   const status = getServiceStatus(service.expires_at);
   const daysLeft = getDaysRemaining(service.expires_at);
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+    <div className="bg-card rounded-lg border border-border p-5">
       <div className="flex justify-between items-start mb-3">
         {(() => {
           const raw =
@@ -26,7 +27,7 @@ export default function ServiceCard({ service, onRenew, onDownloadInvoice }) {
               href={href}
               target="_blank"
               rel="noreferrer"
-              className="font-semibold text-gray-900 text-2xl truncate"
+              className="font-semibold text-foreground text-2xl truncate"
             >
               {label}
             </a>
@@ -36,22 +37,22 @@ export default function ServiceCard({ service, onRenew, onDownloadInvoice }) {
       </div>
 
       {service.services?.description && (
-        <p className="text-gray-600 text-sm mb-4">
+        <p className="text-muted-foreground text-sm mb-4">
           {service.services.description}
         </p>
       )}
 
-      <div className="space-y-2 text-sm text-gray-600 mb-4">
+      <div className="space-y-2 text-sm text-muted-foreground mb-4">
         <p>Inicio: {formatDate(service.created_at)}</p>
         <p>Vencimiento: {formatDate(service.expires_at)}</p>
         {daysLeft !== null && (
           <p
             className={
               daysLeft < 0
-                ? "text-red-600"
+                ? "text-destructive"
                 : daysLeft <= 5
-                  ? "text-orange-600"
-                  : "text-green-600"
+                  ? "text-orange-500"
+                  : "text-green-500"
             }
           >
             {daysLeft < 0
@@ -63,20 +64,21 @@ export default function ServiceCard({ service, onRenew, onDownloadInvoice }) {
 
       <div className="flex gap-2 mt-4">
         {onDownloadInvoice && (
-          <button
+          <Button
             onClick={() => onDownloadInvoice(service)}
-            className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+            variant="outline"
+            className="flex-1"
           >
             Descargar Factura
-          </button>
+          </Button>
         )}
         {onRenew && (
-          <button
+          <Button
             onClick={() => onRenew(service)}
-            className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+            className="flex-1"
           >
             Renovar
-          </button>
+          </Button>
         )}
       </div>
     </div>

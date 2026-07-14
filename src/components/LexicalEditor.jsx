@@ -290,7 +290,7 @@ export default function LexicalEditor({
           </h3>
           <button
             onClick={() => setIsEditing(true)}
-            className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500 text-purple-400 hover:text-foreground rounded-lg font-medium text-sm transition-all"
+            className="px-4 py-2 bg-primary/20 hover:bg-primary text-primary hover:text-primary-foreground rounded-lg font-medium text-sm transition-all"
           >
             Editar
           </button>

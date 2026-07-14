@@ -238,14 +238,14 @@ export default function Dashboard() {
                   return (
                     <div
                       key={service.id}
-                      className="group relative overflow-hidden rounded-lg border bg-card p-4 hover:border-primary/50 transition-all duration-300"
+                      className="group relative overflow-hidden rounded-lg border bg-card p-4 hover:border-border transition-colors"
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-2 flex-wrap">
                             <StatusBadge status={status} />
                             {service.owner === 0 && (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-500/10 text-purple-500 border border-purple-500/20">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border">
                                 Lo administro
                               </span>
                             )}
@@ -276,14 +276,14 @@ export default function Dashboard() {
                         <div className="flex gap-1.5">
                           <Link
                             to={`/service/${service.id}/credentials`}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-purple-500/10 text-purple-500 hover:bg-purple-500 hover:text-white text-xs font-medium transition-all"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-primary/10 text-primary text-xs font-medium transition-all"
                           >
                             <Key className="w-3 h-3" />
                             Accesos
                           </Link>
                           <button
                             onClick={() => handleRenew(service)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary hover:text-white text-xs font-medium transition-all"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-primary/10 text-primary text-xs font-medium transition-all"
                           >
                             <Zap className="w-3 h-3" />
                             Renovar
@@ -381,8 +381,8 @@ export default function Dashboard() {
             </div>
 
             <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 border">
-              <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                <Mail className="w-5 h-5 text-purple-500" />
+              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                <Mail className="w-5 h-5 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-muted-foreground">Email</p>
@@ -399,7 +399,7 @@ export default function Dashboard() {
 
             <button
               onClick={() => setShowEditModal(true)}
-              className="flex items-center gap-3 p-3 rounded-lg border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all w-full text-left"
+              className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted hover:bg-muted/80 transition-all w-full text-left"
             >
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Edit3 className="w-5 h-5 text-primary" />
@@ -421,7 +421,7 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="text-center p-6 rounded-lg bg-primary/5 border border-primary/10">
+            <div className="text-center p-6 rounded-lg bg-muted border border-border">
               <p className="text-sm text-muted-foreground mb-1">Servicios Activos</p>
               <p className="text-4xl font-bold text-primary">
                 {serviceCounts.active + serviceCounts.warning}

@@ -172,9 +172,9 @@ export default function AdminAssignments() {
             )}
           </div>
           {formData.owner === 1 && formData.price && (
-            <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
-              <p className="text-purple-500 font-medium">Pagos recurrentes: Se generarán {formData.billing_months} pagos de {formatCurrency(parseFloat(formData.price) || 0)} c/u</p>
-              <p className="text-purple-500/70 text-sm mt-1">Total: {formatCurrency((parseFloat(formData.price) || 0) * formData.billing_months)}</p>
+            <div className="bg-muted border border-border rounded-lg p-4">
+              <p className="text-foreground font-medium">Pagos recurrentes: Se generarán {formData.billing_months} pagos de {formatCurrency(parseFloat(formData.price) || 0)} c/u</p>
+              <p className="text-muted-foreground text-sm mt-1">Total: {formatCurrency((parseFloat(formData.price) || 0) * formData.billing_months)}</p>
             </div>
           )}
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
@@ -189,15 +189,15 @@ export default function AdminAssignments() {
           <table className="w-full">
             <thead className="bg-muted/50 border-b">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Usuario</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Dominio</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Servicio</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Tipo</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Precio</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Vencimiento</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Días</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Estado</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Acciones</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Usuario</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Dominio</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Servicio</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Tipo</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Precio</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Vencimiento</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Días</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Estado</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y">
