@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
 import StatusBadge from "@/components/StatusBadge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
@@ -38,6 +39,13 @@ import {
   ExternalLink,
   Key,
   ArrowRight,
+  Users,
+  DollarSign,
+  Activity,
+  ChevronRight,
+  UserPlus,
+  Wallet,
+  LayoutDashboard,
 } from "lucide-react"
 
 function getServiceStatus(service) {
@@ -50,10 +58,13 @@ function getServiceStatus(service) {
 }
 
 export default function Dashboard() {
-  const { user, profile, refreshProfile } = useAuth()
+  const { user, profile, refreshProfile, isAdmin } = useAuth()
   const [services, setServices] = useState([])
   const [pendingPayments, setPendingPayments] = useState([])
   const [loading, setLoading] = useState(true)
+  const [adminStats, setAdminStats] = useState({ users: 0, services: 0, activeServices: 0, totalRevenue: 0 })
+  const [upcomingRenewals, setUpcomingRenewals] = useState([])
+  const [adminLoading, setAdminLoading] = useState(true)
   const [whatsappNumber, setWhatsappNumber] = useState("")
   const [showEditModal, setShowEditModal] = useState(false)
   const [editForm, setEditForm] = useState({ whatsapp: "", email: "" })
@@ -90,6 +101,40 @@ export default function Dashboard() {
     }
   }, [user])
 
+  const fetchAdminData = useCallback(async () => {
+    if (!user) return
+    setAdminLoading(true)
+    try {
+      const [usersData, servicesData, userServicesData, paymentsData] = await Promise.all([
+        pb.collection('users').getFullList({ requestKey: null }),
+        pb.collection('services').getFullList({ requestKey: null }),
+        pb.collection('user_services').getFullList({ filter: 'status = "active"', requestKey: null }),
+        pb.collection('payments').getFullList({ filter: 'status = "paid"', requestKey: null }),
+      ])
+      const totalRevenue = paymentsData.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
+      setAdminStats({
+        users: usersData.length,
+        services: servicesData.length,
+        activeServices: userServicesData.length,
+        totalRevenue,
+      })
+
+      const now = new Date()
+      const twentyDaysLater = new Date(now.getTime() + 20 * 24 * 60 * 60 * 1000)
+      const renewals = await pb.collection('user_services').getFullList({
+        filter: `expires_at != null && expires_at >= "${now.toISOString()}" && expires_at <= "${twentyDaysLater.toISOString()}"`,
+        sort: 'expires_at',
+        expand: 'service_id,user_id',
+        requestKey: null,
+      })
+      setUpcomingRenewals(renewals || [])
+    } catch (err) {
+      console.error("Error al cargar datos del dashboard admin:", err)
+    } finally {
+      setAdminLoading(false)
+    }
+  }, [user])
+
   const fetchSettings = useCallback(async () => {
     try {
       const data = await pb.collection('settings').getFirstListItem('key = "whatsapp_support"')
@@ -99,7 +144,14 @@ export default function Dashboard() {
     }
   }, [])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => {
+    if (isAdmin) {
+      setLoading(false)
+      fetchAdminData()
+    } else {
+      fetchData()
+    }
+  }, [isAdmin, fetchAdminData, fetchData])
   useEffect(() => { fetchSettings() }, [fetchSettings])
 
   useEffect(() => {
@@ -169,22 +221,6 @@ export default function Dashboard() {
 
   const supportWa = normalizeWhatsapp(whatsappNumber || "3167195500")
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    )
-  }
-
-  if (fetchError) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <p className="text-destructive text-sm">{fetchError}</p>
-      </div>
-    )
-  }
-
   if (profile?.status === "suspended") {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -207,6 +243,271 @@ export default function Dashboard() {
             </Button>
           </a>
         </div>
+      </div>
+    )
+  }
+
+  if (isAdmin) {
+    if (adminLoading) {
+      return (
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      )
+    }
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1">Bienvenido al panel de control</p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" asChild>
+            <Link to="/admin/users">
+              <UserPlus className="w-4 h-4 mr-2" />
+              Nuevo Cliente
+            </Link>
+          </Button>
+          <Button size="sm" variant="secondary" asChild>
+            <Link to="/admin/services">
+              <Package className="w-4 h-4 mr-2" />
+              Nuevo Servicio
+            </Link>
+          </Button>
+          <Button size="sm" variant="outline" asChild>
+            <Link to="/admin/payments">
+              <Wallet className="w-4 h-4 mr-2" />
+              Registrar Pago
+            </Link>
+          </Button>
+          <Button size="sm" variant="ghost" asChild>
+            <Link to="/admin">
+              <LayoutDashboard className="w-4 h-4 mr-2" />
+              Panel Admin
+            </Link>
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="p-5">
+            <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center mb-3">
+              <Users className="w-5 h-5 text-blue-500" />
+            </div>
+            <p className="text-2xl font-bold text-foreground">{adminStats.users}</p>
+            <p className="text-sm text-muted-foreground">Clientes</p>
+          </Card>
+          <Card className="p-5">
+            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center mb-3">
+              <Package className="w-5 h-5 text-primary" />
+            </div>
+            <p className="text-2xl font-bold text-foreground">{adminStats.services}</p>
+            <p className="text-sm text-muted-foreground">Servicios Base</p>
+          </Card>
+          <Card className="p-5">
+            <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center mb-3">
+              <Activity className="w-5 h-5 text-green-500" />
+            </div>
+            <p className="text-2xl font-bold text-foreground">{adminStats.activeServices}</p>
+            <p className="text-sm text-muted-foreground">Servicios Activos</p>
+          </Card>
+          <Card className="p-5">
+            <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center mb-3">
+              <DollarSign className="w-5 h-5 text-yellow-500" />
+            </div>
+            <p className="text-2xl font-bold text-foreground">{formatCurrency(adminStats.totalRevenue)}</p>
+            <p className="text-sm text-muted-foreground">Ingresos Totales</p>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-primary" />
+                Renovaciones Próximas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {upcomingRenewals.length === 0 ? (
+                <p className="text-center py-8 text-muted-foreground text-sm">
+                  No hay renovaciones en los próximos 20 días
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {upcomingRenewals.slice(0, 5).map((item) => {
+                    const days = getDaysRemaining(item.expires_at)
+                    return (
+                      <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-xs font-bold shrink-0 text-primary">
+                              {item.expand?.user_id?.name?.charAt(0).toUpperCase() || "U"}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">
+                                {item.expand?.user_id?.name}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {item.expand?.service_id?.name || "Servicio"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0 ml-4">
+                          <p className="text-xs text-muted-foreground">
+                            {item.expires_at ? formatDate(item.expires_at) : "-"}
+                          </p>
+                          <p className={`text-xs font-medium ${
+                            days < 0 ? "text-destructive" : days <= 5 ? "text-orange-500" : "text-green-500"
+                          }`}>
+                            {days !== null
+                              ? (days < 0 ? `${Math.abs(days)} días vencido` : `${days} días`)
+                              : "-"}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <Link
+                    to="/admin"
+                    className="flex items-center justify-center gap-1 text-sm text-primary hover:text-primary/80 font-medium pt-2"
+                  >
+                    Ver todas las renovaciones
+                    <ChevronRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <HeadphonesIcon className="w-5 h-5 text-primary" />
+                  Soporte
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <a
+                  href={`https://wa.me/${supportWa}?text=${encodeURIComponent("Hola, necesito soporte técnico")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-4 p-3 rounded-lg border border-green-500/20 bg-green-500/5 hover:bg-green-500/10 transition-all group"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                    <MessageCircle className="w-5 h-5 text-green-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-green-500/70 font-medium">WhatsApp</p>
+                    <p className="text-sm font-semibold text-foreground">Soporte técnico</p>
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-green-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                </a>
+
+                <a
+                  href="mailto:info@nilspineda.com?subject=Soporte técnico"
+                  className="flex items-center gap-4 p-3 rounded-lg border border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 transition-all group"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                    <Mail className="w-5 h-5 text-blue-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-blue-500/70 font-medium">Email</p>
+                    <p className="text-sm font-semibold text-foreground">info@nilspineda.com</p>
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-blue-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                </a>
+              </CardContent>
+            </Card>
+
+            <button
+              onClick={() => setShowEditModal(true)}
+              className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted hover:bg-muted/80 transition-all w-full text-left"
+            >
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Edit3 className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-primary/70 font-medium">Acciones</p>
+                <p className="text-sm font-semibold text-primary">Editar perfil</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-primary/50" />
+            </button>
+          </div>
+        </div>
+
+        <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar Perfil</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-whatsapp">WhatsApp</Label>
+                <Input
+                  id="edit-whatsapp"
+                  type="text"
+                  value={editForm.whatsapp}
+                  onChange={(e) => setEditForm((f) => ({ ...f, whatsapp: e.target.value }))}
+                  placeholder="3012345678"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-email">Email</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+                  placeholder="cliente@ejemplo.com"
+                />
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowEditModal(false)}
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={savingProfile || (!editForm.email && !editForm.whatsapp)}
+                  className="flex-1"
+                >
+                  {savingProfile ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Guardando...
+                    </>
+                  ) : (
+                    "Guardar cambios"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (fetchError) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <p className="text-destructive text-sm">{fetchError}</p>
       </div>
     )
   }
