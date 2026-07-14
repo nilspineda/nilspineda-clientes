@@ -2,6 +2,8 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
 import { cn } from "@/lib/utils"
+import logoSrc from "@/assets/logo.svg"
+import logoMarkSrc from "@/assets/logo-mark.svg"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -113,16 +115,16 @@ function Sidebar({ collapsed, onToggle, onClose }) {
         "flex items-center border-b border-border/50 h-16 shrink-0",
         collapsed ? "justify-center px-2" : "justify-between px-4"
       )}>
-        {!collapsed && (
-          <Link to={isAdmin ? "/admin" : "/dashboard"} className="flex items-center gap-3 min-w-0">
-            <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center shrink-0">
-              <Home className="w-3.5 h-3.5 text-primary-foreground" />
-            </div>
-            <span className="text-sm font-semibold text-sidebar-accent-foreground truncate">
-              Nilspineda
-            </span>
-          </Link>
-        )}
+        <Link to={isAdmin ? "/admin" : "/dashboard"} className={cn(
+          "flex items-center min-w-0",
+          collapsed ? "justify-center" : "flex-1 gap-2"
+        )}>
+          <img
+            src={collapsed ? logoMarkSrc : logoSrc}
+            alt="Nilspineda"
+            className={collapsed ? "w-6 h-6" : "h-6"}
+          />
+        </Link>
         <Button
           variant="ghost"
           size="icon"

@@ -1,40 +1,47 @@
-﻿import { useState, useEffect } from "react"
-import { useNavigate, useLocation } from "react-router-dom"
-import { useAuth } from "@/hooks/useAuth"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+﻿import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Eye, EyeOff, Loader2, LogIn } from "lucide-react"
+import logoSrc from "@/assets/logo.svg";
 
 export default function Login() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [mounted, setMounted] = useState(false)
-  const { signIn } = useAuth()
-  const navigate = useNavigate()
-  const location = useLocation()
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const { signIn } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const from = location.state?.from?.pathname || "/dashboard"
+  const from = location.state?.from?.pathname || "/dashboard";
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+  }, []);
 
   async function handleSubmit(e) {
-    e.preventDefault()
-    setError("")
-    setLoading(true)
+    e.preventDefault();
+    setError("");
+    setLoading(true);
     try {
-      await signIn(email, password)
-      navigate(from, { replace: true })
+      await signIn(email, password);
+      navigate(from, { replace: true });
     } catch (err) {
-      setError(err.message || "Error al iniciar sesión")
+      setError(err.message || "Error al iniciar sesión");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -47,10 +54,10 @@ export default function Login() {
             mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
           }`}
         >
-          <div className="w-20 h-20 rounded-2xl bg-primary flex items-center justify-center mb-6">
-            <span className="text-3xl font-bold text-primary-foreground">NP</span>
-          </div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Nilspineda</h1>
+          <img src={logoSrc} alt="Nilspineda" className="h-12 mb-6" />
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            Nilspineda
+          </h1>
           <p className="text-muted-foreground text-lg max-w-md leading-relaxed">
             Gestión de servicios para clientes
           </p>
@@ -83,11 +90,11 @@ export default function Login() {
         >
           {/* Mobile logo */}
           <div className="lg:hidden text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl font-bold text-primary-foreground">NP</span>
-            </div>
+            <img src={logoSrc} alt="Nilspineda" className="h-8 mx-auto mb-4" />
             <h2 className="text-xl font-bold text-foreground">Nilspineda</h2>
-            <p className="text-muted-foreground text-sm mt-1">Gestión de clientes</p>
+            <p className="text-muted-foreground text-sm mt-1">
+              Gestión de clientes
+            </p>
           </div>
 
           <div className="text-center mb-8 hidden lg:block">
@@ -190,5 +197,5 @@ export default function Login() {
         </div>
       </div>
     </div>
-  )
+  );
 }
