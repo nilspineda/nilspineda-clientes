@@ -22,6 +22,7 @@ export default function Payments() {
         filter: `user_id = "${user.id}"`,
         sort: '-payment_date',
         expand: 'user_service_id',
+        requestKey: null,
       })
       setPayments(data || [])
     } catch (err) {

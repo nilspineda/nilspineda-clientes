@@ -56,8 +56,8 @@ export default function AdminUsers() {
   async function fetchUsers() {
     setLoading(true)
     try {
-      const usersData = await pb.collection('users').getFullList()
-      const userServicesData = await pb.collection('user_services').getFullList()
+      const usersData = await pb.collection('users').getFullList({ requestKey: null })
+      const userServicesData = await pb.collection('user_services').getFullList({ requestKey: null })
 
       const usersWithCount = (usersData || []).map((u) => ({
         ...u,
@@ -92,7 +92,7 @@ export default function AdminUsers() {
 
   async function fetchBaseServices() {
     try {
-      const data = await pb.collection('services').getFullList({ sort: 'name' })
+      const data = await pb.collection('services').getFullList({ sort: 'name', requestKey: null })
       setBaseServices(data || [])
     } catch (err) {
       console.error("Error cargando servicios base:", err)
@@ -107,6 +107,7 @@ export default function AdminUsers() {
         filter: `user_id = "${user.id}"`,
         sort: '-created',
         expand: 'service_id',
+        requestKey: null,
       })
       const servicesWithDays = (data || [])
         .map((s) => ({ ...s, daysRemaining: getDaysRemaining(s.expires_at) }))
@@ -339,11 +340,13 @@ export default function AdminUsers() {
           filter: `user_id = "${user.id}"`,
           sort: '-payment_date',
           expand: 'user_service_id',
+          requestKey: null,
         }),
         pb.collection('user_services').getFullList({
           filter: `user_id = "${user.id}"`,
           sort: '-created',
           expand: 'service_id',
+          requestKey: null,
         }),
       ])
       setPaymentsForUser(paymentsData || [])

@@ -33,8 +33,8 @@ export default function AdminServices() {
 
   async function fetchServices() {
     try {
-      const servicesData = await pb.collection('services').getFullList({ sort: '-created' })
-      const userServices = await pb.collection('user_services').getFullList()
+      const servicesData = await pb.collection('services').getFullList({ sort: '-created', requestKey: null })
+      const userServices = await pb.collection('user_services').getFullList({ requestKey: null })
       const counts = {}
       userServices.forEach((s) => {
         if (s.service_id) counts[s.service_id] = (counts[s.service_id] || 0) + 1

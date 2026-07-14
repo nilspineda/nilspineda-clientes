@@ -68,10 +68,10 @@ export default function AdminIndex() {
   async function fetchStats() {
     try {
       const [usersData, servicesData, userServicesData, paymentsData] = await Promise.all([
-        pb.collection('users').getFullList(),
-        pb.collection('services').getFullList(),
-        pb.collection('user_services').getFullList({ filter: 'status = "active"' }),
-        pb.collection('payments').getFullList({ filter: 'status = "paid"' }),
+        pb.collection('users').getFullList({ requestKey: null }),
+        pb.collection('services').getFullList({ requestKey: null }),
+        pb.collection('user_services').getFullList({ filter: 'status = "active"', requestKey: null }),
+        pb.collection('payments').getFullList({ filter: 'status = "paid"', requestKey: null }),
       ])
       const totalRevenue = paymentsData.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
       setStats({
@@ -87,12 +87,14 @@ export default function AdminIndex() {
         filter: `expires_at != null && expires_at >= "${now.toISOString()}" && expires_at <= "${twentyDaysLater.toISOString()}"`,
         sort: 'expires_at',
         expand: 'service_id,user_id',
+        requestKey: null,
       })
       setUpcomingRenewals(renewals || [])
 
       const all = await pb.collection('user_services').getFullList({
         sort: 'expires_at',
         expand: 'service_id,user_id',
+        requestKey: null,
       })
       setAllServices(all || [])
     } catch (err) {
@@ -109,6 +111,7 @@ export default function AdminIndex() {
         filter: `user_id = "${client.id}"`,
         sort: '-payment_date',
         expand: 'user_service_id',
+        requestKey: null,
       })
       setClientPayments(data || [])
     } catch (err) {
@@ -119,8 +122,8 @@ export default function AdminIndex() {
   async function fetchDataForForms() {
     try {
       const [usersData, servicesData] = await Promise.all([
-        pb.collection('users').getFullList(),
-        pb.collection('services').getFullList(),
+        pb.collection('users').getFullList({ requestKey: null }),
+        pb.collection('services').getFullList({ requestKey: null }),
       ])
       setUsers(usersData || [])
       setServices(servicesData || [])

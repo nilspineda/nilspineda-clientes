@@ -68,6 +68,7 @@ export default function Dashboard() {
         filter: `user_id = "${user.id}"`,
         sort: '-created',
         expand: 'service_id',
+        requestKey: null,
       })
       setServices(servicesData ?? [])
       const ownerServices = (servicesData || []).filter((s) => s.owner === 1)

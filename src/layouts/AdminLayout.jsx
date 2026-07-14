@@ -15,6 +15,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  TooltipProvider,
 } from "@/components/ui/tooltip"
 import {
   LayoutDashboard,
@@ -218,12 +219,14 @@ export default function AdminLayout() {
   return (
     <div className="flex min-h-screen bg-background">
       {/* Desktop sidebar */}
-      <aside className={cn(
-        "hidden lg:flex flex-col fixed inset-y-0 left-0 z-30 border-r border-border/50 transition-all duration-300",
-        sidebarWidth
-      )}>
-        <Sidebar collapsed={collapsed} onToggle={toggleCollapsed} />
-      </aside>
+      <TooltipProvider>
+        <aside className={cn(
+          "hidden lg:flex flex-col fixed inset-y-0 left-0 z-30 border-r border-border/50 transition-all duration-300",
+          sidebarWidth
+        )}>
+          <Sidebar collapsed={collapsed} onToggle={toggleCollapsed} />
+        </aside>
+      </TooltipProvider>
 
       {/* Mobile sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>

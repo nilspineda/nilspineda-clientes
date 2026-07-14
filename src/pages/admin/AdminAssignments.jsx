@@ -25,9 +25,9 @@ export default function AdminAssignments() {
   async function fetchData() {
     try {
       const [assignmentsData, usersData, servicesData] = await Promise.all([
-        pb.collection('user_services').getFullList({ sort: '-created', expand: 'service_id,user_id' }),
-        pb.collection('users').getFullList({ filter: 'role = "user"' }),
-        pb.collection('services').getFullList(),
+        pb.collection('user_services').getFullList({ sort: '-created', expand: 'service_id,user_id', requestKey: null }),
+        pb.collection('users').getFullList({ filter: 'role = "user"', requestKey: null }),
+        pb.collection('services').getFullList({ requestKey: null }),
       ])
       setAssignments(assignmentsData || [])
       setUsers(usersData || [])

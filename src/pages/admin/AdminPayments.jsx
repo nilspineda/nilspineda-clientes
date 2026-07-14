@@ -31,9 +31,9 @@ export default function AdminPayments() {
   async function fetchData() {
     try {
       const [paymentsData, usersData, userServicesData] = await Promise.all([
-        pb.collection('payments').getFullList({ sort: '-payment_date', expand: 'user_service_id,user_id' }),
-        pb.collection('users').getFullList({ filter: 'role = "user"' }),
-        pb.collection('user_services').getFullList({ sort: '-created', expand: 'service_id' }),
+        pb.collection('payments').getFullList({ sort: '-payment_date', expand: 'user_service_id,user_id', requestKey: null }),
+        pb.collection('users').getFullList({ filter: 'role = "user"', requestKey: null }),
+        pb.collection('user_services').getFullList({ sort: '-created', expand: 'service_id', requestKey: null }),
       ])
       setPayments(paymentsData || [])
       setUsers(usersData || [])
