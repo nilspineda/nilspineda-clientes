@@ -1,94 +1,109 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "../hooks/useAuth";
-import pb from "../lib/pocketbaseClient";
-import { formatDate } from "../utils/dateUtils";
-import { formatCurrency } from "../utils/formatUtils";
+import { useState, useEffect } from "react"
+import { useAuth } from "@/hooks/useAuth"
+import pb from "@/lib/pocketbaseClient"
+import { formatDate } from "@/utils/dateUtils"
+import { formatCurrency } from "@/utils/formatUtils"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Wallet, CheckCircle, Clock, FileText, Loader2 } from "lucide-react"
 
 export default function Payments() {
-  const { user } = useAuth();
-  const [payments, setPayments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth()
+  const [payments, setPayments] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchPayments();
-  }, [user]);
+    fetchPayments()
+  }, [user])
 
   async function fetchPayments() {
-    if (!user) return;
+    if (!user) return
     try {
       const data = await pb.collection('payments').getFullList({
         filter: `user_id = "${user.id}"`,
         sort: '-payment_date',
         expand: 'user_service_id',
-      });
-      setPayments(data || []);
+      })
+      setPayments(data || [])
     } catch (err) {
-      console.error("Error fetching payments:", err);
+      console.error("Error fetching payments:", err)
     }
-    setLoading(false);
+    setLoading(false)
   }
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
-    );
+    )
   }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Mis Pagos</h1>
-        <p className="text-sm text-gray-500 mt-1">Historial de pagos registrados</p>
+        <p className="text-sm text-muted-foreground mt-1">Historial de pagos registrados</p>
       </div>
 
-      <div className="relative overflow-hidden bg-card rounded-3xl border border-border">
-        <div className="flex items-center gap-3 p-5 lg:p-6 border-b border-border">
-          <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-            <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-          </div>
-          <h2 className="text-lg font-bold text-white">Historial de Pagos</h2>
-        </div>
-
-        <div className="p-5 lg:p-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Wallet className="w-5 h-5 text-primary" />
+            Historial de Pagos
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           {payments.length === 0 ? (
             <div className="text-center py-12">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-800/50 flex items-center justify-center">
-                <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-muted flex items-center justify-center">
+                <FileText className="w-8 h-8 text-muted-foreground" />
               </div>
-              <p className="text-gray-400 font-medium">No hay pagos registrados</p>
+              <p className="text-muted-foreground font-medium">No hay pagos registrados</p>
             </div>
           ) : (
             <div className="space-y-3">
               {payments.map((payment) => (
-                <div key={payment.id} className="group flex items-center justify-between p-5 rounded-2xl bg-gradient-to-r from-card to-muted border border-border hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 transition-all duration-300">
+                <div
+                  key={payment.id}
+                  className="flex items-center justify-between p-4 rounded-lg border bg-card hover:border-primary/30 transition-all"
+                >
                   <div className="flex items-center gap-4 min-w-0">
-                    <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center ${payment.status === "paid" ? "bg-gradient-to-br from-green-500/20 to-green-600/10" : "bg-gradient-to-br from-yellow-500/20 to-yellow-600/10"}`}>
+                    <div
+                      className={`w-11 h-11 rounded-lg flex items-center justify-center ${
+                        payment.status === "paid"
+                          ? "bg-green-500/10"
+                          : "bg-orange-500/10"
+                      }`}
+                    >
                       {payment.status === "paid" ? (
-                        <svg className="w-6 h-6 sm:w-7 sm:h-7 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <CheckCircle className="w-5 h-5 text-green-500" />
                       ) : (
-                        <svg className="w-6 h-6 sm:w-7 sm:h-7 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <Clock className="w-5 h-5 text-orange-500" />
                       )}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-white truncate">{payment.expand?.user_service_id?.expand?.service_id?.name || payment.expand?.user_service_id?.name || "Pago"}</p>
-                      <div className="flex items-center gap-2 text-sm text-gray-500 mt-0.5">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-foreground text-sm truncate">
+                        {payment.expand?.user_service_id?.name || "Pago"}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         {formatDate(payment.payment_date)}
-                      </div>
+                      </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-xl sm:text-2xl font-bold text-white">{formatCurrency(payment.amount)}</p>
-                    <p className="text-xs text-gray-500 capitalize">{payment.payment_method}</p>
+                    <p className="text-lg font-bold text-foreground">
+                      {formatCurrency(payment.amount)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground capitalize">
+                      {payment.payment_method}
+                    </p>
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
-  );
+  )
 }

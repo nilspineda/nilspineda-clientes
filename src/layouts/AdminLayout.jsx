@@ -1,225 +1,187 @@
-﻿import { useState } from "react";
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
-import Footer from "../components/Footer";
-import logo from "../assets/logo.svg";
+﻿import { useState } from "react"
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
+import { useAuth } from "@/hooks/useAuth"
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  LayoutDashboard,
+  Users,
+  Package,
+  Wallet,
+  LogOut,
+  Menu,
+  ExternalLink,
+  ChevronRight,
+} from "lucide-react"
 
 const navItems = [
-  {
-    path: "/admin",
-    label: "Dashboard",
-    icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
-  },
-  {
-    path: "/admin/users",
-    label: "Usuarios",
-    icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
-  },
-  {
-    path: "/admin/services",
-    label: "Servicios",
-    icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10",
-  },
-  {
-    path: "/admin/payments",
-    label: "Pagos",
-    icon: "M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z",
-  },
-];
+  { path: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { path: "/admin/users", label: "Usuarios", icon: Users },
+  { path: "/admin/services", label: "Servicios", icon: Package },
+  { path: "/admin/payments", label: "Pagos", icon: Wallet },
+]
 
-function Sidebar({ isOpen, onClose }) {
-  const location = useLocation();
+function SidebarNav() {
+  const location = useLocation()
 
   return (
-    <aside
-      className={`fixed inset-y-0 left-0 w-60 z-50 bg-sidebar-bg border-r border-border-dark flex flex-col transform transition-transform duration-300 ${
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      } lg:translate-x-0`}
-    >
-      <div className="p-4 border-b border-border-dark flex items-center justify-between lg:p-6">
-        <div className="flex flex-col">
-          <Link to="/admin">
-            <img src={logo} alt="Logo" className="h-8 w-auto" />
+    <nav className="flex-1 space-y-1 px-3 py-4">
+      {navItems.map((item) => {
+        const isActive =
+          item.path === "/admin"
+            ? location.pathname === "/admin"
+            : location.pathname.startsWith(item.path)
+        const Icon = item.icon
+        return (
+          <Link
+            key={item.path}
+            to={item.path}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+              isActive
+                ? "bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25"
+                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            )}
+          >
+            <Icon className="w-4 h-4" />
+            <span>{item.label}</span>
           </Link>
-          <p className="text-sm text-gray-400 mt-1">Panel Admin</p>
-        </div>
-        <button
-          onClick={onClose}
-          className="lg:hidden p-2 rounded-md text-gray-300 hover:bg-card-hover"
-          aria-label="Cerrar menú"
-        >
-          <svg
-            className="w-5 h-5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-      </div>
+        )
+      })}
+    </nav>
+  )
+}
 
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
-          const isActive =
-            item.path === "/admin"
-              ? location.pathname === "/admin"
-              : location.pathname.startsWith(item.path);
+function Sidebar() {
+  const { profile, signOut } = useAuth()
+  const navigate = useNavigate()
 
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-                isActive
-                  ? "bg-primary text-white"
-                  : "text-gray-400 hover:bg-card-hover hover:text-white"
-              }`}
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d={item.icon}
-                />
-              </svg>
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
+  async function handleSignOut() {
+    await signOut()
+    navigate("/login")
+  }
 
-      <div className="p-4 border-t border-border-dark">
-        <Link
-          to="/dashboard"
-          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-400 hover:bg-card-hover hover:text-white transition-colors"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-            />
-          </svg>
-          Ver Cliente
+  return (
+    <div className="flex flex-col h-full bg-sidebar">
+      <div className="p-5 border-b border-border/10">
+        <Link to="/admin" className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+            <ChevronRight className="w-4 h-4 text-primary-foreground" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-sidebar-accent-foreground">Nilspineda</p>
+            <p className="text-[11px] text-sidebar-foreground">Panel Admin</p>
+          </div>
         </Link>
       </div>
-    </aside>
-  );
+
+      <SidebarNav />
+
+      <div className="p-4 border-t border-border/10">
+        <Link
+          to="/dashboard"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors mb-2"
+        >
+          <ExternalLink className="w-4 h-4" />
+          Ver como cliente
+        </Link>
+        <div className="flex items-center gap-3 px-3 py-2.5">
+          <Avatar className="w-8 h-8">
+            <AvatarFallback className="bg-primary/20 text-primary text-xs">
+              {profile?.name?.charAt(0)?.toUpperCase() || "U"}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-sidebar-accent-foreground truncate">
+              {profile?.name}
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-8 h-8 text-sidebar-foreground hover:text-destructive"
+            onClick={handleSignOut}
+          >
+            <LogOut className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function AdminLayout() {
-  const navigate = useNavigate();
-  const { signOut, profile } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { profile, signOut } = useAuth()
+  const navigate = useNavigate()
 
   async function handleSignOut() {
-    await signOut();
-    navigate("/login");
+    await signOut()
+    navigate("/login")
   }
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      {/* overlay for mobile when sidebar is open */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:flex w-60 flex-col fixed inset-y-0 left-0 z-30 border-r border-border">
+        <Sidebar />
+      </aside>
+
+      {/* Mobile sidebar */}
+      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+        <SheetTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden fixed top-3 left-3 z-40"
+          >
+            <Menu className="w-5 h-5" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="p-0 w-60">
+          <Sidebar />
+        </SheetContent>
+      </Sheet>
 
       <main className="flex-1 lg:ml-60 min-h-screen flex flex-col">
-        {/* Mobile header with hamburger */}
-        <div
-          className="flex items-center justify-between gap-4 px-4 py-3 border-b lg:hidden"
-          style={{
-            background: "var(--background)",
-            borderColor: "var(--border)",
-          }}
-        >
-          <button
-            onClick={() => setSidebarOpen((s) => !s)}
-            className="p-2 rounded-md text-gray-700 hover:bg-gray-100"
-            aria-label="Abrir menú"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M4 12h16M4 18h16"
-              />
-            </svg>
-          </button>
-
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
-              {profile?.name?.charAt(0).toUpperCase() || "U"}
-            </div>
-            <div className="text-sm" style={{ color: "var(--foreground)" }}>
-              {profile?.name}
-            </div>
+        {/* Top bar */}
+        <header className="sticky top-0 z-20 flex items-center justify-end gap-4 px-6 py-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="flex items-center gap-2 ml-auto">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-2 h-9 px-2">
+                  <Avatar className="w-7 h-7">
+                    <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                      {profile?.name?.charAt(0)?.toUpperCase() || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm font-medium hidden sm:inline">
+                    {profile?.name}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Cerrar sesión
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-
-          <button
-            onClick={handleSignOut}
-            className="text-sm text-red-500 hover:text-red-700 px-3 py-2 rounded-md"
-          >
-            Cerrar sesión
-          </button>
-        </div>
-
-        <div
-          className="hidden lg:flex items-center justify-end gap-4 px-6 py-3 border-b"
-          style={{
-            background: "var(--background)",
-            borderColor: "var(--border)",
-          }}
-        >
-          <div className="flex items-center gap-3 mr-auto">
-            <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
-              {profile?.name?.charAt(0).toUpperCase() || "U"}
-            </div>
-            <div className="text-sm" style={{ color: "var(--foreground)" }}>
-              {profile?.name}
-            </div>
-          </div>
-          <button
-            onClick={handleSignOut}
-            className="text-sm text-red-500 hover:text-red-700 px-3 py-2 rounded-md"
-          >
-            Cerrar sesión
-          </button>
-        </div>
+        </header>
 
         <div className="p-4 lg:p-8 flex-1">
           <Outlet />
         </div>
-        <Footer />
       </main>
     </div>
-  );
+  )
 }

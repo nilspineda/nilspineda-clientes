@@ -1,79 +1,89 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
-import pb from "../lib/pocketbaseClient";
-import LexicalEditor from "../components/LexicalEditor";
-import { notify } from "../utils/notify";
+import { useState, useEffect } from "react"
+import { useParams, useNavigate } from "react-router-dom"
+import { useAuth } from "@/hooks/useAuth"
+import pb from "@/lib/pocketbaseClient"
+import LexicalEditor from "@/components/LexicalEditor"
+import { notify } from "@/utils/notify"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ChevronLeft, Loader2 } from "lucide-react"
 
 export default function ServiceCredentials() {
-  const { serviceId } = useParams();
-  const navigate = useNavigate();
-  const { user, isAdmin } = useAuth();
-  const [service, setService] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const { serviceId } = useParams()
+  const navigate = useNavigate()
+  const { user, isAdmin } = useAuth()
+  const [service, setService] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    fetchService();
-  }, [serviceId, user, isAdmin]);
+    fetchService()
+  }, [serviceId, user, isAdmin])
 
   async function fetchService() {
-    if (!isAdmin && !user) return;
+    if (!isAdmin && !user) return
     try {
-      const record = await pb.collection('user_services').getOne(serviceId, { expand: 'service_id' });
+      const record = await pb.collection('user_services').getOne(serviceId, { expand: 'service_id' })
       if (!isAdmin && record.user_id !== user.id) {
-        throw new Error("No autorizado");
+        throw new Error("No autorizado")
       }
-      setService(record);
+      setService(record)
     } catch (err) {
-      console.error("Error:", err);
-      notify("Error al cargar el servicio", "error");
-      navigate("/dashboard");
+      console.error("Error:", err)
+      notify("Error al cargar el servicio", "error")
+      navigate("/dashboard")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
   async function handleSave(content) {
-    setSaving(true);
+    setSaving(true)
     try {
-      await pb.collection('user_services').update(serviceId, { accesos: content });
-      setService({ ...service, accesos: content });
-      notify("Credenciales guardadas", "success");
+      await pb.collection('user_services').update(serviceId, { accesos: content })
+      setService({ ...service, accesos: content })
+      notify("Credenciales guardadas", "success")
     } catch (err) {
-      console.error("Error:", err);
-      notify("Error al guardar", "error");
+      console.error("Error:", err)
+      notify("Error al guardar", "error")
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
   }
 
   if (loading) {
     return (
       <div className="flex justify-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
-    );
+    )
   }
 
-  if (!service) return null;
+  if (!service) return null
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <button onClick={() => navigate("/dashboard")} className="flex items-center gap-2 text-primary hover:text-primary-light font-medium">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-          Volver
-        </button>
-      </div>
-      <div className="bg-card rounded-3xl border border-border overflow-hidden">
-        <div className="p-6 border-b border-border">
-          <h1 className="text-2xl font-bold text-foreground">Credenciales - {service.expand?.service_id?.name}</h1>
-        </div>
-        <div className="p-6">
-          <LexicalEditor value={service.accesos || ""} onChange={handleSave} showEditor={true} onEdit={() => navigate(-1)} stayOpenAfterSave={true} />
-        </div>
-      </div>
+      <Button variant="ghost" onClick={() => navigate("/dashboard")} className="gap-2">
+        <ChevronLeft className="w-4 h-4" />
+        Volver
+      </Button>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            Credenciales - {service.expand?.service_id?.name}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <LexicalEditor
+            value={service.accesos || ""}
+            onChange={handleSave}
+            showEditor={true}
+            onEdit={() => navigate(-1)}
+            stayOpenAfterSave={true}
+          />
+        </CardContent>
+      </Card>
     </div>
-  );
+  )
 }
