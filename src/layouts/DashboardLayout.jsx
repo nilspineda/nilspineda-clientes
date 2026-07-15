@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { cn } from "@/lib/utils"
 import logoSrc from "@/assets/logo.svg"
 import logoMarkSrc from "@/assets/logo-mark.svg"
+import { normalizeWhatsapp, formatWhatsapp } from "@/utils/formatUtils"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -29,6 +30,8 @@ import {
   Package,
   Home,
   User,
+  Mail,
+  MessageCircle,
 } from "lucide-react"
 
 const clienteLinks = [
@@ -141,53 +144,72 @@ function Sidebar({ collapsed, onToggle, onClose }) {
       <SidebarNav collapsed={collapsed} onClose={onClose} />
 
       <div className={cn(
-        "border-t border-border/50 p-2",
-        collapsed && "flex flex-col items-center gap-2"
+        "border-t border-border/50",
+        collapsed && "flex flex-col items-center"
       )}>
-        {collapsed ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="w-10 h-10 rounded-lg p-0">
-                <Avatar className="w-7 h-7">
+        <div className={cn("p-2", collapsed && "flex flex-col items-center gap-2")}>
+          {collapsed ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="w-10 h-10 rounded-lg p-0">
+                  <Avatar className="w-7 h-7">
+                    <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                      {profile?.name?.charAt(0)?.toUpperCase() || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" side="right">
+                <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Cerrar sesión
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 px-3 py-2">
+                <Avatar className="w-7 h-7 shrink-0">
                   <AvatarFallback className="bg-primary/20 text-primary text-xs">
                     {profile?.name?.charAt(0)?.toUpperCase() || "U"}
                   </AvatarFallback>
                 </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="right">
-              <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
-                <LogOut className="w-4 h-4 mr-2" />
-                Cerrar sesión
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <div className="space-y-2">
-            <div className="flex items-center gap-3 px-3 py-2">
-              <Avatar className="w-7 h-7 shrink-0">
-                <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                  {profile?.name?.charAt(0)?.toUpperCase() || "U"}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-sidebar-accent-foreground truncate">
-                  {profile?.name}
-                </p>
-                <p className="text-xs text-sidebar-foreground truncate">
-                  {isAdmin ? "Admin" : "Cliente"}
-                </p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-sidebar-accent-foreground truncate">
+                    {profile?.name}
+                  </p>
+                  <p className="text-xs text-sidebar-foreground truncate">
+                    {isAdmin ? "Admin" : "Cliente"}
+                  </p>
+                </div>
               </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSignOut}
+                className="w-full justify-start text-sidebar-foreground hover:text-destructive px-3"
+              >
+                <LogOut className="w-3.5 h-3.5 mr-2" />
+                Cerrar sesión
+              </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSignOut}
-              className="w-full justify-start text-sidebar-foreground hover:text-destructive px-3"
-            >
-              <LogOut className="w-3.5 h-3.5 mr-2" />
-              Cerrar sesión
-            </Button>
+          )}
+        </div>
+        {!collapsed && (
+          <div className="border-t border-border/50 px-3 py-3 space-y-1">
+            <p className="text-[10px] text-sidebar-foreground font-medium uppercase tracking-wider">Soporte</p>
+            {profile?.email && (
+              <a href={`mailto:${profile.email}`} className="flex items-center gap-2 text-xs text-sidebar-foreground hover:text-sidebar-accent-foreground transition-colors">
+                <Mail className="w-3 h-3 shrink-0" />
+                <span className="truncate">{profile.email}</span>
+              </a>
+            )}
+            {profile?.whatsapp && (
+              <a href={`https://wa.me/${normalizeWhatsapp(profile.whatsapp)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-sidebar-foreground hover:text-sidebar-accent-foreground transition-colors">
+                <MessageCircle className="w-3 h-3 shrink-0" />
+                <span className="truncate">{formatWhatsapp(profile.whatsapp) || profile.whatsapp}</span>
+              </a>
+            )}
           </div>
         )}
       </div>

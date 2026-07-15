@@ -9,7 +9,6 @@ import AdminLayout from "./layouts/AdminLayout";
 import Login from "./pages/Login";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const ServiceCredentials = lazy(() => import("./pages/ServiceCredentials"));
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
 const AdminServices = lazy(() => import("./pages/admin/AdminServices"));
 const AdminPayments = lazy(() => import("./pages/admin/AdminPayments"));
@@ -49,10 +48,6 @@ function AppRoutes() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/payments" element={<Payments />} />
-            <Route
-              path="/service/:serviceId/credentials"
-              element={<ServiceCredentials />}
-            />
           </Route>
         </Route>
 

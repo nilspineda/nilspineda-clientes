@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Link } from "react-router-dom"
 import pb from "@/lib/pocketbaseClient"
 import { useAuth } from "@/hooks/useAuth"
@@ -6,6 +6,7 @@ import { normalizeWhatsapp, formatWhatsapp, normalizeUrl, formatCurrency } from 
 import { notify } from "@/utils/notify"
 import { formatDate } from "@/utils/dateUtils"
 import Modal from "@/components/Modal"
+import CredentialsModal from "@/components/CredentialsModal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -14,7 +15,8 @@ import { generateMonthlyPayments, getPaymentsByUserService, updatePaymentStatus 
 import {
   Users, UserPlus, Mail, Phone, MessageCircle, ChevronLeft, Edit3, Trash2, Plus,
   Eye, EyeOff, Loader2, ExternalLink, Key, Calendar, DollarSign, CreditCard,
-  User, Package, Info, Activity, ToggleLeft, ToggleRight, ArrowUpRight, Lock, RefreshCw,
+  User, Package, Activity, ToggleLeft, ToggleRight, Lock, RefreshCw, Search, Zap,
+  Image, X, Landmark,
 } from "lucide-react"
 
 export default function AdminUsers() {
@@ -31,7 +33,7 @@ export default function AdminUsers() {
   const [editingService, setEditingService] = useState(null)
   const [serviceForm, setServiceForm] = useState({
     service_id: "", price: "", owner: 0, expires_at: "", next_billing_date: "",
-    url_dominio: "", notes: "", billing_type: "monthly", no_expiry: false, tarjeta: "", start_date: "", requiere_abono: false,
+    url_dominio: "", notes: "", billing_type: "monthly", no_expiry: false, tarjeta: "", start_date: "", requiere_abono: false, monto_abonado: "",
   })
   const [baseServices, setBaseServices] = useState([])
   const [showPaymentsModal, setShowPaymentsModal] = useState(false)
@@ -43,8 +45,11 @@ export default function AdminUsers() {
   const [loadingUserPayments, setLoadingUserPayments] = useState(false)
   const [userServicesForPayments, setUserServicesForPayments] = useState([])
   const [paymentsUser, setPaymentsUser] = useState(null)
-  const [paymentForm, setPaymentForm] = useState({ service_id: "", amount: "", payment_date: "", payment_method: "transferencia" })
+  const [paymentForm, setPaymentForm] = useState({ service_id: "", amount: "", payment_date: "", payment_account: "" })
   const [registeringPayment, setRegisteringPayment] = useState(false)
+  const [comprobanteFile, setComprobanteFile] = useState(null)
+  const [comprobantePreview, setComprobantePreview] = useState(null)
+  const fileInputRef = useRef(null)
   const { isAdmin, profile } = useAuth()
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [newPassword, setNewPassword] = useState("")
@@ -54,7 +59,8 @@ export default function AdminUsers() {
   const [showAccountDialog, setShowAccountDialog] = useState(false)
   const [pendingPayAccount, setPendingPayAccount] = useState("")
   const [pendingPaymentId, setPendingPaymentId] = useState(null)
-
+  const [serviceSearch, setServiceSearch] = useState("")
+  const [credentialsService, setCredentialsService] = useState(null)
 
   useEffect(() => { fetchUsers() }, [])
 
@@ -125,6 +131,9 @@ export default function AdminUsers() {
         })
       const servicesWithPayment = await Promise.all(servicesWithDays.map(async (s) => {
         if (s.requiere_abono) {
+          if (s.billing_type === "one_time") {
+            return { ...s, totalPaid: parseFloat(s.monto_abonado) || 0, totalExpected: parseFloat(s.price) || 0 }
+          }
           const payments = await pb.collection('payments').getFullList({
             filter: `user_service_id = "${s.id}"`,
             requestKey: null,
@@ -292,7 +301,7 @@ export default function AdminUsers() {
 
   function openAddService() {
     setEditingService(null)
-    setServiceForm({ service_id: "", price: "", owner: 0, expires_at: "", next_billing_date: "", url_dominio: "", notes: "", billing_type: "monthly", no_expiry: false, tarjeta: "", start_date: "", requiere_abono: false })
+    setServiceForm({ service_id: "", price: "", owner: 0, expires_at: "", next_billing_date: "", url_dominio: "", notes: "", admin_notes: "", billing_type: "monthly", no_expiry: false, tarjeta: "", start_date: "", requiere_abono: false, monto_abonado: "" })
     fetchBaseServices()
     setShowServiceModal(true)
   }
@@ -303,15 +312,17 @@ export default function AdminUsers() {
       service_id: service.service_id || "",
       price: service.price || "",
       owner: service.owner ?? 0,
-      expires_at: service.expires_at ? service.expires_at.split("T")[0] : "",
-      next_billing_date: service.next_billing_date ? service.next_billing_date.split("T")[0] : "",
+      expires_at: service.expires_at ? service.expires_at.split("T")[0].split(" ")[0] : "",
+      next_billing_date: service.next_billing_date ? service.next_billing_date.split("T")[0].split(" ")[0] : "",
       url_dominio: service.url_dominio || "",
       notes: service.notes || "",
+      admin_notes: service.admin_notes || "",
       billing_type: service.billing_type || "monthly",
       no_expiry: service.no_expiry === true,
       tarjeta: service.tarjeta || "",
-      start_date: service.start_date ? service.start_date.split("T")[0] : "",
+      start_date: service.start_date ? service.start_date.split("T")[0].split(" ")[0] : "",
       requiere_abono: service.requiere_abono === true,
+      monto_abonado: service.monto_abonado || "",
     })
     fetchBaseServices()
     setShowServiceModal(true)
@@ -341,6 +352,8 @@ export default function AdminUsers() {
         next_billing_date: serviceForm.next_billing_date || null,
         url_dominio: serviceForm.url_dominio || null,
         notes: serviceForm.notes || null,
+        admin_notes: serviceForm.admin_notes || null,
+        monto_abonado: serviceForm.monto_abonado ? parseFloat(serviceForm.monto_abonado) : null,
         status: serviceForm.no_expiry || serviceForm.expires_at ? "active" : "pending",
       }
 
@@ -407,7 +420,7 @@ export default function AdminUsers() {
         pb.collection('payments').getFullList({
           filter: `user_id = "${user.id}"`,
           sort: '-payment_date',
-          expand: 'user_service_id',
+          expand: 'user_service_id,payment_account',
           requestKey: null,
         }),
         pb.collection('user_services').getFullList({
@@ -435,18 +448,22 @@ export default function AdminUsers() {
     if (!paymentForm.amount) { notify("Ingresa un monto", "error"); return }
     setRegisteringPayment(true)
     try {
-      const payload = {
-        user_id: userId,
-        user_service_id: paymentForm.service_id || null,
-        amount: parseFloat(paymentForm.amount),
-        payment_date: paymentForm.payment_date || new Date().toISOString(),
-        payment_method: paymentForm.payment_method,
-        status: "paid",
-      }
-      await pb.collection('payments').create(payload)
+      const hasFile = comprobanteFile instanceof File
+      const fd = hasFile ? new FormData() : {}
+      const setField = (key, val) => hasFile ? fd.append(key, val) : (fd[key] = val)
+      setField('user_id', userId)
+      setField('user_service_id', paymentForm.service_id || null)
+      setField('amount', parseFloat(paymentForm.amount))
+      setField('payment_date', paymentForm.payment_date || new Date().toISOString())
+      setField('payment_account', paymentForm.payment_account || null)
+      setField('status', "paid")
+      if (hasFile) fd.append('comprobante', comprobanteFile)
+      await pb.collection('payments').create(fd)
       notify("Pago registrado correctamente", "success")
       await openUserPayments(paymentsUser)
-      setPaymentForm({ service_id: "", amount: "", payment_date: "", payment_method: "transferencia" })
+      setPaymentForm({ service_id: "", amount: "", payment_date: "", payment_account: "" })
+      setComprobanteFile(null)
+      setComprobantePreview(null)
     } catch (err) {
       console.error("Error registrando pago:", err)
       notify("Error al registrar pago: " + (err.message || err), "error")
@@ -550,91 +567,110 @@ export default function AdminUsers() {
             Volver a usuarios
           </Button>
 
-          <div className="relative overflow-hidden rounded-xl bg-card border border-border p-6 lg:p-8">
+          <div className="relative overflow-hidden rounded-xl bg-card border border-border p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Cliente</p>
-                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{selectedUser.name}</h1>
-                <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
+                <p className="text-xs text-muted-foreground">Cliente</p>
+                <h1 className="text-lg sm:text-xl font-bold text-foreground">{selectedUser.name}</h1>
+                <div className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground mt-0.5">
                   {selectedUser.email && (
                     <span className="inline-flex items-center gap-1">
-                      <Mail className="w-3.5 h-3.5" />
+                      <Mail className="w-3 h-3" />
                       {selectedUser.email}
                     </span>
                   )}
                   {selectedUser.whatsapp && (
                     <span className="inline-flex items-center gap-1">
-                      <MessageCircle className="w-3.5 h-3.5" />
+                      <MessageCircle className="w-3 h-3" />
                       {formatWhatsapp(selectedUser.whatsapp) || selectedUser.whatsapp}
                     </span>
                   )}
                   {selectedUser.lastLogin && (
-                    <span className="inline-flex items-center gap-1 text-xs">
+                    <span className="inline-flex items-center gap-1">
                       Ultimo ingreso: {formatDate(selectedUser.lastLogin)}
                     </span>
                   )}
                 </div>
               </div>
-              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-muted border border-border flex items-center justify-center">
-                <span className="text-4xl font-bold text-foreground">{selectedUser.name?.charAt(0).toUpperCase() || "U"}</span>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-muted border border-border flex items-center justify-center shrink-0">
+                <span className="text-xl sm:text-2xl font-bold text-foreground">{selectedUser.name?.charAt(0).toUpperCase() || "U"}</span>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-border/50">
+            <div className="grid grid-cols-3 gap-3 mt-4 pt-3 border-t border-border/50">
               <div className="text-center">
-                <p className="text-2xl font-bold text-foreground">{userServices.filter((s) => s.status === "active").length}</p>
+                <p className="text-lg font-bold text-foreground">{userServices.filter((s) => s.status === "active").length}</p>
                 <p className="text-xs text-muted-foreground">Activos</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold text-foreground">{userServices.filter((s) => s.status === "pending").length}</p>
+                <p className="text-lg font-bold text-foreground">{userServices.filter((s) => s.status === "pending").length}</p>
                 <p className="text-xs text-muted-foreground">Pendientes</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold text-foreground">{userServices.length}</p>
+                <p className="text-lg font-bold text-foreground">{userServices.length}</p>
                 <p className="text-xs text-muted-foreground">Total</p>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-            <div className="lg:col-span-2 space-y-6">
-              <div className="flex gap-2 flex-wrap">
-                {isAdmin && (userServices || []).some((s) => s.owner !== 1) && (
-                  <Button variant="outline" size="sm" onClick={() => openUserPayments(selectedUser)} className="gap-2">
-                    <DollarSign className="w-4 h-4" />
-                    Pagos
-                  </Button>
-                )}
-                {selectedUser.whatsapp && (
-                  <Button variant="outline" size="sm" onClick={() => sendUserCredentials(selectedUser)} className="gap-2 text-green-500 border-green-500/30 hover:bg-green-500/10">
-                    <MessageCircle className="w-4 h-4" />
-                    Enviar Credenciales
-                  </Button>
-                )}
-                <Button variant="outline" size="sm" onClick={() => { setPasswordUser(selectedUser); setShowPasswordModal(true) }} className="gap-2">
-                  <Lock className="w-4 h-4" />
-                  Cambiar Pass
+          <div className="space-y-4 mt-6">
+            <div className="flex gap-2 flex-wrap">
+              {isAdmin && (userServices || []).some((s) => s.owner !== 1) && (
+                <Button variant="outline" size="sm" onClick={() => openUserPayments(selectedUser)} className="gap-2">
+                  <DollarSign className="w-4 h-4" />
+                  Pagos
+                </Button>
+              )}
+              {selectedUser.whatsapp && (
+                <Button variant="outline" size="sm" onClick={() => sendUserCredentials(selectedUser)} className="gap-2 text-green-500 border-green-500/30 hover:bg-green-500/10">
+                  <MessageCircle className="w-4 h-4" />
+                  Enviar Credenciales
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={() => { setPasswordUser(selectedUser); setShowPasswordModal(true) }} className="gap-2">
+                <Lock className="w-4 h-4" />
+                Cambiar Pass
+              </Button>
+            </div>
+
+            <Card>
+              <div className="flex items-center justify-between p-4 border-b">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Package className="w-4 h-4 text-primary" />
+                  </div>
+                  <h2 className="text-base font-bold text-foreground">Dominios / Servicios</h2>
+                </div>
+                <Button size="sm" onClick={openAddService}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Agregar
                 </Button>
               </div>
-
-              <Card>
-                <div className="flex items-center justify-between p-5 border-b">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Package className="w-5 h-5 text-primary" />
-                    </div>
-                    <h2 className="text-lg font-bold text-foreground">Dominios / Servicios</h2>
-                  </div>
-                  <Button size="sm" onClick={openAddService}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Agregar
-                  </Button>
-                </div>
-                <div className="p-5">
-                  {userServices.length === 0 ? (
-                    <div className="text-center py-8"><p className="text-muted-foreground font-medium">No tiene servicios contratados</p></div>
-                  ) : (
-                    <div className="space-y-3">
-                      {userServices.map((service) => {
+              <div className="p-4">
+                {userServices.length === 0 ? (
+                  <div className="text-center py-6"><p className="text-muted-foreground font-medium">No tiene servicios contratados</p></div>
+                ) : (
+                  <>
+                    {userServices.length > 4 && (
+                      <div className="relative mb-3">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <input
+                          value={serviceSearch}
+                          onChange={(e) => setServiceSearch(e.target.value)}
+                          placeholder="Buscar servicio..."
+                          className="flex h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        />
+                      </div>
+                    )}
+                    <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+                      {(serviceSearch
+                        ? userServices.filter((s) => {
+                            const term = serviceSearch.toLowerCase()
+                            const domain = s.url_dominio?.toLowerCase() || ""
+                            const name = s.expand?.service_id?.name?.toLowerCase() || ""
+                            return domain.includes(term) || name.includes(term)
+                          })
+                        : userServices
+                      ).map((service) => {
                         const daysRemaining = getDaysRemaining(service.expires_at)
                         const paymentStatus = getPaymentStatus(service)
                         const ownerLabel = service.owner === 1 ? "Cliente paga" : "Lo administro"
@@ -644,151 +680,110 @@ export default function AdminUsers() {
                           try { return new URL(normalizeUrl(service.url_dominio)).hostname }
                           catch (e) { return service.url_dominio }
                         })()
+                        const displayName = websiteName || service.expand?.service_id?.name || service.name || "Servicio"
                         return (
-                          <div key={service.id} className="group relative overflow-hidden rounded-lg border bg-card p-5 hover:border-primary/50 transition-all">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1 min-w-0 pr-4">
-                                <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                  <Badge variant={ownerColor}>{ownerLabel}</Badge>
-                                  <Badge variant={service.status === "active" ? "default" : service.status === "pending" ? "secondary" : "destructive"}>
+                          <div key={service.id} className="group relative overflow-hidden rounded-lg border bg-card p-3 hover:border-primary/50 transition-all">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                  <Badge variant={ownerColor} className="text-[10px] px-1.5 py-0">{ownerLabel}</Badge>
+                                  <Badge variant={service.status === "active" ? "default" : service.status === "pending" ? "secondary" : "destructive"} className="text-[10px] px-1.5 py-0">
                                     {service.status === "active" ? "Activo" : service.status === "pending" ? "Pendiente" : "Vencido"}
                                   </Badge>
-                                  <Badge variant={paymentStatus.color}>{paymentStatus.label}</Badge>
+                                  <Badge variant={paymentStatus.color} className="text-[10px] px-1.5 py-0">{paymentStatus.label}</Badge>
                                 </div>
-                                <h3 className="font-extrabold text-foreground text-lg sm:text-xl mb-1 break-all">
+                                <p className="text-sm font-semibold text-foreground truncate">
                                   {websiteName ? (
                                     <a href={normalizeUrl(service.url_dominio)} target="_blank" rel="noopener noreferrer" className="hover:underline inline-flex items-center gap-1">
                                       {websiteName}
-                                      <ExternalLink className="w-3 h-3" />
+                                      <ExternalLink className="w-3 h-3 shrink-0" />
                                     </a>
-                                  ) : (service.expand?.service_id?.name || service.name || "Servicio sin nombre")}
-                                </h3>
-                                {websiteName && (service.expand?.service_id?.name || service.name) && (
-                                  <p className="text-sm text-muted-foreground mt-1">{service.expand?.service_id?.name || service.name}</p>
-                                )}
-                                {service.expand?.service_id?.type && (
-                                  <span className="inline-block mt-1 px-2 py-0.5 rounded text-xs bg-primary/10 text-primary">{service.expand.service_id.type}</span>
+                                  ) : displayName}
+                                </p>
+                                {websiteName && service.expand?.service_id?.name && (
+                                  <p className="text-xs text-muted-foreground truncate">{service.expand.service_id.name}</p>
                                 )}
                               </div>
-                              <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                                <div className="flex items-center gap-1.5">
-                                  <Link to={`/service/${service.id}/credentials`} onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-medium transition-all">
-                                    <Key className="w-3 h-3" />
-                                    <span className="hidden sm:inline">Accesos</span>
-                                  </Link>
-                                  {isAdmin && service.owner !== 1 && (
-                                    <button onClick={(e) => { e.stopPropagation(); viewServicePayments(service) }} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white text-xs font-medium transition-all">
-                                      <CreditCard className="w-3 h-3" />
-                                      <span className="hidden sm:inline">Pagos</span>
-                                    </button>
-                                  )}
-                                  {service.expand?.service_id?.type === "membresia" && daysRemaining !== null && daysRemaining <= 30 && (
-                                    <button onClick={(e) => { e.stopPropagation(); handleRenewService(service) }} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white text-xs font-medium transition-all">
-                                      <RefreshCw className="w-3 h-3" />
-                                      <span className="hidden sm:inline">Renovar</span>
-                                    </button>
-                                  )}
-                                  <button onClick={(e) => { e.stopPropagation(); openEditService(service) }} className="p-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all">
-                                    <Edit3 className="w-3.5 h-3.5" />
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button onClick={(e) => { e.stopPropagation(); setCredentialsService(service) }} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-medium transition-all">
+                                  <Key className="w-3 h-3" />
+                                </button>
+                                {isAdmin && service.owner !== 1 && (
+                                  <button onClick={(e) => { e.stopPropagation(); viewServicePayments(service) }} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white text-xs font-medium transition-all">
+                                    <CreditCard className="w-3 h-3" />
                                   </button>
-                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteService(service.id) }} className="p-1.5 rounded-md bg-destructive/10 text-destructive hover:bg-destructive hover:text-white transition-all">
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                )}
+                                {service.expand?.service_id?.type === "membresia" && daysRemaining !== null && daysRemaining <= 30 && (
+                                  <button onClick={(e) => { e.stopPropagation(); handleRenewService(service) }} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white text-xs font-medium transition-all">
+                                    <RefreshCw className="w-3 h-3" />
                                   </button>
+                                )}
+                                <button onClick={(e) => { e.stopPropagation(); openEditService(service) }} className="p-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all">
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                                <button onClick={(e) => { e.stopPropagation(); handleDeleteService(service.id) }} className="p-1.5 rounded-md bg-destructive/10 text-destructive hover:bg-destructive hover:text-white transition-all">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between mt-2 pt-2 border-t gap-3">
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm font-bold text-primary">{formatCurrency(service.price || 0)}</span>
+                                <span className="text-[10px] text-muted-foreground">{service.billing_type === "annual" ? "anual" : service.billing_type === "one_time" ? "único" : "mensual"}</span>
+                                {service.expires_at && service.billing_type !== "one_time" && (
+                                  <span className="text-xs text-muted-foreground">Vence: {formatDate(service.expires_at)}</span>
+                                )}
+                                {service.start_date && (service.no_expiry || service.billing_type === "one_time") && (
+                                  <span className="text-xs text-muted-foreground">Inicio: {formatDate(service.start_date)}</span>
+                                )}
+                              </div>
+                              {service.expires_at && daysRemaining !== null && service.billing_type !== "one_time" && (
+                                <div className={`flex items-center justify-center w-10 h-10 rounded-md text-sm font-extrabold shrink-0 ${
+                                  daysRemaining >= 20 ? "bg-green-500/10 text-green-500 border border-green-500/20" :
+                                  daysRemaining >= 7 ? "bg-orange-500/10 text-orange-500 border border-orange-500/20" :
+                                  daysRemaining >= 0 ? "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20" :
+                                  "bg-destructive/10 text-destructive border border-destructive/20"
+                                }`}>
+                                  <span>{daysRemaining}</span>
+                                  <span className="text-[8px] font-normal">d</span>
                                 </div>
-                                {service.expires_at && daysRemaining !== null && (
-                                  <div className={`flex items-center justify-center w-16 h-16 rounded-md text-lg font-extrabold ${
-                                    daysRemaining >= 20 ? "bg-green-500/10 text-green-500 border-2 border-green-500/20" :
-                                    daysRemaining >= 7 ? "bg-orange-500/10 text-orange-500 border-2 border-orange-500/20" :
-                                    daysRemaining >= 0 ? "bg-yellow-500/10 text-yellow-500 border-2 border-yellow-500/20" :
-                                    "bg-destructive/10 text-destructive border-2 border-destructive/20"
-                                  }`}>
-                                    <div className="flex items-center gap-0.5">
-                                      <span className="text-xl">{daysRemaining}</span>
-                                      <span className="text-[10px] font-normal">d</span>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
+                              )}
                             </div>
-                            <div className="mt-4 pt-4 border-t flex items-center justify-between">
-                              <div>
-                                <p className="text-xs text-muted-foreground">{service.billing_type === "annual" ? "Precio anual" : "Precio mensual"}</p>
-                                <p className="text-xl font-bold text-primary">{formatCurrency(service.price || 0)}</p>
-                              </div>
-                              <div className="text-right">
-                                {service.expires_at && <p className="text-sm text-muted-foreground">Vence: {formatDate(service.expires_at)}</p>}
-                                {service.start_date && service.no_expiry && <p className="text-sm text-muted-foreground">Inicio: {formatDate(service.start_date)}</p>}
-                              </div>
-                            </div>
-                            {service.owner === 1 && (
-                              <div className="mt-3 pt-3 border-t space-y-2">
+                            {service.owner === 1 && (service.next_billing_date || service.tarjeta) && (
+                              <div className="flex items-center gap-3 mt-2 pt-2 border-t text-xs text-muted-foreground">
                                 {service.next_billing_date && (
-                                  <div className="flex items-center justify-between">
-                                    <p className="text-xs text-green-500 font-medium">Próximo cobro:</p>
-                                    <p className="text-sm font-semibold text-green-500">{formatDate(service.next_billing_date)}</p>
-                                  </div>
+                                  <span className="text-green-500 font-medium">Prox. cobro: {formatDate(service.next_billing_date)}</span>
                                 )}
-                {service.tarjeta && (
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground font-medium">Tarjeta:</p>
-                    <p className="text-sm font-semibold text-foreground">****{service.tarjeta}</p>
-                  </div>
-                )}
+                                {service.tarjeta && (
+                                  <span>Tarjeta: ****{service.tarjeta}</span>
+                                )}
                               </div>
                             )}
                             {service.requiere_abono && service.totalExpected > 0 && (
-                              <div className="mt-3 pt-3 border-t space-y-1">
-                                <p className="text-xs text-muted-foreground">
-                                  Abonado: <span className="font-semibold text-foreground">{formatCurrency(service.totalPaid || 0)}</span> de <span className="font-semibold text-foreground">{formatCurrency(service.totalExpected)}</span>
-                                </p>
+                              <div className="mt-2 pt-2 border-t text-xs text-muted-foreground">
+                                Abonado: <span className="font-semibold text-foreground">{formatCurrency(service.totalPaid || 0)}</span> de <span className="font-semibold text-foreground">{formatCurrency(service.totalExpected)}</span>
                                 {(service.totalPaid || 0) < service.totalExpected && (
-                                  <p className="text-xs font-medium text-destructive">
-                                    Restante: {formatCurrency(service.totalExpected - (service.totalPaid || 0))}
-                                  </p>
+                                  <span className="text-destructive"> - Restante: {formatCurrency(service.totalExpected - (service.totalPaid || 0))}</span>
                                 )}
+                              </div>
+                            )}
+                            {service.admin_notes && (
+                              <div className="mt-2 pt-2 border-t border-yellow-500/20 text-xs text-yellow-600 dark:text-yellow-400">
+                                <span className="flex items-center gap-1 font-medium mb-0.5">
+                                  <Lock className="w-3 h-3" />
+                                  Nota interna
+                                </span>
+                                <p className="whitespace-pre-wrap break-words leading-relaxed">{service.admin_notes}</p>
                               </div>
                             )}
                           </div>
                         )
                       })}
                     </div>
-                  )}
-                </div>
-              </Card>
-            </div>
-
-            <div className="lg:col-span-1 space-y-6">
-              <Card>
-                <div className="flex items-center gap-3 p-5 border-b">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Info className="w-5 h-5 text-primary" />
-                  </div>
-                  <h2 className="text-lg font-bold text-foreground">Soporte</h2>
-                </div>
-                <div className="p-5 space-y-4">
-                  <a href={`mailto:${profile?.email || ''}`} className="flex items-center gap-4 p-4 rounded-lg border border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 transition-all group">
-                    <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                      <Mail className="w-5 h-5 text-blue-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-blue-500/70 font-medium">Email del admin</p>
-                      <p className="text-sm font-semibold text-foreground truncate">{profile?.email || 'No registrado'}</p>
-                    </div>
-                    <ArrowUpRight className="w-4 h-4 text-blue-500" />
-                  </a>
-                  <a href={`https://wa.me/${normalizeWhatsapp(profile?.whatsapp || '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-lg border border-green-500/20 bg-green-500/5 hover:bg-green-500/10 transition-all group">
-                    <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                      <MessageCircle className="w-5 h-5 text-green-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-green-500/70 font-medium">WhatsApp del admin</p>
-                      <p className="text-sm font-semibold text-foreground truncate">{formatWhatsapp(profile?.whatsapp) || profile?.whatsapp || 'No registrado'}</p>
-                    </div>
-                    <ArrowUpRight className="w-4 h-4 text-green-500" />
-                  </a>
-                </div>
-              </Card>
-            </div>
+                  </>
+                )}
+              </div>
+            </Card>
           </div>
         </div>
 
@@ -820,12 +815,12 @@ export default function AdminUsers() {
             </div>
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-1.5">Tipo de facturación</label>
-              <div className="grid grid-cols-2 gap-3">
-                {["monthly", "annual"].map((type) => (
+              <div className="grid grid-cols-3 gap-3">
+                {(["monthly", "annual", "one_time"]).map((type) => (
                   <label key={type} className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${serviceForm.billing_type === type ? "border-primary bg-primary/10" : "border-border hover:bg-muted"}`}>
                     <input type="radio" name="billing_type" value={type} checked={serviceForm.billing_type === type} onChange={() => setServiceForm({ ...serviceForm, billing_type: type })} className="hidden" />
-                    <Calendar className={`w-5 h-5 ${serviceForm.billing_type === type ? "text-primary" : "text-muted-foreground"}`} />
-                    <span className="font-medium text-sm">{type === "monthly" ? "Mensual" : "Anual"}</span>
+                    {type === "one_time" ? <Zap className={`w-5 h-5 ${serviceForm.billing_type === type ? "text-primary" : "text-muted-foreground"}`} /> : <Calendar className={`w-5 h-5 ${serviceForm.billing_type === type ? "text-primary" : "text-muted-foreground"}`} />}
+                    <span className="font-medium text-sm">{type === "monthly" ? "Mensual" : type === "annual" ? "Anual" : "Pago Único"}</span>
                   </label>
                 ))}
               </div>
@@ -850,6 +845,12 @@ export default function AdminUsers() {
                 <p className="text-xs text-muted-foreground">Muestra el progreso de pago y el restante</p>
               </div>
             </label>
+            {serviceForm.requiere_abono && (
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-1.5">Monto abonado</label>
+                <input type="number" value={serviceForm.monto_abonado} onChange={(e) => setServiceForm({ ...serviceForm, monto_abonado: e.target.value })} placeholder="0" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-1.5">URL del dominio</label>
               <input type="url" value={serviceForm.url_dominio} onChange={(e) => setServiceForm({ ...serviceForm, url_dominio: e.target.value })} placeholder="https://dominio.com" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
@@ -857,6 +858,13 @@ export default function AdminUsers() {
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-1.5">Notas</label>
               <textarea value={serviceForm.notes} onChange={(e) => setServiceForm({ ...serviceForm, notes: e.target.value })} rows={2} placeholder="Observaciones..." className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none" />
+            </div>
+            <div>
+              <label className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground mb-1.5">
+                <Lock className="w-3.5 h-3.5" />
+                Notas privadas (solo admin)
+              </label>
+              <textarea value={serviceForm.admin_notes} onChange={(e) => setServiceForm({ ...serviceForm, admin_notes: e.target.value })} rows={2} placeholder="Notas internas - el cliente no las verá..." className="flex w-full rounded-md border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none" />
             </div>
             <div className="flex gap-3 pt-2">
               <Button type="submit" className="flex-1">{editingService ? "Guardar Cambios" : "Agregar Servicio"}</Button>
@@ -880,6 +888,13 @@ export default function AdminUsers() {
             </div>
           </Modal>
         )}
+
+        <CredentialsModal
+          service={credentialsService}
+          isOpen={!!credentialsService}
+          onClose={() => setCredentialsService(null)}
+          canEdit={true}
+        />
 
         <Modal isOpen={showPaymentsModal} onClose={() => setShowPaymentsModal(false)} title={`Pagos - ${selectedService?.expand?.service_id?.name || "Servicio"}`} size="md">
           {loadingPayments ? (
@@ -1094,20 +1109,53 @@ export default function AdminUsers() {
           <div className="space-y-4">
             <div className="bg-muted/50 rounded-lg p-4 border">
               <h3 className="text-sm font-medium text-muted-foreground mb-3">Registrar Pago</h3>
-              <form onSubmit={handleRegisterPayment} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <select value={paymentForm.service_id} onChange={(e) => setPaymentForm({ ...paymentForm, service_id: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                  <option value="">Sin servicio</option>
-                  {userServicesForPayments.map((s) => (<option key={s.id} value={s.id}>{s.expand?.service_id?.name || "Servicio"}</option>))}
-                </select>
-                <Input type="number" placeholder="Monto" value={paymentForm.amount} onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })} />
-                <Input type="date" value={paymentForm.payment_date} onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })} />
-                <select value={paymentForm.payment_method} onChange={(e) => setPaymentForm({ ...paymentForm, payment_method: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                  <option value="transferencia">Transferencia</option>
-                  <option value="efectivo">Efectivo</option>
-                  <option value="nequi">Nequi</option>
-                  <option value="otro">Otro</option>
-                </select>
-                <Button type="submit" disabled={registeringPayment} className="sm:col-span-2">
+              <form onSubmit={handleRegisterPayment} className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <select value={paymentForm.service_id} onChange={(e) => setPaymentForm({ ...paymentForm, service_id: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                    <option value="">Sin servicio</option>
+                    {userServicesForPayments.map((s) => (<option key={s.id} value={s.id}>{s.expand?.service_id?.name || "Servicio"}</option>))}
+                  </select>
+                  <Input type="number" placeholder="Monto" value={paymentForm.amount} onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })} />
+                  <Input type="date" placeholder="Fecha del abono" value={paymentForm.payment_date} onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })} />
+                  <select value={paymentForm.payment_account} onChange={(e) => setPaymentForm({ ...paymentForm, payment_account: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                    <option value="">Sin cuenta</option>
+                    {paymentAccounts.map((a) => (<option key={a.id} value={a.id}>{a.name}</option>))}
+                  </select>
+                </div>
+                <div
+                  onPaste={(e) => {
+                    const items = e.clipboardData?.items
+                    for (const item of items) {
+                      if (item.type.startsWith('image/')) {
+                        const file = item.getAsFile()
+                        setComprobanteFile(file)
+                        setComprobantePreview(URL.createObjectURL(file))
+                        return
+                      }
+                    }
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex flex-col items-center justify-center h-20 rounded-md border-2 border-dashed border-input bg-background cursor-pointer hover:border-primary/50 transition-colors text-muted-foreground text-sm"
+                >
+                  {comprobantePreview ? (
+                    <div className="relative w-full h-full group">
+                      <img src={comprobantePreview} alt="Comprobante" className="w-full h-full object-contain rounded-md" />
+                      <button type="button" onClick={(e) => { e.stopPropagation(); setComprobanteFile(null); setComprobantePreview(null) }} className="absolute top-1 right-1 w-6 h-6 rounded-full bg-destructive/80 text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-1">
+                      <Image className="w-5 h-5" />
+                      <span>Comprobante (Click o Ctrl+V)</span>
+                    </div>
+                  )}
+                </div>
+                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) { setComprobanteFile(file); setComprobantePreview(URL.createObjectURL(file)) }
+                }} />
+                <Button type="submit" disabled={registeringPayment} className="w-full">
                   {registeringPayment ? "Registrando..." : "Registrar Pago"}
                 </Button>
               </form>
@@ -1119,20 +1167,32 @@ export default function AdminUsers() {
               ) : paymentsForUser.length === 0 ? (
                 <p className="text-center text-muted-foreground py-6">No hay pagos registrados</p>
               ) : (
-                paymentsForUser.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
-                    <div>
-                      <p className="font-medium text-foreground">{formatCurrency(p.amount)}</p>
-                      <p className="text-xs text-muted-foreground">{formatDate(p.payment_date)} - {p.payment_method}</p>
+                paymentsForUser.map((p) => {
+                  const accName = typeof p.payment_account === 'object' ? p.payment_account?.name : p.expand?.payment_account?.name || ""
+                  return (
+                    <div key={p.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                      <div>
+                        <p className="font-medium text-foreground">{formatCurrency(p.amount)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(p.payment_date)}
+                          {accName && <span> - {accName}</span>}
+                          {p.comprobante && (
+                            <a href={pb.files.getUrl(p, 'comprobante')} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 ml-2 text-primary hover:underline">
+                              <Image className="w-3 h-3" />
+                              Ver comp.
+                            </a>
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={p.status === "paid" ? "default" : "secondary"}>{p.status === "paid" ? "Pagado" : "Pendiente"}</Badge>
+                        {p.status !== "paid" && (
+                          <Button size="sm" variant="outline" onClick={() => handleMarkPaymentPaidUser(p.id)}>Pagar</Button>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={p.status === "paid" ? "default" : "secondary"}>{p.status === "paid" ? "Pagado" : "Pendiente"}</Badge>
-                      {p.status !== "paid" && (
-                        <Button size="sm" variant="outline" onClick={() => handleMarkPaymentPaidUser(p.id)}>Pagar</Button>
-                      )}
-                    </div>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
           </div>

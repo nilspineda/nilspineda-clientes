@@ -13,7 +13,6 @@ export async function createRecurringPayments(userServiceId, months = 12) {
         user_id: us.user_id,
         amount: us.price || 0,
         payment_date: paymentDate.toISOString(),
-        payment_method: 'transferencia',
         status: 'pending',
       })
       created.push(record)
@@ -61,7 +60,6 @@ export async function generateMonthlyPayments(userServiceId, count = 6) {
           user_id: us.user_id,
           amount: us.price || 0,
           payment_date: current.toISOString(),
-          payment_method: 'transferencia',
           status: 'pending',
         })
         created.push(record)

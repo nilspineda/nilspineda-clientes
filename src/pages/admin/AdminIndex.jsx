@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from "react"
+﻿import { useState, useEffect, useMemo, useRef } from "react"
 import pb from "@/lib/pocketbaseClient"
 import { normalizeUrl, normalizeWhatsapp, formatCurrency } from "@/utils/formatUtils"
 import { formatDate } from "@/utils/dateUtils"
@@ -20,7 +20,7 @@ import {
   ChevronRight,
   MessageCircle,
   Loader2,
-  ArrowUpRight,
+  ArrowUpRight, Image, X,
 } from "lucide-react"
 
 function getDaysRemaining(expiresAt) {
@@ -49,7 +49,11 @@ export default function AdminIndex() {
   const [clientPayments, setClientPayments] = useState([])
   const [userForm, setUserForm] = useState({ name: "", email: "", password: "", whatsapp: "" })
   const [serviceForm, setServiceForm] = useState({ name: "", price: "", owner: 0 })
-  const [paymentForm, setPaymentForm] = useState({ user_id: "", service_id: "", amount: "", payment_date: "", payment_method: "transfer" })
+  const [paymentForm, setPaymentForm] = useState({ user_id: "", service_id: "", amount: "", payment_date: "", payment_account: "" })
+  const [paymentAccounts, setPaymentAccounts] = useState([])
+  const [comprobanteFile, setComprobanteFile] = useState(null)
+  const [comprobantePreview, setComprobantePreview] = useState(null)
+  const fileInputRef = useRef(null)
   const [users, setUsers] = useState([])
   const [services, setServices] = useState([])
   const [upcomingRenewals, setUpcomingRenewals] = useState([])
@@ -121,12 +125,14 @@ export default function AdminIndex() {
 
   async function fetchDataForForms() {
     try {
-      const [usersData, servicesData] = await Promise.all([
+      const [usersData, servicesData, accountsData] = await Promise.all([
         pb.collection('users').getFullList({ requestKey: null }),
         pb.collection('services').getFullList({ requestKey: null }),
+        pb.collection('payment_accounts').getFullList({ sort: 'name', requestKey: null }),
       ])
       setUsers(usersData || [])
       setServices(servicesData || [])
+      setPaymentAccounts(accountsData || [])
     } catch (err) {
       console.error("Error fetching form data:", err)
     }
@@ -174,16 +180,21 @@ export default function AdminIndex() {
   async function handleCreatePayment(e) {
     e.preventDefault()
     try {
-      await pb.collection('payments').create({
-        user_id: paymentForm.user_id,
-        user_service_id: paymentForm.service_id || null,
-        amount: paymentForm.amount ? parseFloat(paymentForm.amount) : null,
-        payment_date: paymentForm.payment_date || new Date().toISOString(),
-        payment_method: paymentForm.payment_method,
-        status: "paid",
-      })
+      const hasFile = comprobanteFile instanceof File
+      const fd = hasFile ? new FormData() : {}
+      const setField = (key, val) => hasFile ? fd.append(key, val) : (fd[key] = val)
+      setField('user_id', paymentForm.user_id)
+      setField('user_service_id', paymentForm.service_id || null)
+      setField('amount', paymentForm.amount ? parseFloat(paymentForm.amount) : null)
+      setField('payment_date', paymentForm.payment_date || new Date().toISOString())
+      setField('payment_account', paymentForm.payment_account || null)
+      setField('status', "paid")
+      if (hasFile) fd.append('comprobante', comprobanteFile)
+      await pb.collection('payments').create(fd)
       setShowNewPayment(false)
-      setPaymentForm({ user_id: "", service_id: "", amount: "", payment_date: "", payment_method: "transfer" })
+      setPaymentForm({ user_id: "", service_id: "", amount: "", payment_date: "", payment_account: "" })
+      setComprobanteFile(null)
+      setComprobantePreview(null)
       fetchStats()
     } catch (err) {
       console.error("Error creating payment:", err)
@@ -552,9 +563,52 @@ export default function AdminIndex() {
               <input type="number" value={paymentForm.amount} onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })} required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-1.5">Fecha</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-1.5">Fecha del abono</label>
               <input type="date" value={paymentForm.payment_date} onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
             </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground mb-1.5">Cuenta</label>
+            <select value={paymentForm.payment_account} onChange={(e) => setPaymentForm({ ...paymentForm, payment_account: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+              <option value="">Sin cuenta</option>
+              {paymentAccounts.map((a) => (<option key={a.id} value={a.id}>{a.name}</option>))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground mb-1.5">Comprobante (opcional)</label>
+            <div
+              onPaste={(e) => {
+                const items = e.clipboardData?.items
+                for (const item of items) {
+                  if (item.type.startsWith('image/')) {
+                    const file = item.getAsFile()
+                    setComprobanteFile(file)
+                    setComprobantePreview(URL.createObjectURL(file))
+                    return
+                  }
+                }
+              }}
+              onClick={() => fileInputRef.current?.click()}
+              className="flex flex-col items-center justify-center h-20 rounded-md border-2 border-dashed border-input bg-background cursor-pointer hover:border-primary/50 transition-colors text-muted-foreground text-sm"
+            >
+              {comprobantePreview ? (
+                <div className="relative w-full h-full group">
+                  <img src={comprobantePreview} alt="Comprobante" className="w-full h-full object-contain rounded-md" />
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setComprobanteFile(null); setComprobantePreview(null) }} className="absolute top-1 right-1 w-6 h-6 rounded-full bg-destructive/80 text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-1">
+                  <Image className="w-5 h-5" />
+                  <span>Click o Ctrl+V para pegar</span>
+                </div>
+              )}
+            </div>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) { setComprobanteFile(file); setComprobantePreview(URL.createObjectURL(file)) }
+            }} />
           </div>
           <div className="flex gap-3 pt-2">
             <Button type="submit" className="flex-1">Registrar Pago</Button>

@@ -82,7 +82,8 @@ export async function generateInvoicePDF(payment, user, service) {
     font: font,
   });
 
-  page.drawText(`Metodo: ${payment.payment_method || "No especificado"}`, {
+  const accName = typeof payment.payment_account === 'object' ? payment.payment_account?.name : payment.expand?.payment_account?.name || "No especificado"
+  page.drawText(`Cuenta: ${accName}`, {
     x: 50,
     y: height - 270,
     size: 11,

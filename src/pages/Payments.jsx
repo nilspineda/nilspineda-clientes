@@ -4,7 +4,7 @@ import pb from "@/lib/pocketbaseClient"
 import { formatDate } from "@/utils/dateUtils"
 import { formatCurrency } from "@/utils/formatUtils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Wallet, CheckCircle, Clock, FileText, Loader2 } from "lucide-react"
+import { Wallet, CheckCircle, Clock, FileText, Loader2, Image } from "lucide-react"
 
 export default function Payments() {
   const { user } = useAuth()
@@ -21,7 +21,7 @@ export default function Payments() {
       const data = await pb.collection('payments').getFullList({
         filter: `user_id = "${user.id}"`,
         sort: '-payment_date',
-        expand: 'user_service_id',
+        expand: 'user_service_id,payment_account',
         requestKey: null,
       })
       setPayments(data || [])
@@ -95,8 +95,13 @@ export default function Payments() {
                     <p className="text-lg font-bold text-foreground">
                       {formatCurrency(payment.amount)}
                     </p>
-                    <p className="text-[10px] text-muted-foreground capitalize">
-                      {payment.payment_method}
+                    <p className="text-[10px] text-muted-foreground">
+                      {payment.expand?.payment_account?.name || ""}
+                      {payment.comprobante && (
+                        <a href={pb.files.getUrl(payment, 'comprobante')} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 ml-1 text-primary hover:underline">
+                          <Image className="w-3 h-3" />
+                        </a>
+                      )}
                     </p>
                   </div>
                 </div>

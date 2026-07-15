@@ -11,6 +11,7 @@ import {
 } from "@/utils/formatUtils"
 import { getPaymentsByUserService } from "@/utils/paymentUtils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import CredentialsModal from "@/components/CredentialsModal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -26,12 +27,10 @@ import {
   Calendar,
   AlertTriangle,
   CreditCard,
-  HeadphonesIcon,
   MessageCircle,
   Zap,
   User,
   ChevronLeft,
-  ArrowUpRight,
   Info,
   BarChart3,
   AlertCircle,
@@ -82,6 +81,7 @@ export default function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("")
   const [whatsappNumber, setWhatsappNumber] = useState("")
   const [fetchError, setFetchError] = useState(null)
+  const [credentialsService, setCredentialsService] = useState(null)
 
   const fetchData = useCallback(async () => {
     if (!user) return
@@ -485,120 +485,116 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Left column */}
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="w-5 h-5 text-primary" />
-              Mis Servicios
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {services.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-muted flex items-center justify-center">
-                  <Package className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <p className="text-muted-foreground font-medium">No tienes servicios contratados</p>
-                <p className="text-muted-foreground/60 text-sm mt-1">Contacta al administrador para agregar servicios</p>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Package className="w-5 h-5 text-primary" />
+            Mis Servicios
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {services.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-muted flex items-center justify-center">
+                <Package className="w-8 h-8 text-muted-foreground" />
               </div>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {services.map((service) => {
-                  const status = getServiceStatus(service)
-                  const days = getDaysRemaining(service.expires_at)
-                  return (
-                    <div
-                      key={service.id}
-                      className="group relative overflow-hidden rounded-lg border bg-card p-4 hover:border-border transition-colors"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-2 flex-wrap">
-                            <StatusBadge status={status} />
-                            {service.owner === 0 && (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border">
-                                Lo administro
-                              </span>
-                            )}
-                            {service.owner === 1 && (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-500 border border-blue-500/20">
-                                Cliente paga
-                              </span>
-                            )}
-                          </div>
-                          <h3 className="font-semibold text-foreground truncate">
-                            {service.expand?.service_id?.name}
-                          </h3>
-                          {service.expand?.service_id?.description && (
-                            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
-                              {service.expand?.service_id?.description}
-                            </p>
+              <p className="text-muted-foreground font-medium">No tienes servicios contratados</p>
+              <p className="text-muted-foreground/60 text-sm mt-1">Contacta al administrador para agregar servicios</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {services.map((service) => {
+                const status = getServiceStatus(service)
+                const days = getDaysRemaining(service.expires_at)
+                return (
+                  <div
+                    key={service.id}
+                    className="group relative overflow-hidden rounded-lg border bg-card p-4 hover:border-border transition-colors"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <StatusBadge status={status} />
+                          {service.owner === 0 && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border">
+                              Lo administro
+                            </span>
                           )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-3 border-t">
-                        <div>
-                          <p className="text-[10px] text-muted-foreground">Precio</p>
-                          <p className="text-sm font-bold text-primary">
-                            {formatCurrency(service.price ?? 0)}
-                          </p>
-                        </div>
-                        <div className="flex gap-1.5">
-                          <Link
-                            to={`/service/${service.id}/credentials`}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-primary/10 text-primary text-xs font-medium transition-all"
-                          >
-                            <Key className="w-3 h-3" />
-                            Accesos
-                          </Link>
-                          <button
-                            onClick={() => handleRenew(service)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-primary/10 text-primary text-xs font-medium transition-all"
-                          >
-                            <Zap className="w-3 h-3" />
-                            Renovar
-                          </button>
-                        </div>
-                      </div>
-
-                      {service.expires_at && (
-                        <div className="flex items-center justify-between mt-3 pt-3 border-t">
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Calendar className="w-3 h-3" />
-                            {formatDate(service.expires_at)}
-                          </div>
-                          {days !== null && (
-                            <span
-                              className={`text-xs font-medium ${
-                                days < 0
-                                  ? "text-destructive"
-                                  : days <= 5
-                                    ? "text-orange-500"
-                                    : "text-green-500"
-                              }`}
-                            >
-                              {days < 0
-                                ? `${Math.abs(days)} días vencido`
-                                : `${days} días`}
+                          {service.owner === 1 && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                              Cliente paga
                             </span>
                           )}
                         </div>
-                      )}
+                        <h3 className="font-semibold text-foreground truncate">
+                          {service.expand?.service_id?.name}
+                        </h3>
+                        {service.expand?.service_id?.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                            {service.expand?.service_id?.description}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  )
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
 
-      {/* Right column */}
-      <div className="space-y-6">
+                    <div className="flex items-center justify-between pt-3 border-t">
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">Precio</p>
+                        <p className="text-sm font-bold text-primary">
+                          {formatCurrency(service.price ?? 0)}
+                        </p>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => setCredentialsService(service)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-primary/10 text-primary text-xs font-medium transition-all"
+                        >
+                          <Key className="w-3 h-3" />
+                          Accesos
+                        </button>
+                        <button
+                          onClick={() => handleRenew(service)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-primary/10 text-primary text-xs font-medium transition-all"
+                        >
+                          <Zap className="w-3 h-3" />
+                          Renovar
+                        </button>
+                      </div>
+                    </div>
+
+                    {service.expires_at && (
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Calendar className="w-3 h-3" />
+                          {formatDate(service.expires_at)}
+                        </div>
+                        {days !== null && (
+                          <span
+                            className={`text-xs font-medium ${
+                              days < 0
+                                ? "text-destructive"
+                                : days <= 5
+                                  ? "text-orange-500"
+                                  : "text-green-500"
+                            }`}
+                          >
+                            {days < 0
+                              ? `${Math.abs(days)} días vencido`
+                              : `${days} días`}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -703,86 +699,51 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
+      </div>
 
-        {pendingPayments.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-primary" />
-                Próximos Pagos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {pendingPayments.slice(0, 5).map((payment) => (
-                  <div
-                    key={payment.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-orange-500/5 border border-orange-500/10"
-                  >
-                    <div>
-                      <p className="font-semibold text-foreground text-sm">
-                        {formatCurrency(payment.amount)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {payment.service_name} - {formatDate(payment.payment_date)}
-                      </p>
-                    </div>
-                    <span className="px-2.5 py-1 rounded bg-orange-500/10 text-orange-500 text-xs font-medium">
-                      Pendiente
-                    </span>
-                  </div>
-                ))}
-                {pendingPayments.length > 5 && (
-                  <p className="text-center text-sm text-muted-foreground">
-                    + {pendingPayments.length - 5} pagos más
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
+      {pendingPayments.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <HeadphonesIcon className="w-5 h-5 text-primary" />
-              Soporte
+              <CreditCard className="w-5 h-5 text-primary" />
+              Próximos Pagos
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <a
-              href={`https://wa.me/${supportWa}?text=${encodeURIComponent("Hola, necesito soporte técnico")}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-4 p-3 rounded-lg border border-green-500/20 bg-green-500/5 hover:bg-green-500/10 transition-all group"
-            >
-              <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                <MessageCircle className="w-5 h-5 text-green-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-green-500/70 font-medium">WhatsApp</p>
-                <p className="text-sm font-semibold text-foreground">Soporte técnico</p>
-              </div>
-              <ArrowUpRight className="w-4 h-4 text-green-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-            </a>
-
-            <a
-              href="mailto:info@nilspineda.com?subject=Soporte técnico"
-              className="flex items-center gap-4 p-3 rounded-lg border border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 transition-all group"
-            >
-              <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                <Mail className="w-5 h-5 text-blue-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-blue-500/70 font-medium">Email</p>
-                <p className="text-sm font-semibold text-foreground">info@nilspineda.com</p>
-              </div>
-              <ArrowUpRight className="w-4 h-4 text-blue-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-            </a>
+          <CardContent>
+            <div className="space-y-3">
+              {pendingPayments.slice(0, 5).map((payment) => (
+                <div
+                  key={payment.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-orange-500/5 border border-orange-500/10"
+                >
+                  <div>
+                    <p className="font-semibold text-foreground text-sm">
+                      {formatCurrency(payment.amount)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {payment.service_name} - {formatDate(payment.payment_date)}
+                    </p>
+                  </div>
+                  <span className="px-2.5 py-1 rounded bg-orange-500/10 text-orange-500 text-xs font-medium">
+                    Pendiente
+                  </span>
+                </div>
+              ))}
+              {pendingPayments.length > 5 && (
+                <p className="text-center text-sm text-muted-foreground">
+                  + {pendingPayments.length - 5} pagos más
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
-      </div>
+      )}
 
+      <CredentialsModal
+        service={credentialsService}
+        isOpen={!!credentialsService}
+        onClose={() => setCredentialsService(null)}
+      />
     </div>
   )
 }
