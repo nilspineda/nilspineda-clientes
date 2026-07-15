@@ -31,7 +31,7 @@ export default function PaymentCard({ payment, onDownloadPDF }) {
       <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
         {accName && <span>Cuenta: {accName}</span>}
         {payment.comprobante && (
-          <a href={pb.files.getUrl(payment, 'comprobante')} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+          <a href={pb.files.getURL(payment, 'comprobante')} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
             <Image className="w-3 h-3" />
             Ver comprobante
           </a>

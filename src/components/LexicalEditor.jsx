@@ -205,6 +205,14 @@ function InitialContentPlugin({ content }) {
         const root = $getRoot();
         root.clear();
         if (content.trim()) {
+          try {
+            const parsed = JSON.parse(content);
+            if (parsed && parsed.root) {
+              const newState = editor.parseEditorState(content);
+              editor.setEditorState(newState);
+              return;
+            }
+          } catch (e) {}
           const paragraph = $createParagraphNode();
           const lines = content.split("\n");
           lines.forEach((line, index) => {
@@ -233,12 +241,25 @@ function EditorRefPlugin({ setEditorRef }) {
   return null;
 }
 
+function extractTextFromLexical(node) {
+  if (!node) return ""
+  if (typeof node === "string") return node
+  if (node.text) return node.text
+  if (node.children) return node.children.map(extractTextFromLexical).join("")
+  return ""
+}
+
 export default function LexicalEditor({
   value,
   onChange,
   showEditor = false,
   onEdit,
   stayOpenAfterSave = false,
+  title = "Credenciales y Accesos",
+  emptyMessage = "No hay credenciales registradas",
+  emptyHint = 'Haz clic en "Editar" para agregar accesos',
+  placeholder = "Escribe las credenciales y accesos aquí...",
+  format = "text",
 }) {
   const [editorRef, setEditorRef] = useState(null);
   const [isEditing, setIsEditing] = useState(showEditor);
@@ -251,22 +272,28 @@ export default function LexicalEditor({
 
   const handleSave = useCallback(() => {
     if (editorRef) {
-      editorRef.getEditorState().read(() => {
-        const root = $getRoot();
-        const children = root.getChildren();
-        const text = children
-          .map((child) => {
-            if (child.getTextContent) {
-              return child.getTextContent();
-            }
-            return "";
-          })
-          .join("\n");
-        onChange(text);
-      });
+      if (format === "json") {
+        const editorState = editorRef.getEditorState();
+        const json = JSON.stringify(editorState.toJSON());
+        onChange(json);
+      } else {
+        editorRef.getEditorState().read(() => {
+          const root = $getRoot();
+          const children = root.getChildren();
+          const text = children
+            .map((child) => {
+              if (child.getTextContent) {
+                return child.getTextContent();
+              }
+              return "";
+            })
+            .join("\n");
+          onChange(text);
+        });
+      }
     }
     if (!stayOpenAfterSave) setIsEditing(false);
-  }, [editorRef, onChange, stayOpenAfterSave]);
+  }, [editorRef, onChange, stayOpenAfterSave, format]);
 
   const handleCancel = useCallback(() => {
     setIsEditing(false);
@@ -286,7 +313,7 @@ export default function LexicalEditor({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold text-foreground">
-            Credenciales y Accesos
+            {title}
           </h3>
           <button
             onClick={() => setIsEditing(true)}
@@ -299,7 +326,11 @@ export default function LexicalEditor({
         {value ? (
           <div
             className="prose prose-invert max-w-none p-4 bg-muted/30 rounded-lg min-h-[100px] border border-border"
-            dangerouslySetInnerHTML={{ __html: value.replace(/\n/g, "<br/>") }}
+            dangerouslySetInnerHTML={{
+              __html: format === "json"
+                ? (() => { try { const d = JSON.parse(value); return extractTextFromLexical(d).replace(/\n/g, "<br/>") } catch(e) { return value.replace(/\n/g, "<br/>") } })()
+                : value.replace(/\n/g, "<br/>")
+            }}
           />
         ) : (
           <div className="text-center py-8 bg-muted/30 rounded-lg border border-dashed border-border">
@@ -317,10 +348,10 @@ export default function LexicalEditor({
               />
             </svg>
             <p className="text-muted-foreground font-medium">
-              No hay credenciales registradas
+              {emptyMessage}
             </p>
             <p className="text-sm text-muted-foreground/60 mt-1">
-              Haz clic en "Editar" para agregar accesos
+              {emptyHint}
             </p>
           </div>
         )}
@@ -332,7 +363,7 @@ export default function LexicalEditor({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-bold text-foreground">
-          Credenciales y Accesos
+          {title}
         </h3>
       </div>
 
@@ -344,7 +375,7 @@ export default function LexicalEditor({
           }
           placeholder={
             <div className="text-muted-foreground p-4 absolute top-0 left-0">
-              Escribe las credenciales y accesos aquí...
+              {placeholder}
             </div>
           }
           ErrorBoundary={LexicalErrorBoundary}

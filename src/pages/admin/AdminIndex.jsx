@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useMemo, useRef } from "react"
 import pb from "@/lib/pocketbaseClient"
 import { normalizeUrl, normalizeWhatsapp, formatCurrency } from "@/utils/formatUtils"
+import { syncOneTimeAbono } from "@/utils/paymentUtils"
 import { formatDate } from "@/utils/dateUtils"
 import Modal from "@/components/Modal"
 import { Card, CardContent } from "@/components/ui/card"
@@ -180,17 +181,21 @@ export default function AdminIndex() {
   async function handleCreatePayment(e) {
     e.preventDefault()
     try {
-      const hasFile = comprobanteFile instanceof File
-      const fd = hasFile ? new FormData() : {}
-      const setField = (key, val) => hasFile ? fd.append(key, val) : (fd[key] = val)
-      setField('user_id', paymentForm.user_id)
-      setField('user_service_id', paymentForm.service_id || null)
-      setField('amount', paymentForm.amount ? parseFloat(paymentForm.amount) : null)
-      setField('payment_date', paymentForm.payment_date || new Date().toISOString())
-      setField('payment_account', paymentForm.payment_account || null)
-      setField('status', "paid")
-      if (hasFile) fd.append('comprobante', comprobanteFile)
-      await pb.collection('payments').create(fd)
+      const payload = {
+        user_id: paymentForm.user_id,
+        user_service_id: paymentForm.service_id || null,
+        amount: paymentForm.amount ? parseFloat(paymentForm.amount) : null,
+        payment_date: paymentForm.payment_date || new Date().toISOString(),
+        payment_account: paymentForm.payment_account || null,
+        status: "paid",
+      }
+      let saved = await pb.collection('payments').create(payload)
+      if (comprobanteFile instanceof File) {
+        const fd = new FormData()
+        fd.append('comprobante', comprobanteFile)
+        saved = await pb.collection('payments').update(saved.id, fd)
+      }
+      await syncOneTimeAbono(saved.user_service_id)
       setShowNewPayment(false)
       setPaymentForm({ user_id: "", service_id: "", amount: "", payment_date: "", payment_account: "" })
       setComprobanteFile(null)

@@ -1,15 +1,16 @@
-﻿import { useState, useEffect, useRef } from "react"
+﻿import { useState, useEffect, useRef, useMemo, Fragment } from "react"
 import pb from "@/lib/pocketbaseClient"
 import { normalizeWhatsapp } from "@/utils/formatUtils"
 import { notify } from "@/utils/notify"
 import { formatDate } from "@/utils/dateUtils"
+import { syncOneTimeAbono, getComprobantes, addComprobante, deleteComprobante } from "@/utils/paymentUtils"
 import { formatCurrency } from "@/utils/formatUtils"
 import Modal from "@/components/Modal"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Wallet, Download, Plus, Search, Edit3, Trash2, MessageCircle, Loader2, Landmark, Image, X } from "lucide-react"
+import { Wallet, Download, Plus, Search, Edit3, Trash2, MessageCircle, Loader2, Landmark, Image, X, ChevronDown, ChevronRight } from "lucide-react"
 
 export default function AdminPayments() {
   const [payments, setPayments] = useState([])
@@ -20,10 +21,7 @@ export default function AdminPayments() {
   const [showModal, setShowModal] = useState(false)
   const [editingPayment, setEditingPayment] = useState(null)
   const [filterStatus, setFilterStatus] = useState("all")
-  const [filterMonth, setFilterMonth] = useState(() => {
-    const now = new Date()
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
-  })
+  const [filterMonth, setFilterMonth] = useState("")
   const [filterAccount, setFilterAccount] = useState("")
   const [searchClient, setSearchClient] = useState("")
   const [newAccountName, setNewAccountName] = useState("")
@@ -32,22 +30,57 @@ export default function AdminPayments() {
   })
   const [comprobanteFile, setComprobanteFile] = useState(null)
   const [comprobantePreview, setComprobantePreview] = useState(null)
+  const [comprobantes, setComprobantes] = useState([])
+  const [uploadingComprobanteId, setUploadingComprobanteId] = useState(null)
   const fileInputRef = useRef(null)
+
+  const backfillDone = useRef(false)
 
   useEffect(() => { fetchData() }, [])
 
   async function fetchData() {
     try {
-      const [paymentsData, usersData, userServicesData, accountsData] = await Promise.all([
-        pb.collection('payments').getFullList({ sort: '-payment_date', expand: 'user_service_id,user_id,payment_account', requestKey: null }),
+      const [paymentsData, usersData, userServicesData, accountsData, compData] = await Promise.all([
+        pb.collection('payments').getFullList({ sort: '-payment_date', expand: 'user_service_id,user_id,payment_account,user_service_id.service_id', requestKey: null }),
         pb.collection('users').getFullList({ filter: 'role = "user"', requestKey: null }),
         pb.collection('user_services').getFullList({ sort: '-created', expand: 'service_id', requestKey: null }),
         pb.collection('payment_accounts').getFullList({ sort: 'name', requestKey: null }),
+        pb.collection('comprobantes').getFullList({ sort: 'created', requestKey: null }),
       ])
       setPayments(paymentsData || [])
       setUsers(usersData || [])
       setUserServices(userServicesData || [])
       setPaymentAccounts(accountsData || [])
+      setComprobantes(compData || [])
+
+      if (!backfillDone.current) {
+        backfillDone.current = true
+        const svcWithPmts = new Set((paymentsData || []).filter(p => p.user_service_id).map(p => p.user_service_id))
+        const newPayments = [...(paymentsData || [])]
+        let created = 0
+        for (const us of (userServicesData || [])) {
+          if ((us.price || 0) <= 0) continue
+          if (us.owner === 1) continue
+          if (svcWithPmts.has(us.id)) continue
+          const pendingAmount = us.requiere_abono && us.monto_abonado
+            ? (us.price || 0) - parseFloat(us.monto_abonado)
+            : (us.price || 0)
+          if (pendingAmount > 0) {
+            try {
+              const newPmt = await pb.collection('payments').create({
+                user_service_id: us.id,
+                user_id: us.user_id,
+                amount: pendingAmount,
+                payment_date: us.start_date || new Date().toISOString(),
+                status: "pending",
+              })
+              newPayments.push(newPmt)
+              created++
+            } catch (e) { console.error("Error creando pendiente para", us.id, e) }
+          }
+        }
+        if (created > 0) setPayments(newPayments)
+      }
     } catch (err) {
       console.error("Error fetching data:", err)
     }
@@ -80,23 +113,27 @@ export default function AdminPayments() {
   async function handleSubmit(e) {
     e.preventDefault()
     try {
-      const hasFile = comprobanteFile instanceof File
-      const fd = hasFile ? new FormData() : {}
-      const setField = (key, val) => hasFile ? fd.append(key, val) : (fd[key] = val)
-      setField('user_id', formData.user_id)
-      setField('user_service_id', formData.service_id || null)
-      setField('amount', parseFloat(formData.amount))
-      setField('payment_date', formData.payment_date || new Date().toISOString())
-      setField('payment_account', formData.payment_account || null)
-      setField('status', "paid")
-      if (hasFile) fd.append('comprobante', comprobanteFile)
-      if (editingPayment) {
-        await pb.collection('payments').update(editingPayment.id, fd)
-        notify("Pago actualizado correctamente", "success")
-      } else {
-        await pb.collection('payments').create(fd)
-        notify("Pago registrado correctamente", "success")
+      const payload = {
+        user_id: formData.user_id,
+        user_service_id: formData.service_id || null,
+        amount: parseFloat(formData.amount),
+        payment_date: formData.payment_date || new Date().toISOString(),
+        payment_account: formData.payment_account || null,
+        status: "paid",
       }
+      let saved
+      if (editingPayment) {
+        saved = await pb.collection('payments').update(editingPayment.id, payload)
+      } else {
+        saved = await pb.collection('payments').create(payload)
+      }
+      if (comprobanteFile instanceof File) {
+        const fd = new FormData()
+        fd.append('comprobante', comprobanteFile)
+        saved = await pb.collection('payments').update(saved.id, fd)
+      }
+      notify(editingPayment ? "Pago actualizado correctamente" : "Pago registrado correctamente", "success")
+      await syncOneTimeAbono(saved.user_service_id)
       fetchData()
       resetForm()
     } catch (error) {
@@ -123,14 +160,16 @@ export default function AdminPayments() {
       payment_account: typeof payment.payment_account === 'object' ? payment.payment_account?.id : (payment.payment_account || ""),
     })
     setComprobanteFile(null)
-    setComprobantePreview(payment.comprobante ? pb.files.getUrl(payment, 'comprobante') : null)
+    setComprobantePreview(payment.comprobante ? pb.files.getURL(payment, 'comprobante') : null)
     setShowModal(true)
   }
 
-  async function handleDelete(id) {
+  async function handleDelete(payment) {
     if (!confirm("¿Estás seguro de eliminar este pago?")) return
     try {
-      await pb.collection('payments').delete(id)
+      const userServiceId = payment.user_service_id
+      await pb.collection('payments').delete(payment.id)
+      await syncOneTimeAbono(userServiceId)
       fetchData()
       notify("Pago eliminado correctamente", "success")
     } catch (error) {
@@ -139,33 +178,124 @@ export default function AdminPayments() {
     }
   }
 
-  async function updateStatus(paymentId, newStatus) {
+  async function updateStatus(payment, newStatus) {
     try {
-      await pb.collection('payments').update(paymentId, { status: newStatus })
+      const updated = await pb.collection('payments').update(payment.id, { status: newStatus })
+      await syncOneTimeAbono(updated.user_service_id)
       fetchData()
     } catch (error) {
       console.error("Error actualizando estado:", error)
     }
   }
 
+  async function handleUploadComprobante(paymentId, userId, files) {
+    if (!files || files.length === 0) return
+    setUploadingComprobanteId(paymentId)
+    try {
+      for (const file of files) {
+        await addComprobante(paymentId, userId, file)
+      }
+      fetchData()
+    } catch (err) {
+      console.error("Error subiendo comprobante:", err)
+    }
+    setUploadingComprobanteId(null)
+  }
+
+  async function handleDeleteComprobante(id) {
+    if (!confirm("¿Eliminar este comprobante?")) return
+    await deleteComprobante(id)
+    fetchData()
+  }
+
+  const ownerMap = useMemo(() => {
+    const map = {}
+    userServices.forEach(us => { map[us.id] = us.owner })
+    return map
+  }, [userServices])
+
+  const serviceMap = useMemo(() => {
+    const map = {}
+    userServices.forEach(us => {
+      map[us.id] = {
+        price: parseFloat(us.price) || 0,
+        monto_abonado: parseFloat(us.monto_abonado) || 0,
+        owner: us.owner,
+        name: us.name || us.expand?.service_id?.name || '',
+        url_dominio: us.url_dominio || '',
+      }
+    })
+    return map
+  }, [userServices])
+
+  const [expandedId, setExpandedId] = useState(null)
+
   const filteredPayments = payments.filter((p) => {
-    const matchStatus = filterStatus === "all" || p.status === filterStatus
+    if (p.user_service_id && ownerMap[p.user_service_id] === 1) return false
+    const isPending = p.status === "pending"
+    const svc = p.user_service_id ? serviceMap[p.user_service_id] : null
+    const isPartial = isPending && svc && svc.monto_abonado > 0
+    let matchStatus = false
+    if (filterStatus === "all") matchStatus = true
+    else if (filterStatus === "parcial") matchStatus = isPartial
+    else if (filterStatus === "pending") matchStatus = isPending && !isPartial
+    else matchStatus = p.status === filterStatus
     const matchMonth = !filterMonth || p.payment_date?.startsWith(filterMonth)
     const matchSearch = !searchClient || p.expand?.user_id?.name?.toLowerCase().includes(searchClient.toLowerCase())
     const matchAccount = !filterAccount || (
       typeof p.payment_account === 'object' ? p.payment_account?.id === filterAccount : p.payment_account === filterAccount
     )
-    return matchStatus && matchMonth && matchSearch && matchAccount
+    const tooFarFuture = isPending && p.payment_date && (new Date(p.payment_date) - new Date()) > 30 * 24 * 60 * 60 * 1000
+    return matchStatus && matchMonth && matchSearch && matchAccount && !tooFarFuture
   })
 
   const getServicesForUser = (userId) => userServices.filter((s) => s.user_id === userId)
+
+  const groupedByClient = useMemo(() => {
+    const groups = {}
+    filteredPayments.forEach(p => {
+      const uid = p.user_id
+      if (!uid) return
+      if (!groups[uid]) {
+        groups[uid] = {
+          userId: uid,
+          userName: p.expand?.user_id?.name || '—',
+          whatsapp: p.expand?.user_id?.whatsapp || '',
+          payments: [],
+        }
+      }
+      groups[uid].payments.push(p)
+    })
+    return Object.values(groups).sort((a, b) => a.userName.localeCompare(b.userName))
+  }, [filteredPayments])
+
+  const comprobantesMap = useMemo(() => {
+    const map = {}
+    comprobantes.forEach(c => {
+      if (!map[c.payment_id]) map[c.payment_id] = []
+      map[c.payment_id].push(c)
+    })
+    return map
+  }, [comprobantes])
 
   const totalPaid = filteredPayments
     .filter((p) => p.status === "paid")
     .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
 
   const totalPending = filteredPayments
-    .filter((p) => p.status === "pending")
+    .filter((p) => {
+      if (p.status !== "pending") return false
+      const svc = p.user_service_id ? serviceMap[p.user_service_id] : null
+      return !(svc && svc.monto_abonado > 0)
+    })
+    .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
+
+  const totalPartial = filteredPayments
+    .filter((p) => {
+      if (p.status !== "pending") return false
+      const svc = p.user_service_id ? serviceMap[p.user_service_id] : null
+      return svc && svc.monto_abonado > 0
+    })
     .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
 
   const accountTotals = paymentAccounts.map((acc) => {
@@ -227,7 +357,7 @@ export default function AdminPayments() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-foreground">Pagos</h1>
-            <p className="text-sm text-muted-foreground">{filteredPayments.length} pagos en {monthLabel}</p>
+            <p className="text-sm text-muted-foreground">{groupedByClient.length} clientes en {monthLabel}</p>
           </div>
         </div>
       </div>
@@ -243,7 +373,7 @@ export default function AdminPayments() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <Card className="p-5">
           <p className="text-sm text-muted-foreground">{monthLabel}</p>
           <p className="text-3xl font-bold text-green-500">{formatCurrency(totalPaid)}</p>
@@ -251,6 +381,10 @@ export default function AdminPayments() {
         <Card className="p-5">
           <p className="text-sm text-muted-foreground">Pendiente</p>
           <p className="text-3xl font-bold text-orange-500">{formatCurrency(totalPending)}</p>
+        </Card>
+        <Card className="p-5">
+          <p className="text-sm text-muted-foreground">Parcial</p>
+          <p className="text-3xl font-bold text-blue-500">{formatCurrency(totalPartial)}</p>
         </Card>
         <Card className="p-5">
           <p className="text-sm text-muted-foreground">Pagados</p>
@@ -273,8 +407,9 @@ export default function AdminPayments() {
               </div>
               <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm">
                 <option value="all">Todos los estados</option>
-                <option value="paid">Pagado</option>
                 <option value="pending">Pendiente</option>
+                <option value="parcial">Parcial</option>
+                <option value="paid">Pagado</option>
                 <option value="failed">Fallido</option>
               </select>
               <div className="flex items-center gap-2">
@@ -285,8 +420,13 @@ export default function AdminPayments() {
                 <option value="">Todas las cuentas</option>
                 {paymentAccounts.map((a) => (<option key={a.id} value={a.id}>{a.name}</option>))}
               </select>
-              {(filterStatus !== "all" || filterAccount) && (
-                <button onClick={() => { setFilterStatus("all"); setFilterAccount("") }} className="text-sm text-muted-foreground hover:text-foreground">Limpiar filtros</button>
+              {(filterStatus !== "all" || filterAccount || filterMonth) && (
+                <button onClick={() => { setFilterStatus("all"); setFilterAccount(""); setFilterMonth("") }} className="text-sm text-muted-foreground hover:text-foreground">Limpiar filtros</button>
+              )}
+              {filterMonth && (
+                <span className="text-xs px-2 py-1 rounded bg-primary/10 text-primary border border-primary/20">
+                  Mostrando solo {new Date(filterMonth + "-01").toLocaleDateString("es-CO", { month: "long", year: "numeric" })}
+                </span>
               )}
             </div>
           </Card>
@@ -296,73 +436,154 @@ export default function AdminPayments() {
               <table className="w-full">
                 <thead className="bg-muted/50 border-b">
                   <tr>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground"></th>
                     <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Cliente</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Servicio</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Monto</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Fecha</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Cuenta</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Comp.</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Estado</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Acciones</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Servicios</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Total Pendiente</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Pagados</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {filteredPayments.length === 0 ? (
-                    <tr><td colSpan={8} className="px-6 py-12 text-center text-muted-foreground">No hay pagos registrados.</td></tr>
+                  {groupedByClient.length === 0 ? (
+                    <tr><td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">No hay pagos registrados.</td></tr>
                   ) : (
-                    filteredPayments.map((payment) => {
-                      const accName = typeof payment.payment_account === 'object'
-                        ? payment.payment_account?.name
-                        : payment.expand?.payment_account?.name || ""
+                    groupedByClient.map((group) => {
+                      const isExpanded = expandedId === group.userId
+                      const totalPendingAmount = group.payments
+                        .filter(p => p.status === "pending")
+                        .reduce((s, p) => s + (parseFloat(p.amount) || 0), 0)
+                      const paidCount = group.payments.filter(p => p.status === "paid").length
+                      const pendingCount = group.payments.filter(p => p.status === "pending").length
+                      const serviceNames = [...new Set(group.payments.map(p =>
+                        p.expand?.user_service_id?.name || p.expand?.user_service_id?.expand?.service_id?.name || null
+                      ).filter(Boolean))].slice(0, 3)
                       return (
-                        <tr key={payment.id} className="hover:bg-muted/50 transition-all">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              {payment.expand?.user_id?.whatsapp && (
-                                <a href={`https://wa.me/${normalizeWhatsapp(payment.expand.user_id.whatsapp)}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-md bg-green-500/10 flex items-center justify-center hover:bg-green-500/20 transition-colors">
-                                  <MessageCircle className="w-4 h-4 text-green-500" />
-                                </a>
-                              )}
-                              <span className="font-semibold text-foreground">{payment.expand?.user_id?.name}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-muted-foreground">
-                            {payment.expand?.user_service_id?.name || payment.expand?.user_service_id?.expand?.service_id?.name || "-"}
-                            {payment.expand?.user_service_id?.url_dominio && <span className="block text-xs text-blue-500">{payment.expand?.user_service_id?.url_dominio}</span>}
-                          </td>
-                          <td className="px-6 py-4"><span className="px-3 py-1.5 rounded-md bg-green-500/10 border border-green-500/20 text-green-500 font-bold">{formatCurrency(payment.amount)}</span></td>
-                          <td className="px-6 py-4 text-muted-foreground text-sm">{formatDate(payment.payment_date)}</td>
-                          <td className="px-6 py-4">
-                            {accName ? (
-                              <span className="text-xs font-medium text-foreground">{accName}</span>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
-                            )}
-                          </td>
-                          <td className="px-6 py-4">
-                            {payment.comprobante ? (
-                              <a href={pb.files.getUrl(payment, 'comprobante')} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                                <Image className="w-4 h-4" />
-                                Ver
-                              </a>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
-                            )}
-                          </td>
-                          <td className="px-6 py-4">
-                            <select value={payment.status} onChange={(e) => updateStatus(payment.id, e.target.value)} className={`text-sm border rounded-md px-3 py-1.5 ${payment.status === "paid" ? "bg-green-500/10 border-green-500/30 text-green-500" : payment.status === "pending" ? "bg-orange-500/10 border-orange-500/30 text-orange-500" : "bg-destructive/10 border-destructive/30 text-destructive"}`}>
-                              <option value="paid">Pagado</option>
-                              <option value="pending">Pendiente</option>
-                              <option value="failed">Fallido</option>
-                            </select>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="sm" onClick={() => handleEdit(payment)}><Edit3 className="w-4 h-4 mr-1" />Editar</Button>
-                              <Button variant="ghost" size="sm" onClick={() => handleDelete(payment.id)} className="text-destructive hover:text-destructive"><Trash2 className="w-4 h-4 mr-1" />Eliminar</Button>
-                            </div>
-                          </td>
-                        </tr>
+                        <Fragment key={group.userId}>
+                          <tr className="hover:bg-muted/50 transition-all cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : group.userId)}>
+                            <td className="px-3 py-4">
+                              <button className="text-muted-foreground hover:text-foreground">
+                                {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                              </button>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                {group.whatsapp && (
+                                  <a href={`https://wa.me/${normalizeWhatsapp(group.whatsapp)}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-md bg-green-500/10 flex items-center justify-center hover:bg-green-500/20 transition-colors" onClick={e => e.stopPropagation()}>
+                                    <MessageCircle className="w-4 h-4 text-green-500" />
+                                  </a>
+                                )}
+                                <span className="font-semibold text-foreground">{group.userName}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-wrap gap-1">
+                                {serviceNames.length > 0
+                                  ? serviceNames.map((n, i) => <span key={i} className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">{n}</span>)
+                                  : <span className="text-xs text-muted-foreground">{group.payments.length} pago(s)</span>}
+                                {group.payments.length > 3 && <span className="text-xs text-muted-foreground">+{group.payments.length - 3} más</span>}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="font-bold text-orange-500">{formatCurrency(totalPendingAmount)}</span>
+                              {pendingCount > 0 && <span className="text-xs text-muted-foreground ml-1">({pendingCount} pend.)</span>}
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-xs font-medium text-green-500">{paidCount} pagado(s)</span>
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr>
+                              <td colSpan={5} className="px-6 py-0 bg-muted/10">
+                                <div className="py-3 px-2">
+                                  <table className="w-full text-sm">
+                                    <thead>
+                                      <tr className="border-b border-muted-foreground/20">
+                                        <th className="px-4 py-2 text-left text-muted-foreground font-medium">Servicio</th>
+                                        <th className="px-4 py-2 text-left text-muted-foreground font-medium">Descripción</th>
+                                        <th className="px-4 py-2 text-left text-muted-foreground font-medium">Monto</th>
+                                        <th className="px-4 py-2 text-left text-muted-foreground font-medium">Cuenta</th>
+                                        <th className="px-4 py-2 text-left text-muted-foreground font-medium">Estado</th>
+                                        <th className="px-4 py-2 text-left text-muted-foreground font-medium">Comp.</th>
+                                        <th className="px-4 py-2 text-left text-muted-foreground font-medium">Acción</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {group.payments.map(h => {
+                                        const hSvcName = h.expand?.user_service_id?.name || h.expand?.user_service_id?.expand?.service_id?.name || "-"
+                                        const hAccName = typeof h.payment_account === 'object'
+                                          ? h.payment_account?.name
+                                          : h.expand?.payment_account?.name || ""
+                                        const hDesc = h.payment_date
+                                          ? new Date(h.payment_date).toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" })
+                                          : "—"
+                                        const svc = h.user_service_id ? serviceMap[h.user_service_id] : null
+                                        const isPartial = h.status === "pending" && svc && svc.monto_abonado > 0
+                                        return (
+                                          <tr key={h.id} className="border-b border-muted-foreground/10 hover:bg-muted/20">
+                                            <td className="px-4 py-2 text-muted-foreground">{hSvcName}</td>
+                                            <td className="px-4 py-2">{hDesc}</td>
+                                            <td className="px-4 py-2 font-semibold">
+                                              {formatCurrency(h.amount)}
+                                              {isPartial && <span className="block text-xs text-blue-500">Abonado {formatCurrency(svc.monto_abonado)} / {formatCurrency(svc.price)}</span>}
+                                            </td>
+                                            <td className="px-4 py-2 text-muted-foreground">{hAccName || "—"}</td>
+                                            <td className="px-4 py-2">
+                                              {isPartial ? (
+                                                <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-500 border border-blue-500/30">Parcial</span>
+                                              ) : (
+                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${h.status === "paid" ? "bg-green-500/10 text-green-500" : h.status === "pending" ? "bg-orange-500/10 text-orange-500" : "bg-destructive/10 text-destructive"}`}>
+                                                  {h.status === "paid" ? "Pagado" : h.status === "pending" ? "Pendiente" : "Fallido"}
+                                                </span>
+                                              )}
+                                            </td>
+                                              <td className="px-4 py-2">
+                                                <div className="flex flex-wrap items-center gap-1">
+                                                  {(comprobantesMap[h.id] || []).map(c => (
+                                                    <span key={c.id} className="inline-flex items-center gap-0.5 group">
+                                                      <a href={pb.files.getURL(c, 'file')} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">
+                                                        <Image className="w-3 h-3 inline" />
+                                                      </a>
+                                                      <button onClick={() => handleDeleteComprobante(c.id)} className="text-destructive/60 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <X className="w-3 h-3" />
+                                                      </button>
+                                                    </span>
+                                                  ))}
+                                                  <button
+                                                    onClick={() => document.getElementById(`comp-upload-${h.id}`)?.click()}
+                                                    className="text-xs text-muted-foreground hover:text-foreground border border-dashed border-input rounded px-1.5 py-0.5"
+                                                    title="Agregar comprobante"
+                                                  >
+                                                    {uploadingComprobanteId === h.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "+"}
+                                                  </button>
+                                                  <input
+                                                    id={`comp-upload-${h.id}`}
+                                                    type="file"
+                                                    accept="image/*"
+                                                    multiple
+                                                    className="hidden"
+                                                    onChange={(e) => {
+                                                      const files = Array.from(e.target.files || [])
+                                                      if (files.length) handleUploadComprobante(h.id, h.user_id, files)
+                                                      e.target.value = ''
+                                                    }}
+                                                  />
+                                                </div>
+                                              </td>
+                                              <td className="px-4 py-2">
+                                                {h.status !== "paid" && (
+                                                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleEdit(h)}>Pagar</Button>
+                                                )}
+                                              </td>
+                                          </tr>
+                                        )
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       )
                     })
                   )}

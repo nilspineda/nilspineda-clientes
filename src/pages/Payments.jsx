@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import pb from "@/lib/pocketbaseClient"
-import { formatDate } from "@/utils/dateUtils"
+
 import { formatCurrency } from "@/utils/formatUtils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Wallet, CheckCircle, Clock, FileText, Loader2, Image } from "lucide-react"
@@ -9,7 +9,18 @@ import { Wallet, CheckCircle, Clock, FileText, Loader2, Image } from "lucide-rea
 export default function Payments() {
   const { user } = useAuth()
   const [payments, setPayments] = useState([])
+  const [oneTimePending, setOneTimePending] = useState([])
   const [loading, setLoading] = useState(true)
+  const [comprobantes, setComprobantes] = useState([])
+
+  const comprobantesMap = useMemo(() => {
+    const m = {}
+    comprobantes.forEach(c => {
+      if (!m[c.payment_id]) m[c.payment_id] = []
+      m[c.payment_id].push(c)
+    })
+    return m
+  }, [comprobantes])
 
   useEffect(() => {
     fetchPayments()
@@ -18,18 +29,62 @@ export default function Payments() {
   async function fetchPayments() {
     if (!user) return
     try {
-      const data = await pb.collection('payments').getFullList({
-        filter: `user_id = "${user.id}"`,
-        sort: '-payment_date',
-        expand: 'user_service_id,payment_account',
-        requestKey: null,
-      })
-      setPayments(data || [])
+      const [paymentsData, servicesData, compData] = await Promise.all([
+        pb.collection('payments').getFullList({
+          filter: `user_id = "${user.id}"`,
+          sort: '-payment_date',
+          expand: 'user_service_id,payment_account,user_service_id.service_id',
+          requestKey: null,
+        }),
+        pb.collection('user_services').getFullList({
+          filter: `user_id = "${user.id}"`,
+          expand: 'service_id',
+          requestKey: null,
+        }),
+        pb.collection('comprobantes').getFullList({
+          filter: `user_id = "${user.id}"`,
+          sort: 'created',
+          requestKey: null,
+        }),
+      ])
+      setPayments(paymentsData || [])
+      setComprobantes(compData || [])
+
+      const userServices = servicesData || []
+
+      const pending = userServices
+        .filter((s) => s.billing_type === "one_time")
+        .map((s) => {
+          const price = parseFloat(s.price) || 0
+          const svcPayments = (paymentsData || []).filter((p) => p.user_service_id === s.id && p.status === "paid")
+          const totalPaid = svcPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
+          return { service: s, price, totalPaid }
+        })
+        .filter(({ price, totalPaid }) => totalPaid < price)
+        .map(({ service: s, price, totalPaid }) => ({
+          id: `one_time_pending_${s.id}`,
+          amount: price - totalPaid,
+          service_name: s.expand?.service_id?.name || s.name || "Servicio",
+          payment_date: s.expires_at || s.start_date || new Date().toISOString(),
+          status: "pending",
+        }))
+
+      setOneTimePending(pending)
     } catch (err) {
       console.error("Error fetching payments:", err)
     }
     setLoading(false)
   }
+
+  const allItems = [...payments, ...oneTimePending]
+
+  const totalPaid = payments
+    .filter(p => p.status === "paid")
+    .reduce((s, p) => s + (parseFloat(p.amount) || 0), 0)
+
+  const totalPending = allItems
+    .filter(p => p.status === "pending" || p.id?.startsWith?.("one_time_pending_"))
+    .reduce((s, p) => s + (parseFloat(p.amount) || 0), 0)
 
   if (loading) {
     return (
@@ -43,7 +98,18 @@ export default function Payments() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Mis Pagos</h1>
-        <p className="text-sm text-muted-foreground mt-1">Historial de pagos registrados</p>
+        <p className="text-sm text-muted-foreground mt-1">Historial de pagos y saldos pendientes</p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Card className="p-5">
+          <p className="text-sm text-muted-foreground">Total Pagado</p>
+          <p className="text-3xl font-bold text-green-500">{formatCurrency(totalPaid)}</p>
+        </Card>
+        <Card className="p-5">
+          <p className="text-sm text-muted-foreground">Total Pendiente</p>
+          <p className="text-3xl font-bold text-orange-500">{formatCurrency(totalPending)}</p>
+        </Card>
       </div>
 
       <Card>
@@ -53,8 +119,8 @@ export default function Payments() {
             Historial de Pagos
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          {payments.length === 0 ? (
+        <CardContent className="p-0">
+          {allItems.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-muted flex items-center justify-center">
                 <FileText className="w-8 h-8 text-muted-foreground" />
@@ -62,50 +128,82 @@ export default function Payments() {
               <p className="text-muted-foreground font-medium">No hay pagos registrados</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {payments.map((payment) => (
-                <div
-                  key={payment.id}
-                  className="flex items-center justify-between p-4 rounded-lg border bg-card hover:border-border transition-colors"
-                >
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div
-                      className={`w-11 h-11 rounded-lg flex items-center justify-center ${
-                        payment.status === "paid"
-                          ? "bg-green-500/10"
-                          : "bg-orange-500/10"
-                      }`}
-                    >
-                      {payment.status === "paid" ? (
-                        <CheckCircle className="w-5 h-5 text-green-500" />
-                      ) : (
-                        <Clock className="w-5 h-5 text-orange-500" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-foreground text-sm truncate">
-                        {payment.expand?.user_service_id?.name || "Pago"}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {formatDate(payment.payment_date)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-foreground">
-                      {formatCurrency(payment.amount)}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {payment.expand?.payment_account?.name || ""}
-                      {payment.comprobante && (
-                        <a href={pb.files.getUrl(payment, 'comprobante')} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 ml-1 text-primary hover:underline">
-                          <Image className="w-3 h-3" />
-                        </a>
-                      )}
-                    </p>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted/50 border-y">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Servicio</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Descripción</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Monto</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Cuenta</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Comp.</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Estado</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {allItems.map((payment) => {
+                    const isPendingItem = payment.id?.startsWith?.("one_time_pending_")
+                    const svcName = isPendingItem
+                      ? payment.service_name
+                      : payment.expand?.user_service_id?.name || payment.expand?.user_service_id?.expand?.service_id?.name || "-"
+                    const svcDomain = isPendingItem
+                      ? ""
+                      : payment.expand?.user_service_id?.url_dominio
+                    const desc = isPendingItem
+                      ? "Pendiente por pagar"
+                      : payment.payment_date
+                        ? new Date(payment.payment_date).toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" })
+                        : "—"
+                    const accName = isPendingItem
+                      ? ""
+                      : typeof payment.payment_account === 'object'
+                        ? payment.payment_account?.name
+                        : payment.expand?.payment_account?.name || ""
+                    return (
+                      <tr key={payment.id} className={`hover:bg-muted/20 transition-all ${isPendingItem ? "bg-orange-500/5" : ""}`}>
+                        <td className="px-6 py-4">
+                          <span className="font-semibold text-foreground text-sm">{svcName}</span>
+                          {svcDomain && <span className="block text-xs text-blue-500">{svcDomain}</span>}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-muted-foreground">{desc}</td>
+                        <td className="px-6 py-4">
+                          <span className="font-bold text-foreground">{formatCurrency(payment.amount)}</span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-muted-foreground">{accName || "—"}</td>
+                        <td className="px-6 py-4">
+                          {!isPendingItem && comprobantesMap[payment.id]?.length ? (
+                            <div className="flex gap-1">
+                              {comprobantesMap[payment.id].map((c) => (
+                                <a key={c.id} href={pb.files.getURL(c, 'file')} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                                  <Image className="w-4 h-4" />
+                                  Ver
+                                </a>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md font-medium ${
+                            isPendingItem || payment.status === "pending"
+                              ? "bg-orange-500/10 border border-orange-500/30 text-orange-500"
+                              : payment.status === "paid"
+                                ? "bg-green-500/10 border border-green-500/30 text-green-500"
+                                : "bg-destructive/10 border border-destructive/30 text-destructive"
+                          }`}>
+                            {isPendingItem || payment.status === "pending" ? (
+                              <><Clock className="w-3 h-3" /> Pendiente</>
+                            ) : (
+                              <><CheckCircle className="w-3 h-3" /> Pagado</>
+                            )}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </CardContent>

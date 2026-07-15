@@ -115,6 +115,6 @@ export async function uploadInvoicePDF(paymentId, blob) {
   const formData = new FormData();
   formData.append('invoice', new File([blob], fileName, { type: 'application/pdf' }));
   const record = await pb.collection('payments').update(paymentId, formData);
-  const url = pb.files.getUrl(record, 'invoice');
+  const url = pb.files.getURL(record, 'invoice');
   return url;
 }

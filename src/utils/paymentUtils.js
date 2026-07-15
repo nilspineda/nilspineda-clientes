@@ -119,6 +119,8 @@ export async function getPaymentsByUserService(userServiceId) {
     const data = await pb.collection('payments').getFullList({
       filter: `user_service_id = "${userServiceId}"`,
       sort: 'payment_date',
+      expand: 'payment_account',
+      requestKey: null,
     })
     return { success: true, data }
   } catch (err) {
@@ -158,6 +160,43 @@ export async function regeneratePayments(userServiceId, months = 12) {
   }
 }
 
+export async function createPendingPayment(userServiceId) {
+  try {
+    const us = await pb.collection('user_services').getOne(userServiceId, { requestKey: null })
+    const amount = us.billing_type === "one_time"
+      ? (us.price || 0) - (us.monto_abonado || 0)
+      : (us.price || 0)
+    if (amount <= 0) return { success: false, error: 'No hay saldo pendiente' }
+    const record = await pb.collection('payments').create({
+      user_service_id: userServiceId,
+      user_id: us.user_id,
+      amount,
+      payment_date: new Date().toISOString(),
+      status: 'pending',
+    })
+    return { success: true, data: record }
+  } catch (err) {
+    console.error('Error creating pending payment:', err)
+    return { success: false, error: err }
+  }
+}
+
+export async function syncOneTimeAbono(userServiceId) {
+  if (!userServiceId) return
+  try {
+    const us = await pb.collection('user_services').getOne(userServiceId, { requestKey: null })
+    if (us.billing_type !== "one_time" || !us.requiere_abono) return
+    const payments = await pb.collection('payments').getFullList({
+      filter: `user_service_id = "${userServiceId}" && status = "paid"`,
+      requestKey: null,
+    })
+    const totalPaid = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
+    await pb.collection('user_services').update(userServiceId, { monto_abonado: totalPaid })
+  } catch (err) {
+    console.error("Error syncing one_time abono:", err)
+  }
+}
+
 export function formatPaymentStatus(status) {
   const statusMap = {
     paid: { label: 'Pagado', color: 'green' },
@@ -165,4 +204,63 @@ export function formatPaymentStatus(status) {
     failed: { label: 'Fallido', color: 'red' },
   }
   return statusMap[status] || { label: status, color: 'gray' }
+}
+
+export async function getComprobantes(paymentId) {
+  try {
+    const data = await pb.collection('comprobantes').getFullList({
+      filter: `payment_id = "${paymentId}"`,
+      sort: 'created',
+      requestKey: null,
+    })
+    return { success: true, data }
+  } catch (err) {
+    console.error('Error fetching comprobantes:', err)
+    return { success: false, error: err }
+  }
+}
+
+export function getComprobanteUrl(record) {
+  return pb.files.getURL(record, 'file')
+}
+
+export async function addComprobante(paymentId, userId, file) {
+  try {
+    const fd = new FormData()
+    fd.append('payment_id', paymentId)
+    fd.append('user_id', userId)
+    fd.append('file', file)
+    const data = await pb.collection('comprobantes').create(fd)
+    return { success: true, data }
+  } catch (err) {
+    console.error('Error adding comprobante:', err)
+    return { success: false, error: err }
+  }
+}
+
+export async function deleteComprobante(id) {
+  try {
+    await pb.collection('comprobantes').delete(id)
+    return { success: true }
+  } catch (err) {
+    console.error('Error deleting comprobante:', err)
+    return { success: false, error: err }
+  }
+}
+
+export async function getComprobantesMap(paymentIds) {
+  if (!paymentIds.length) return {}
+  const filter = paymentIds.map(id => `payment_id = "${id}"`).join(' || ')
+  try {
+    const data = await pb.collection('comprobantes').getFullList({ filter, sort: 'created', requestKey: null })
+    const map = {}
+    data.forEach(c => {
+      if (!map[c.payment_id]) map[c.payment_id] = []
+      map[c.payment_id].push(c)
+    })
+    return map
+  } catch (err) {
+    console.error('Error fetching comprobantes map:', err)
+    return {}
+  }
 }

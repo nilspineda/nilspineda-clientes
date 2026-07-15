@@ -49,6 +49,7 @@ import {
 } from "lucide-react"
 
 function getServiceStatus(service) {
+  if (service.billing_type === "one_time" && service.requiere_abono && (service.monto_abonado || 0) < (service.price || 0)) return "pending"
   const days = getDaysRemaining(service.expires_at)
   if (service.no_expiry === true) return "active"
   if (days === null) return "pending"
@@ -94,7 +95,7 @@ export default function Dashboard() {
         requestKey: null,
       })
       setServices(servicesData ?? [])
-      const ownerServices = (servicesData || []).filter((s) => s.owner === 1)
+      const ownerServices = (servicesData || []).filter((s) => s.owner === 1 || s.billing_type === "one_time")
       const results = await Promise.all(
         ownerServices.map((s) => getPaymentsByUserService(s.id)),
       )
@@ -104,7 +105,27 @@ export default function Dashboard() {
           allPayments.push(...result.data)
         }
       })
-      setPendingPayments(allPayments.filter((p) => p.status === "pending"))
+      const pendingFromDb = allPayments.filter((p) => p.status === "pending")
+
+      const oneTimeSvcs = (servicesData || []).filter((s) => s.billing_type === "one_time")
+      const pendingFromOneTime = oneTimeSvcs
+        .map((s) => {
+          const price = parseFloat(s.price) || 0
+          const svcPayments = allPayments.filter((p) => p.user_service_id === s.id && p.status === "paid")
+          const totalPaid = svcPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
+          return { service: s, price, totalPaid }
+        })
+        .filter(({ price, totalPaid }) => totalPaid < price)
+        .map(({ service: s, price, totalPaid }) => ({
+          id: `one_time_pending_${s.id}`,
+          amount: price - totalPaid,
+          service_name: s.expand?.service_id?.name || s.name || "Servicio",
+          payment_date: s.expires_at || s.start_date || new Date().toISOString(),
+          status: "pending",
+          billing_type: "one_time",
+        }))
+
+      setPendingPayments([...pendingFromDb, ...pendingFromOneTime])
     } catch (err) {
       console.error("Error al cargar datos:", err)
       setFetchError("No se pudo cargar la información. Intenta recargar.")
@@ -367,54 +388,93 @@ export default function Dashboard() {
               )}
             </div>
 
-            <TabsContent value="renewals" className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Cliente</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Dominio</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Servicio</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Vencimiento</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Días</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Estado</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Precio</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {upcomingRenewals.length === 0 ? (
-                      <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No hay renovaciones próximas</td></tr>
-                    ) : (
-                      upcomingRenewals.map((item) => {
-                        const days = getDaysRemaining(item.expires_at)
-                        const status = getPaymentStatus(item.expires_at)
-                        return (
-                          <tr key={item.id} className="hover:bg-muted/50 transition-colors">
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center text-sm font-bold shrink-0 text-primary">
-                                  {item.expand?.user_id?.name?.charAt(0).toUpperCase() || "U"}
+            <TabsContent value="renewals" className="p-4">
+              {upcomingRenewals.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">No hay renovaciones próximas</div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {(() => {
+                    const grouped = {}
+                    upcomingRenewals.forEach((item) => {
+                      const clientId = item.expand?.user_id?.id || "unknown"
+                      if (!grouped[clientId]) grouped[clientId] = { name: item.expand?.user_id?.name || "Sin nombre", items: [] }
+                      grouped[clientId].items.push(item)
+                    })
+                    return Object.entries(grouped).map(([clientId, group]) => (
+                      <div key={clientId} className="space-y-2">
+                        <h3 className="text-sm font-bold text-foreground px-1">{group.name}</h3>
+                        {group.items.map((item) => {
+                          const days = getDaysRemaining(item.expires_at)
+                          const status = getPaymentStatus(item.expires_at)
+                          const ownerLabel = item.owner === 1 ? "Cliente paga" : "Lo administro"
+                          const ownerColor = item.owner === 1 ? "default" : "secondary"
+                          const websiteName = (() => {
+                            if (!item.url_dominio) return null
+                            try { return new URL(normalizeUrl(item.url_dominio)).hostname }
+                            catch (e) { return item.url_dominio }
+                          })()
+                          return (
+                            <div key={item.id} className="group relative overflow-hidden rounded-lg border bg-card p-3 hover:border-primary/50 transition-all">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                    <Badge variant={status.color} className="text-[10px] px-1.5 py-0">{status.label}</Badge>
+                                    <Badge variant={ownerColor} className="text-[10px] px-1.5 py-0">{ownerLabel}</Badge>
+                                  </div>
+                                  <p className="text-sm font-semibold text-foreground truncate">
+                                    {websiteName ? (
+                                      <a href={normalizeUrl(item.url_dominio)} target="_blank" rel="noopener noreferrer" className="hover:underline inline-flex items-center gap-1">
+                                        {websiteName}
+                                        <ExternalLink className="w-3 h-3 shrink-0" />
+                                      </a>
+                                    ) : item.expand?.service_id?.name || "Servicio"}
+                                  </p>
+                                  {websiteName && item.expand?.service_id?.name && (
+                                    <p className="text-xs text-muted-foreground truncate">{item.expand.service_id.name}</p>
+                                  )}
                                 </div>
-                                <span className="font-medium text-foreground truncate">{item.expand?.user_id?.name}</span>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <button onClick={() => setCredentialsService(item)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-medium transition-all">
+                                    <Key className="w-3 h-3" />
+                                  </button>
+                                  <button onClick={() => handleRenew(item)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-medium transition-all">
+                                    <Zap className="w-3 h-3" />
+                                    Renovar
+                                  </button>
+                                </div>
                               </div>
-                            </td>
-                            <td className="px-4 py-3"><span className="px-2 py-1 rounded bg-blue-500/10 text-blue-500 text-xs">{item.url_dominio || "-"}</span></td>
-                            <td className="px-4 py-3 text-sm text-muted-foreground">{item.expand?.service_id?.name || "-"}</td>
-                            <td className="px-4 py-3 text-sm text-muted-foreground">{item.expires_at ? formatDate(item.expires_at) : "-"}</td>
-                            <td className="px-4 py-3">
-                              <span className={`font-medium text-sm ${days < 0 ? "text-destructive" : days <= 20 ? "text-orange-500" : "text-green-500"}`}>
-                                {days !== null ? (days < 0 ? `${Math.abs(days)} días vencido` : `${days} días`) : "-"}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3"><Badge variant={status.color}>{status.label}</Badge></td>
-                            <td className="px-4 py-3 font-bold text-primary text-sm">{formatCurrency(item.price || 0)}</td>
-                          </tr>
-                        )
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                              <div className="flex items-center justify-between mt-2 pt-2 border-t gap-3">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-sm font-bold text-primary">{formatCurrency(item.price || 0)}</span>
+                                  <span className="text-[10px] text-muted-foreground">{item.billing_type === "annual" ? "anual" : item.billing_type === "one_time" ? "único" : "mensual"}</span>
+                                </div>
+                                {item.expires_at && days !== null && (
+                                  <div className={`flex items-center justify-center w-10 h-10 rounded-md text-sm font-extrabold shrink-0 ${
+                                    days >= 20 ? "bg-green-500/10 text-green-500 border border-green-500/20" :
+                                    days >= 7 ? "bg-orange-500/10 text-orange-500 border border-orange-500/20" :
+                                    days >= 0 ? "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20" :
+                                    "bg-destructive/10 text-destructive border border-destructive/20"
+                                  }`}>
+                                    <span>{Math.abs(days)}</span>
+                                    <span className="text-[8px] font-normal">d</span>
+                                  </div>
+                                )}
+                              </div>
+                              {item.expires_at && (
+                                <div className="flex items-center gap-1.5 mt-1.5 pt-1.5 border-t text-xs text-muted-foreground">
+                                  <Calendar className="w-3 h-3" />
+                                  Vence: {formatDate(item.expires_at)}
+                                  {days < 0 && <span className="text-destructive font-medium ml-1">vencido</span>}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ))
+                  })()}
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="all" className="p-0">
@@ -563,7 +623,18 @@ export default function Dashboard() {
                       </div>
                     </div>
 
-                    {service.expires_at && (
+                    {service.billing_type === "one_time" && service.requiere_abono && (
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <span>Abonado: <span className="font-semibold text-foreground">{formatCurrency(service.monto_abonado || 0)}</span></span>
+                          <span>de <span className="font-semibold text-foreground">{formatCurrency(service.price || 0)}</span></span>
+                          {(service.monto_abonado || 0) < (service.price || 0) && (
+                            <span className="text-destructive">- Restante: {formatCurrency((service.price || 0) - (service.monto_abonado || 0))}</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {service.expires_at && service.billing_type !== "one_time" && (
                       <div className="flex items-center justify-between mt-3 pt-3 border-t">
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                           <Calendar className="w-3 h-3" />

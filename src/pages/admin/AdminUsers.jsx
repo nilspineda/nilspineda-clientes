@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import pb from "@/lib/pocketbaseClient"
 import { useAuth } from "@/hooks/useAuth"
@@ -7,16 +7,17 @@ import { notify } from "@/utils/notify"
 import { formatDate } from "@/utils/dateUtils"
 import Modal from "@/components/Modal"
 import CredentialsModal from "@/components/CredentialsModal"
+import LexicalEditor from "@/components/LexicalEditor"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
-import { generateMonthlyPayments, getPaymentsByUserService, updatePaymentStatus } from "@/utils/paymentUtils"
+import { generateMonthlyPayments, getPaymentsByUserService, updatePaymentStatus, syncOneTimeAbono, createPendingPayment } from "@/utils/paymentUtils"
 import {
   Users, UserPlus, Mail, Phone, MessageCircle, ChevronLeft, Edit3, Trash2, Plus,
-  Eye, EyeOff, Loader2, ExternalLink, Key, Calendar, DollarSign, CreditCard,
+  Eye, EyeOff, Loader2, ExternalLink, Key, Calendar, CreditCard,
   User, Package, Activity, ToggleLeft, ToggleRight, Lock, RefreshCw, Search, Zap,
-  Image, X, Landmark,
+  Landmark, FileText,
 } from "lucide-react"
 
 export default function AdminUsers() {
@@ -40,16 +41,6 @@ export default function AdminUsers() {
   const [servicePayments, setServicePayments] = useState([])
   const [loadingPayments, setLoadingPayments] = useState(false)
   const [selectedService, setSelectedService] = useState(null)
-  const [showUserPaymentsModal, setShowUserPaymentsModal] = useState(false)
-  const [paymentsForUser, setPaymentsForUser] = useState([])
-  const [loadingUserPayments, setLoadingUserPayments] = useState(false)
-  const [userServicesForPayments, setUserServicesForPayments] = useState([])
-  const [paymentsUser, setPaymentsUser] = useState(null)
-  const [paymentForm, setPaymentForm] = useState({ service_id: "", amount: "", payment_date: "", payment_account: "" })
-  const [registeringPayment, setRegisteringPayment] = useState(false)
-  const [comprobanteFile, setComprobanteFile] = useState(null)
-  const [comprobantePreview, setComprobantePreview] = useState(null)
-  const fileInputRef = useRef(null)
   const { isAdmin, profile } = useAuth()
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [newPassword, setNewPassword] = useState("")
@@ -61,6 +52,33 @@ export default function AdminUsers() {
   const [pendingPaymentId, setPendingPaymentId] = useState(null)
   const [serviceSearch, setServiceSearch] = useState("")
   const [credentialsService, setCredentialsService] = useState(null)
+  const [showNotesModal, setShowNotesModal] = useState(false)
+  const [notesUser, setNotesUser] = useState(null)
+  const [notesContent, setNotesContent] = useState("")
+  const [savingNotes, setSavingNotes] = useState(false)
+
+  function openNotesModal(user) {
+    setNotesUser(user)
+    setNotesContent(user.notas || "")
+    setShowNotesModal(true)
+  }
+
+  async function handleSaveNotes() {
+    if (!notesUser) return
+    setSavingNotes(true)
+    try {
+      await pb.collection('users').update(notesUser.id, { notas: notesContent })
+      notify("Notas guardadas correctamente", "success")
+      setSelectedUser(prev => prev?.id === notesUser.id ? { ...prev, notas: notesContent } : prev)
+      setShowNotesModal(false)
+      setNotesUser(null)
+    } catch (err) {
+      console.error("Error guardando notas:", err)
+      notify("Error al guardar notas", "error")
+    } finally {
+      setSavingNotes(false)
+    }
+  }
 
   useEffect(() => { fetchUsers() }, [])
 
@@ -365,6 +383,22 @@ export default function AdminUsers() {
         if (baseService?.type === "membresia" && data.owner === 0) {
           try { await generateMonthlyPayments(newService.id) } catch (err) { console.error(err) }
         }
+        if ((data.price || 0) > 0) {
+          const pendingAmount = data.requiere_abono && data.monto_abonado
+            ? (data.price || 0) - parseFloat(data.monto_abonado)
+            : (data.price || 0)
+          if (pendingAmount > 0) {
+            try {
+              await pb.collection('payments').create({
+                user_service_id: newService.id,
+                user_id: selectedUser.id,
+                amount: pendingAmount,
+                payment_date: data.start_date || new Date().toISOString(),
+                status: "pending",
+              })
+            } catch (err) { console.error("Error creando pago pendiente inicial:", err) }
+          }
+        }
       }
 
       notify(editingService ? "Servicio actualizado" : "Servicio agregado", "success")
@@ -410,68 +444,6 @@ export default function AdminUsers() {
     setLoadingPayments(false)
   }
 
-  async function openUserPayments(user) {
-    if (!isAdmin) return
-    setPaymentsUser(user)
-    setLoadingUserPayments(true)
-    setShowUserPaymentsModal(true)
-    try {
-      const [paymentsData, servicesData] = await Promise.all([
-        pb.collection('payments').getFullList({
-          filter: `user_id = "${user.id}"`,
-          sort: '-payment_date',
-          expand: 'user_service_id,payment_account',
-          requestKey: null,
-        }),
-        pb.collection('user_services').getFullList({
-          filter: `user_id = "${user.id}"`,
-          sort: '-created',
-          expand: 'service_id',
-          requestKey: null,
-        }),
-      ])
-      setPaymentsForUser(paymentsData || [])
-      setUserServicesForPayments(servicesData || [])
-    } catch (err) {
-      console.error("Error cargando pagos del usuario:", err)
-      setPaymentsForUser([])
-      setUserServicesForPayments([])
-    } finally {
-      setLoadingUserPayments(false)
-    }
-  }
-
-  async function handleRegisterPayment(e) {
-    e.preventDefault()
-    const userId = paymentsUser?.id
-    if (!userId) return
-    if (!paymentForm.amount) { notify("Ingresa un monto", "error"); return }
-    setRegisteringPayment(true)
-    try {
-      const hasFile = comprobanteFile instanceof File
-      const fd = hasFile ? new FormData() : {}
-      const setField = (key, val) => hasFile ? fd.append(key, val) : (fd[key] = val)
-      setField('user_id', userId)
-      setField('user_service_id', paymentForm.service_id || null)
-      setField('amount', parseFloat(paymentForm.amount))
-      setField('payment_date', paymentForm.payment_date || new Date().toISOString())
-      setField('payment_account', paymentForm.payment_account || null)
-      setField('status', "paid")
-      if (hasFile) fd.append('comprobante', comprobanteFile)
-      await pb.collection('payments').create(fd)
-      notify("Pago registrado correctamente", "success")
-      await openUserPayments(paymentsUser)
-      setPaymentForm({ service_id: "", amount: "", payment_date: "", payment_account: "" })
-      setComprobanteFile(null)
-      setComprobantePreview(null)
-    } catch (err) {
-      console.error("Error registrando pago:", err)
-      notify("Error al registrar pago: " + (err.message || err), "error")
-    } finally {
-      setRegisteringPayment(false)
-    }
-  }
-
   async function fetchPaymentAccounts() {
     try {
       const data = await pb.collection('payment_accounts').getFullList({ sort: 'name', requestKey: null })
@@ -482,18 +454,12 @@ export default function AdminUsers() {
     }
   }
 
-  async function handleMarkPaymentPaidUser(paymentId) {
-    const result = await updatePaymentStatus(paymentId, "paid")
-    if (result.success) {
-      setPaymentsForUser((prev) => prev.map((p) => (p.id === paymentId ? { ...p, status: "paid" } : p)))
-    }
-  }
-
   async function handleMarkPaymentPaid(paymentId, accountId) {
     const payload = { status: "paid" }
     if (accountId) payload.payment_account = accountId
     try {
-      await pb.collection('payments').update(paymentId, payload)
+      const updated = await pb.collection('payments').update(paymentId, payload)
+      await syncOneTimeAbono(updated.user_service_id)
       notify('Pago actualizado correctamente', 'success')
       setServicePayments((prev) => prev.map((p) => (p.id === paymentId ? { ...p, status: "paid", payment_account: accountId } : p)))
       viewUserDetails(selectedUser)
@@ -614,10 +580,10 @@ export default function AdminUsers() {
 
           <div className="space-y-4 mt-6">
             <div className="flex gap-2 flex-wrap">
-              {isAdmin && (userServices || []).some((s) => s.owner !== 1) && (
-                <Button variant="outline" size="sm" onClick={() => openUserPayments(selectedUser)} className="gap-2">
-                  <DollarSign className="w-4 h-4" />
-                  Pagos
+              {isAdmin && (
+                <Button variant="outline" size="sm" onClick={() => openNotesModal(selectedUser)} className="gap-2">
+                  <FileText className="w-4 h-4" />
+                  Notas
                 </Button>
               )}
               {selectedUser.whatsapp && (
@@ -708,7 +674,7 @@ export default function AdminUsers() {
                                 <button onClick={(e) => { e.stopPropagation(); setCredentialsService(service) }} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-medium transition-all">
                                   <Key className="w-3 h-3" />
                                 </button>
-                                {isAdmin && service.owner !== 1 && (
+                                {isAdmin && (
                                   <button onClick={(e) => { e.stopPropagation(); viewServicePayments(service) }} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white text-xs font-medium transition-all">
                                     <CreditCard className="w-3 h-3" />
                                   </button>
@@ -730,6 +696,11 @@ export default function AdminUsers() {
                               <div className="flex items-center gap-3">
                                 <span className="text-sm font-bold text-primary">{formatCurrency(service.price || 0)}</span>
                                 <span className="text-[10px] text-muted-foreground">{service.billing_type === "annual" ? "anual" : service.billing_type === "one_time" ? "único" : "mensual"}</span>
+                                {service.billing_type === "one_time" && service.requiere_abono && (service.monto_abonado || 0) < (service.price || 0) && (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-orange-500/10 text-orange-500 border border-orange-500/20">
+                                    Pendiente pago
+                                  </span>
+                                )}
                                 {service.expires_at && service.billing_type !== "one_time" && (
                                   <span className="text-xs text-muted-foreground">Vence: {formatDate(service.expires_at)}</span>
                                 )}
@@ -903,17 +874,38 @@ export default function AdminUsers() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">{servicePayments.length} pagos registrados</p>
-                <Button size="sm" variant="outline" onClick={async () => {
-                  const result = await generateMonthlyPayments(selectedService.id)
-                  if (result.success) {
-                    notify("Pagos generados correctamente", "success")
-                    const paymentsResult = await getPaymentsByUserService(selectedService.id)
-                    setServicePayments(paymentsResult.success ? (paymentsResult.data || []) : [])
-                    viewUserDetails(selectedUser)
-                  }
-                }}>
-                  Generar Pagos
-                </Button>
+                {selectedService?.billing_type === "one_time" ? (
+                  <Button size="sm" variant="outline" onClick={async () => {
+                    const pendientes = servicePayments.filter(p => p.status === "pending")
+                    if (pendientes.length > 0) {
+                      notify("Ya hay un pago pendiente para este servicio", "warning")
+                      return
+                    }
+                    const result = await createPendingPayment(selectedService.id)
+                    if (result.success) {
+                      notify("Pago pendiente creado", "success")
+                      const paymentsResult = await getPaymentsByUserService(selectedService.id)
+                      setServicePayments(paymentsResult.success ? (paymentsResult.data || []) : [])
+                      viewUserDetails(selectedUser)
+                    } else {
+                      notify("Error: " + (result.error?.message || result.error), "error")
+                    }
+                  }}>
+                    Agregar Pendiente
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={async () => {
+                    const result = await generateMonthlyPayments(selectedService.id)
+                    if (result.success) {
+                      notify("Pagos generados correctamente", "success")
+                      const paymentsResult = await getPaymentsByUserService(selectedService.id)
+                      setServicePayments(paymentsResult.success ? (paymentsResult.data || []) : [])
+                      viewUserDetails(selectedUser)
+                    }
+                  }}>
+                    Generar Pagos
+                  </Button>
+                )}
               </div>
               {servicePayments.length === 0 ? (
                 <p className="text-center text-muted-foreground py-6">No hay pagos para este servicio</p>
@@ -968,6 +960,34 @@ export default function AdminUsers() {
             </div>
           </div>
         )}
+
+        <Modal isOpen={showNotesModal} onClose={() => { setShowNotesModal(false); setNotesUser(null) }} title={`Notas - ${notesUser?.name}`} size="lg">
+          <div className="space-y-4">
+            <LexicalEditor
+              value={notesContent}
+              format="json"
+              onChange={async (text) => {
+                setNotesContent(text)
+                if (notesUser) {
+                  try {
+                    await pb.collection('users').update(notesUser.id, { notas: text }, { requestKey: null })
+                    notify("Notas guardadas", "success")
+                    setSelectedUser(prev => prev?.id === notesUser.id ? { ...prev, notas: text } : prev)
+                  } catch (err) {
+                    console.error("Error guardando notas:", err)
+                    notify("Error al guardar notas", "error")
+                  }
+                }
+              }}
+              showEditor={true}
+              stayOpenAfterSave={true}
+              title="Notas del Cliente"
+              placeholder="Escribe notas aquí..."
+              emptyMessage="No hay notas para este cliente"
+              emptyHint="Escribe notas internas aquí..."
+            />
+          </div>
+        </Modal>
       </div>
     )
   }
@@ -1104,100 +1124,6 @@ export default function AdminUsers() {
         </div>
       </Card>
 
-      {showUserPaymentsModal && (
-        <Modal isOpen={showUserPaymentsModal} onClose={() => setShowUserPaymentsModal(false)} title={`Pagos - ${paymentsUser?.name}`} size="lg">
-          <div className="space-y-4">
-            <div className="bg-muted/50 rounded-lg p-4 border">
-              <h3 className="text-sm font-medium text-muted-foreground mb-3">Registrar Pago</h3>
-              <form onSubmit={handleRegisterPayment} className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <select value={paymentForm.service_id} onChange={(e) => setPaymentForm({ ...paymentForm, service_id: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                    <option value="">Sin servicio</option>
-                    {userServicesForPayments.map((s) => (<option key={s.id} value={s.id}>{s.expand?.service_id?.name || "Servicio"}</option>))}
-                  </select>
-                  <Input type="number" placeholder="Monto" value={paymentForm.amount} onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })} />
-                  <Input type="date" placeholder="Fecha del abono" value={paymentForm.payment_date} onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })} />
-                  <select value={paymentForm.payment_account} onChange={(e) => setPaymentForm({ ...paymentForm, payment_account: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                    <option value="">Sin cuenta</option>
-                    {paymentAccounts.map((a) => (<option key={a.id} value={a.id}>{a.name}</option>))}
-                  </select>
-                </div>
-                <div
-                  onPaste={(e) => {
-                    const items = e.clipboardData?.items
-                    for (const item of items) {
-                      if (item.type.startsWith('image/')) {
-                        const file = item.getAsFile()
-                        setComprobanteFile(file)
-                        setComprobantePreview(URL.createObjectURL(file))
-                        return
-                      }
-                    }
-                  }}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex flex-col items-center justify-center h-20 rounded-md border-2 border-dashed border-input bg-background cursor-pointer hover:border-primary/50 transition-colors text-muted-foreground text-sm"
-                >
-                  {comprobantePreview ? (
-                    <div className="relative w-full h-full group">
-                      <img src={comprobantePreview} alt="Comprobante" className="w-full h-full object-contain rounded-md" />
-                      <button type="button" onClick={(e) => { e.stopPropagation(); setComprobanteFile(null); setComprobantePreview(null) }} className="absolute top-1 right-1 w-6 h-6 rounded-full bg-destructive/80 text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-1">
-                      <Image className="w-5 h-5" />
-                      <span>Comprobante (Click o Ctrl+V)</span>
-                    </div>
-                  )}
-                </div>
-                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) { setComprobanteFile(file); setComprobantePreview(URL.createObjectURL(file)) }
-                }} />
-                <Button type="submit" disabled={registeringPayment} className="w-full">
-                  {registeringPayment ? "Registrando..." : "Registrar Pago"}
-                </Button>
-              </form>
-            </div>
-
-            <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
-              {loadingUserPayments ? (
-                <div className="flex justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
-              ) : paymentsForUser.length === 0 ? (
-                <p className="text-center text-muted-foreground py-6">No hay pagos registrados</p>
-              ) : (
-                paymentsForUser.map((p) => {
-                  const accName = typeof p.payment_account === 'object' ? p.payment_account?.name : p.expand?.payment_account?.name || ""
-                  return (
-                    <div key={p.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
-                      <div>
-                        <p className="font-medium text-foreground">{formatCurrency(p.amount)}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDate(p.payment_date)}
-                          {accName && <span> - {accName}</span>}
-                          {p.comprobante && (
-                            <a href={pb.files.getUrl(p, 'comprobante')} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 ml-2 text-primary hover:underline">
-                              <Image className="w-3 h-3" />
-                              Ver comp.
-                            </a>
-                          )}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={p.status === "paid" ? "default" : "secondary"}>{p.status === "paid" ? "Pagado" : "Pendiente"}</Badge>
-                        {p.status !== "paid" && (
-                          <Button size="sm" variant="outline" onClick={() => handleMarkPaymentPaidUser(p.id)}>Pagar</Button>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })
-              )}
-            </div>
-          </div>
-        </Modal>
-      )}
     </div>
   )
 }
