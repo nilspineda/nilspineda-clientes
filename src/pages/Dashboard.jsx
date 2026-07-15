@@ -13,6 +13,14 @@ import { getPaymentsByUserService } from "@/utils/paymentUtils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import CredentialsModal from "@/components/CredentialsModal"
 import { Button } from "@/components/ui/button"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 
 import { Badge } from "@/components/ui/badge"
@@ -563,103 +571,118 @@ export default function Dashboard() {
               <p className="text-muted-foreground/60 text-sm mt-1">Contacta al administrador para agregar servicios</p>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {services.map((service) => {
-                const status = getServiceStatus(service)
-                const days = getDaysRemaining(service.expires_at)
-                return (
-                  <div
-                    key={service.id}
-                    className="group relative overflow-hidden rounded-lg border bg-card p-4 hover:border-border transition-colors"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <StatusBadge status={status} />
-                          {service.owner === 0 && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border">
-                              Lo administro
-                            </span>
+            <div className="rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Servicio</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Precio</TableHead>
+                    <TableHead>Vencimiento</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {services.map((service) => {
+                    const status = getServiceStatus(service)
+                    const days = getDaysRemaining(service.expires_at)
+                    return (
+                      <TableRow key={service.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-foreground truncate">
+                                {service.expand?.service_id?.name}
+                              </p>
+                              {service.expand?.service_id?.description && (
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {service.expand?.service_id?.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <StatusBadge status={status} />
+                            {service.owner === 0 && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border whitespace-nowrap">
+                                Lo administro
+                              </span>
+                            )}
+                            {service.owner === 1 && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-500 border border-blue-500/20 whitespace-nowrap">
+                                Cliente paga
+                              </span>
+                            )}
+                            {service.billing_type === "one_time" && service.requiere_abono && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-500/10 text-orange-500 border border-orange-500/20 whitespace-nowrap">
+                                Parcial
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm font-semibold text-primary">
+                            {formatCurrency(service.price ?? 0)}
+                          </div>
+                          {service.billing_type === "one_time" && service.requiere_abono && (
+                            <div className="text-[10px] text-muted-foreground mt-0.5">
+                              Abonado {formatCurrency(service.monto_abonado || 0)}
+                              {(service.monto_abonado || 0) < (service.price || 0) && (
+                                <span className="text-destructive">
+                                  {" "}- Restante {formatCurrency((service.price || 0) - (service.monto_abonado || 0))}
+                                </span>
+                              )}
+                            </div>
                           )}
-                          {service.owner === 1 && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-500 border border-blue-500/20">
-                              Cliente paga
-                            </span>
+                        </TableCell>
+                        <TableCell>
+                          {service.expires_at && service.billing_type !== "one_time" ? (
+                            <div>
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Calendar className="w-3 h-3 shrink-0" />
+                                {formatDate(service.expires_at)}
+                              </div>
+                              {days !== null && (
+                                <span className={`text-xs font-medium ${
+                                  days < 0 ? "text-destructive" : days <= 5 ? "text-orange-500" : "text-green-500"
+                                }`}>
+                                  {days < 0 ? `${Math.abs(days)} días vencido` : `${days} días`}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
                           )}
-                        </div>
-                        <h3 className="font-semibold text-foreground truncate">
-                          {service.expand?.service_id?.name}
-                        </h3>
-                        {service.expand?.service_id?.description && (
-                          <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
-                            {service.expand?.service_id?.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-3 border-t">
-                      <div>
-                        <p className="text-[10px] text-muted-foreground">Precio</p>
-                        <p className="text-sm font-bold text-primary">
-                          {formatCurrency(service.price ?? 0)}
-                        </p>
-                      </div>
-                      <div className="flex gap-1.5">
-                        <button
-                          onClick={() => setCredentialsService(service)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-primary/10 text-primary text-xs font-medium transition-all"
-                        >
-                          <Key className="w-3 h-3" />
-                          Accesos
-                        </button>
-                        <button
-                          onClick={() => handleRenew(service)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-primary/10 text-primary text-xs font-medium transition-all"
-                        >
-                          <Zap className="w-3 h-3" />
-                          Renovar
-                        </button>
-                      </div>
-                    </div>
-
-                    {service.billing_type === "one_time" && service.requiere_abono && (
-                      <div className="flex items-center justify-between mt-3 pt-3 border-t text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1.5">
-                          <span>Abonado: <span className="font-semibold text-foreground">{formatCurrency(service.monto_abonado || 0)}</span></span>
-                          <span>de <span className="font-semibold text-foreground">{formatCurrency(service.price || 0)}</span></span>
-                          {(service.monto_abonado || 0) < (service.price || 0) && (
-                            <span className="text-destructive">- Restante: {formatCurrency((service.price || 0) - (service.monto_abonado || 0))}</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {service.expires_at && service.billing_type !== "one_time" && (
-                      <div className="flex items-center justify-between mt-3 pt-3 border-t">
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Calendar className="w-3 h-3" />
-                          {formatDate(service.expires_at)}
-                        </div>
-                        {days !== null && (
-                          <span
-                            className={`text-xs font-medium ${
-                              days < 0
-                                ? "text-destructive"
-                                : days <= 5
-                                  ? "text-orange-500"
-                                  : "text-green-500"
-                            }`}
-                          >
-                            {days < 0
-                              ? `${Math.abs(days)} días vencido`
-                              : `${days} días`}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setCredentialsService(service)}
+                              className="h-8 px-2.5 text-xs"
+                            >
+                              <Key className="w-3 h-3 mr-1" />
+                              Accesos
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRenew(service)}
+                              className="h-8 px-2.5 text-xs"
+                            >
+                              <Zap className="w-3 h-3 mr-1" />
+                              Renovar
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>
