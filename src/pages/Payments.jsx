@@ -4,6 +4,14 @@ import pb from "@/lib/pocketbaseClient"
 
 import { formatCurrency } from "@/utils/formatUtils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { Wallet, CheckCircle, Clock, FileText, Loader2, Image } from "lucide-react"
 
 export default function Payments() {
@@ -129,18 +137,18 @@ export default function Payments() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted/50 border-y">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Servicio</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Descripción</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Monto</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Cuenta</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Comp.</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Estado</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="px-4 md:px-6 py-3 md:py-4">Servicio</TableHead>
+                    <TableHead className="px-4 md:px-6 py-3 md:py-4 hidden md:table-cell">Descripción</TableHead>
+                    <TableHead className="px-4 md:px-6 py-3 md:py-4">Monto</TableHead>
+                    <TableHead className="px-4 md:px-6 py-3 md:py-4 hidden md:table-cell">Cuenta</TableHead>
+                    <TableHead className="px-4 md:px-6 py-3 md:py-4">Comp.</TableHead>
+                    <TableHead className="px-4 md:px-6 py-3 md:py-4">Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {allItems.map((payment) => {
                     const isPendingItem = payment.id?.startsWith?.("one_time_pending_")
                     const svcName = isPendingItem
@@ -160,17 +168,17 @@ export default function Payments() {
                         ? payment.payment_account?.name
                         : payment.expand?.payment_account?.name || ""
                     return (
-                      <tr key={payment.id} className={`hover:bg-muted/20 transition-all ${isPendingItem ? "bg-orange-500/5" : ""}`}>
-                        <td className="px-6 py-4">
+                      <TableRow key={payment.id} className={`${isPendingItem ? "bg-orange-500/5" : ""}`}>
+                        <TableCell className="px-4 md:px-6 py-3 md:py-4">
                           <span className="font-semibold text-foreground text-sm">{svcName}</span>
                           {svcDomain && <span className="block text-xs text-blue-500">{svcDomain}</span>}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-muted-foreground">{desc}</td>
-                        <td className="px-6 py-4">
+                        </TableCell>
+                        <TableCell className="px-4 md:px-6 py-3 md:py-4 text-sm text-muted-foreground hidden md:table-cell">{desc}</TableCell>
+                        <TableCell className="px-4 md:px-6 py-3 md:py-4">
                           <span className="font-bold text-foreground">{formatCurrency(payment.amount)}</span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-muted-foreground">{accName || "—"}</td>
-                        <td className="px-6 py-4">
+                        </TableCell>
+                        <TableCell className="px-4 md:px-6 py-3 md:py-4 text-sm text-muted-foreground hidden md:table-cell">{accName || "—"}</TableCell>
+                        <TableCell className="px-4 md:px-6 py-3 md:py-4">
                           {!isPendingItem && comprobantesMap[payment.id]?.length ? (
                             <div className="flex gap-1">
                               {comprobantesMap[payment.id].map((c) => (
@@ -183,8 +191,8 @@ export default function Payments() {
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
-                        </td>
-                        <td className="px-6 py-4">
+                        </TableCell>
+                        <TableCell className="px-4 md:px-6 py-3 md:py-4">
                           <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md font-medium ${
                             isPendingItem || payment.status === "pending"
                               ? "bg-orange-500/10 border border-orange-500/30 text-orange-500"
@@ -198,12 +206,12 @@ export default function Payments() {
                               <><CheckCircle className="w-3 h-3" /> Pagado</>
                             )}
                           </span>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     )
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>

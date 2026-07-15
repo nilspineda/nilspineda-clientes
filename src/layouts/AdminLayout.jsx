@@ -1,9 +1,11 @@
 ﻿import { useState, useEffect, useCallback } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import pb from "@/lib/pocketbaseClient";
 import { cn } from "@/lib/utils";
 import logoSrc from "@/assets/logo.svg";
 import logoMarkSrc from "@/assets/logo-mark.svg";
+import { normalizeWhatsapp, formatWhatsapp } from "@/utils/formatUtils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -29,6 +31,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ExternalLink,
+  Mail,
+  MessageCircle,
 } from "lucide-react";
 
 const navItems = [
@@ -98,11 +102,32 @@ function SidebarNav({ collapsed, onClose }) {
 function Sidebar({ collapsed, onToggle, onClose }) {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const [supportWhatsapp, setSupportWhatsapp] = useState("3167195500");
+  const [supportEmail, setSupportEmail] = useState("nilspineda@outlook.com");
+
+  useEffect(() => {
+    async function fetchSupport() {
+      try {
+        const data = await pb.collection('settings').getFullList({
+          requestKey: null,
+        });
+        const wa = data.find(s => s.key === "whatsapp_support");
+        const em = data.find(s => s.key === "admin_email");
+        if (wa?.value) setSupportWhatsapp(wa.value);
+        if (em?.value) setSupportEmail(em.value);
+      } catch (err) {
+        console.error("Error al cargar datos de soporte:", err);
+      }
+    }
+    fetchSupport();
+  }, []);
 
   async function handleSignOut() {
     await signOut();
     navigate("/login");
   }
+
+  const supportWa = normalizeWhatsapp(supportWhatsapp);
 
   return (
     <div className="flex flex-col h-full bg-sidebar">
@@ -200,9 +225,65 @@ function Sidebar({ collapsed, onToggle, onClose }) {
                 <LogOut className="w-3.5 h-3.5" />
               </Button>
             </div>
+            <div className="border-t border-border/50 px-2 pt-3 pb-1 space-y-2 mt-2">
+              <p className="text-xs text-sidebar-foreground font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                <MessageCircle className="w-3.5 h-3.5" />
+                Soporte
+              </p>
+              <div className="rounded-lg bg-sidebar-accent/50 border border-border/50 p-3 space-y-2">
+                <a
+                  href={`https://wa.me/${supportWa}?text=${encodeURIComponent("Hola, necesito ayuda.")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2.5 text-sm text-sidebar-foreground hover:text-sidebar-accent-foreground transition-colors group"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0 group-hover:bg-green-500/20 transition-colors">
+                    <MessageCircle className="w-4 h-4 text-green-500" />
+                  </div>
+                  <span className="font-medium truncate">{formatWhatsapp(supportWhatsapp) || supportWhatsapp}</span>
+                </a>
+                <a
+                  href={`mailto:${supportEmail}`}
+                  className="flex items-center gap-2.5 text-sm text-sidebar-foreground hover:text-sidebar-accent-foreground transition-colors group"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
+                    <Mail className="w-4 h-4 text-primary" />
+                  </div>
+                  <span className="truncate">{supportEmail}</span>
+                </a>
+              </div>
+            </div>
           </>
         )}
       </div>
+      {collapsed && (
+        <div className="border-t border-border/50 pt-2 pb-3 flex flex-col items-center gap-2">
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <a
+                href={`https://wa.me/${supportWa}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center hover:bg-green-500/20 transition-colors"
+              >
+                <MessageCircle className="w-4 h-4 text-green-500" />
+              </a>
+            </TooltipTrigger>
+            <TooltipContent side="right">{formatWhatsapp(supportWhatsapp) || supportWhatsapp}</TooltipContent>
+          </Tooltip>
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <a
+                href={`mailto:${supportEmail}`}
+                className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
+              >
+                <Mail className="w-4 h-4 text-primary" />
+              </a>
+            </TooltipTrigger>
+            <TooltipContent side="right">{supportEmail}</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
     </div>
   );
 }
@@ -301,7 +382,7 @@ export default function AdminLayout() {
           </div>
         </header>
 
-        <div className="p-8 flex-1">
+        <div className="p-4 md:p-8 flex-1">
           <Outlet />
         </div>
       </main>

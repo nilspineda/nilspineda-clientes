@@ -1059,12 +1059,12 @@ export default function AdminUsers() {
           <table className="w-full">
             <thead className="bg-muted/50 border-b">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Usuario</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">WhatsApp</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Servicios</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Vencimiento</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Estado</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Acciones</th>
+                <th className="px-3 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground">Usuario</th>
+                <th className="px-3 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground hidden md:table-cell">WhatsApp</th>
+                <th className="px-3 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground">Servicios</th>
+                <th className="px-3 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground hidden sm:table-cell">Vencimiento</th>
+                <th className="px-3 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground">Estado</th>
+                <th className="px-3 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -1073,18 +1073,18 @@ export default function AdminUsers() {
               ) : (
                 users.map((user) => (
                   <tr key={user.id} className="hover:bg-muted/50 transition-all cursor-pointer" onClick={() => viewUserDetails(user)}>
-                    <td className="px-6 py-4">
+                    <td className="px-3 md:px-6 py-2 md:py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold">
+                        <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-sm md:text-base">
                           {user.name?.charAt(0).toUpperCase()}
                         </div>
-                        <div>
-                          <p className="font-semibold text-foreground">{user.name}</p>
-                          <p className="text-xs text-muted-foreground">{user.email}</p>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-foreground text-sm md:text-base truncate">{user.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 md:px-6 py-2 md:py-4 hidden md:table-cell">
                       {user.whatsapp ? (
                         <a href={`https://wa.me/${normalizeWhatsapp(user.whatsapp)}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-green-500 hover:underline text-sm">
                           <MessageCircle className="w-3 h-3" />
@@ -1092,20 +1092,20 @@ export default function AdminUsers() {
                         </a>
                       ) : <span className="text-muted-foreground text-sm">-</span>}
                     </td>
-                    <td className="px-6 py-4"><span className="font-semibold text-foreground">{user.service_count}</span></td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 md:px-6 py-2 md:py-4"><span className="font-semibold text-foreground">{user.service_count}</span></td>
+                    <td className="px-3 md:px-6 py-2 md:py-4 hidden sm:table-cell">
                       {user.min_days_to_renewal !== null ? (
                         <span className={`text-sm font-medium ${user.min_days_to_renewal < 0 ? "text-destructive" : user.min_days_to_renewal <= 7 ? "text-orange-500" : "text-green-500"}`}>
-                          {user.min_days_to_renewal < 0 ? `${Math.abs(user.min_days_to_renewal)} días vencido` : `${user.min_days_to_renewal} días`}
+                          {user.min_days_to_renewal < 0 ? `${Math.abs(user.min_days_to_renewal)}d vencido` : `${user.min_days_to_renewal}d`}
                         </span>
                       ) : <span className="text-muted-foreground text-sm">-</span>}
                     </td>
-                    <td className="px-6 py-4">
-                      <button onClick={(e) => { e.stopPropagation(); toggleUserStatus(user) }} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${user.status === "active" ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" : "bg-destructive/10 text-destructive hover:bg-destructive/20"}`}>
+                    <td className="px-3 md:px-6 py-2 md:py-4">
+                      <button onClick={(e) => { e.stopPropagation(); toggleUserStatus(user) }} className={`inline-flex items-center gap-1.5 px-2 md:px-3 py-1 md:py-1.5 rounded-md text-xs font-medium transition-all ${user.status === "active" ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" : "bg-destructive/10 text-destructive hover:bg-destructive/20"}`}>
                         {user.status === "active" ? <><Activity className="w-3 h-3" />Activo</> : <><EyeOff className="w-3 h-3" />Suspendido</>}
                       </button>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 md:px-6 py-2 md:py-4">
                       <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         {user.whatsapp && (
                           <Button variant="ghost" size="sm" onClick={() => sendUserCredentials(user)} className="text-green-500 hover:text-green-600">

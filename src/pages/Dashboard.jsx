@@ -400,7 +400,7 @@ export default function Dashboard() {
               {upcomingRenewals.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">No hay renovaciones próximas</div>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="space-y-3">
                   {(() => {
                     const grouped = {}
                     upcomingRenewals.forEach((item) => {
@@ -490,13 +490,13 @@ export default function Dashboard() {
                 <table className="w-full">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Cliente</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Dominio</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Servicio</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Vencimiento</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Días</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Estado</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Precio</th>
+                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Cliente</th>
+                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs font-semibold uppercase text-muted-foreground hidden md:table-cell">Dominio</th>
+                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Servicio</th>
+                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs font-semibold uppercase text-muted-foreground hidden sm:table-cell">Vencimiento</th>
+                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Días</th>
+                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Estado</th>
+                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs font-semibold uppercase text-muted-foreground hidden md:table-cell">Precio</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -508,20 +508,20 @@ export default function Dashboard() {
                         const status = getPaymentStatus(item.expires_at)
                         return (
                           <tr key={item.id} className="hover:bg-muted/50 transition-colors">
-                            <td className="px-4 py-3">
+                            <td className="px-3 md:px-4 py-2 md:py-3">
                               <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center text-sm font-bold shrink-0 text-primary">
+                                <div className="w-7 h-7 md:w-8 md:h-8 rounded-md bg-primary/10 flex items-center justify-center text-sm font-bold shrink-0 text-primary">
                                   {item.expand?.user_id?.name?.charAt(0).toUpperCase() || "U"}
                                 </div>
-                                <span className="font-medium text-foreground truncate">{item.expand?.user_id?.name}</span>
+                                <span className="font-medium text-foreground truncate text-sm">{item.expand?.user_id?.name}</span>
                               </div>
                             </td>
-                            <td className="px-4 py-3"><span className="px-2 py-1 rounded bg-blue-500/10 text-blue-500 text-xs">{item.url_dominio || "-"}</span></td>
-                            <td className="px-4 py-3 text-sm text-muted-foreground">{item.expand?.service_id?.name || "-"}</td>
-                            <td className="px-4 py-3 text-sm text-muted-foreground">{item.expires_at ? formatDate(item.expires_at) : "-"}</td>
-                            <td className="px-4 py-3"><span className={`font-medium text-sm ${days < 0 ? "text-destructive" : days <= 20 ? "text-orange-500" : "text-green-500"}`}>{days !== null ? (days < 0 ? `${Math.abs(days)} días vencido` : `${days} días`) : "-"}</span></td>
-                            <td className="px-4 py-3"><Badge variant={status.color}>{status.label}</Badge></td>
-                            <td className="px-4 py-3 font-bold text-primary text-sm">{formatCurrency(item.price || 0)}</td>
+                            <td className="px-3 md:px-4 py-2 md:py-3 hidden md:table-cell"><span className="px-2 py-1 rounded bg-blue-500/10 text-blue-500 text-xs">{item.url_dominio || "-"}</span></td>
+                            <td className="px-3 md:px-4 py-2 md:py-3 text-sm text-muted-foreground">{item.expand?.service_id?.name || "-"}</td>
+                            <td className="px-3 md:px-4 py-2 md:py-3 text-sm text-muted-foreground hidden sm:table-cell">{item.expires_at ? formatDate(item.expires_at) : "-"}</td>
+                            <td className="px-3 md:px-4 py-2 md:py-3"><span className={`font-medium text-sm ${days < 0 ? "text-destructive" : days <= 20 ? "text-orange-500" : "text-green-500"}`}>{days !== null ? (days < 0 ? `${Math.abs(days)}d` : `${days}d`) : "-"}</span></td>
+                            <td className="px-3 md:px-4 py-2 md:py-3"><Badge variant={status.color}>{status.label}</Badge></td>
+                            <td className="px-3 md:px-4 py-2 md:py-3 font-bold text-primary text-sm hidden md:table-cell">{formatCurrency(item.price || 0)}</td>
                           </tr>
                         )
                       })

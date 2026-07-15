@@ -280,10 +280,10 @@ export default function AdminServices() {
           <table className="w-full">
             <thead className="bg-muted/50 border-b">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Nombre</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Tipo</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Clientes</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Acciones</th>
+                <th className="px-3 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground">Nombre</th>
+                <th className="px-3 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground hidden sm:table-cell">Tipo</th>
+                <th className="px-3 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground hidden sm:table-cell">Clientes</th>
+                <th className="px-3 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -294,22 +294,22 @@ export default function AdminServices() {
                   const typeInfo = getTypeInfo(service.type, serviceTypes)
                   return (
                     <tr key={service.id} className="hover:bg-muted/50 transition-all">
-                      <td className="px-6 py-4">
+                      <td className="px-3 md:px-6 py-2 md:py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <Zap className="w-5 h-5 text-primary" />
+                          <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <Zap className="w-4 h-4 md:w-5 md:h-5 text-primary" />
                           </div>
-                          <span className="text-foreground font-semibold">{service.name}</span>
+                          <span className="text-foreground font-semibold text-sm md:text-base">{service.name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 md:px-6 py-2 md:py-4 hidden sm:table-cell">
                         {typeInfo ? <Badge variant={typeInfo.color}>{typeInfo.name}</Badge> : <Badge variant="outline">{service.type}</Badge>}
                       </td>
-                      <td className="px-6 py-4"><span className="px-3 py-1.5 rounded-md bg-muted text-muted-foreground font-medium text-sm">{serviceUsage[service.id] || 0} clientes</span></td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="sm" onClick={() => handleEdit(service)}><Edit3 className="w-4 h-4 mr-1" />Editar</Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(service.id)} className="text-destructive hover:text-destructive"><Trash2 className="w-4 h-4 mr-1" />Eliminar</Button>
+                      <td className="px-3 md:px-6 py-2 md:py-4 hidden sm:table-cell"><span className="px-2 md:px-3 py-1 md:py-1.5 rounded-md bg-muted text-muted-foreground font-medium text-xs md:text-sm">{serviceUsage[service.id] || 0} clientes</span></td>
+                      <td className="px-3 md:px-6 py-2 md:py-4">
+                        <div className="flex items-center gap-1 md:gap-2">
+                          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => handleEdit(service)}><Edit3 className="w-3.5 h-3.5 mr-1" />Editar</Button>
+                          <Button variant="ghost" size="sm" className="h-8 text-xs text-destructive hover:text-destructive" onClick={() => handleDelete(service.id)}><Trash2 className="w-3.5 h-3.5 mr-1" />Eliminar</Button>
                         </div>
                       </td>
                     </tr>

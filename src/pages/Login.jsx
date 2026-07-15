@@ -1,6 +1,8 @@
 ﻿import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import pb from "@/lib/pocketbaseClient";
+import { normalizeWhatsapp, formatWhatsapp } from "@/utils/formatUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Eye, EyeOff, Loader2, LogIn } from "lucide-react"
+import { Eye, EyeOff, Loader2, LogIn, MessageCircle, Mail, ExternalLink } from "lucide-react"
 import logoSrc from "@/assets/logo.svg";
 
 export default function Login() {
@@ -21,6 +23,8 @@ export default function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [supportWhatsapp, setSupportWhatsapp] = useState("3167195500");
+  const [supportEmail, setSupportEmail] = useState("nilspineda@outlook.com");
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,6 +33,18 @@ export default function Login() {
 
   useEffect(() => {
     setMounted(true);
+    async function fetchSupport() {
+      try {
+        const data = await pb.collection('settings').getFullList({ requestKey: null });
+        const wa = data.find(s => s.key === "whatsapp_support");
+        const em = data.find(s => s.key === "admin_email");
+        if (wa?.value) setSupportWhatsapp(wa.value);
+        if (em?.value) setSupportEmail(em.value);
+      } catch (err) {
+        console.error("Error al cargar datos de soporte:", err);
+      }
+    }
+    fetchSupport();
   }, []);
 
   async function handleSubmit(e) {
@@ -185,15 +201,42 @@ export default function Login() {
             </CardContent>
           </Card>
 
-          <p className="text-center mt-6 text-sm text-muted-foreground">
-            ¿Necesitas ayuda?{" "}
-            <a
-              href="#"
-              className="text-primary hover:text-primary/80 font-medium transition-colors"
-            >
-              Contacta soporte
-            </a>
-          </p>
+          <div className="mt-8 p-4 rounded-xl border border-border/50 bg-card">
+            <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+              <MessageCircle className="w-4 h-4 text-primary" />
+              ¿Necesitas ayuda? Contáctanos
+            </p>
+            <div className="space-y-2">
+              <a
+                href={`https://wa.me/${normalizeWhatsapp(supportWhatsapp)}?text=${encodeURIComponent("Hola, necesito ayuda con el inicio de sesión.")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 p-2.5 rounded-lg bg-green-500/5 border border-green-500/20 hover:bg-green-500/10 transition-colors group"
+              >
+                <div className="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0 group-hover:bg-green-500/20 transition-colors">
+                  <MessageCircle className="w-5 h-5 text-green-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">WhatsApp</p>
+                  <p className="text-xs text-muted-foreground">{formatWhatsapp(supportWhatsapp) || supportWhatsapp}</p>
+                </div>
+                <ExternalLink className="w-4 h-4 text-muted-foreground shrink-0" />
+              </a>
+              <a
+                href={`mailto:${supportEmail}`}
+                className="flex items-center gap-3 p-2.5 rounded-lg bg-primary/5 border border-primary/20 hover:bg-primary/10 transition-colors group"
+              >
+                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
+                  <Mail className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">Email</p>
+                  <p className="text-xs text-muted-foreground truncate">{supportEmail}</p>
+                </div>
+                <ExternalLink className="w-4 h-4 text-muted-foreground shrink-0" />
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     </div>
