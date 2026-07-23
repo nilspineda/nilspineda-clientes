@@ -103,16 +103,16 @@ function Sidebar({ collapsed, onToggle, onClose }) {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
   const [supportWhatsapp, setSupportWhatsapp] = useState("3167195500");
-  const [supportEmail, setSupportEmail] = useState("nilspineda@outlook.com");
+  const [supportEmail, setSupportEmail] = useState("nilspineda@gmail.com");
 
   useEffect(() => {
     async function fetchSupport() {
       try {
-        const data = await pb.collection('settings').getFullList({
+        const data = await pb.collection("settings").getFullList({
           requestKey: null,
         });
-        const wa = data.find(s => s.key === "whatsapp_support");
-        const em = data.find(s => s.key === "admin_email");
+        const wa = data.find((s) => s.key === "whatsapp_support");
+        const em = data.find((s) => s.key === "admin_email");
         if (wa?.value) setSupportWhatsapp(wa.value);
         if (em?.value) setSupportEmail(em.value);
       } catch (err) {
@@ -240,7 +240,9 @@ function Sidebar({ collapsed, onToggle, onClose }) {
                   <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0 group-hover:bg-green-500/20 transition-colors">
                     <MessageCircle className="w-4 h-4 text-green-500" />
                   </div>
-                  <span className="font-medium truncate">{formatWhatsapp(supportWhatsapp) || supportWhatsapp}</span>
+                  <span className="font-medium truncate">
+                    {formatWhatsapp(supportWhatsapp) || supportWhatsapp}
+                  </span>
                 </a>
                 <a
                   href={`mailto:${supportEmail}`}
@@ -269,7 +271,9 @@ function Sidebar({ collapsed, onToggle, onClose }) {
                 <MessageCircle className="w-4 h-4 text-green-500" />
               </a>
             </TooltipTrigger>
-            <TooltipContent side="right">{formatWhatsapp(supportWhatsapp) || supportWhatsapp}</TooltipContent>
+            <TooltipContent side="right">
+              {formatWhatsapp(supportWhatsapp) || supportWhatsapp}
+            </TooltipContent>
           </Tooltip>
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
