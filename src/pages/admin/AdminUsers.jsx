@@ -821,14 +821,14 @@ export default function AdminUsers() {
             </div>
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-1.5">Notas</label>
-              <textarea value={serviceForm.notes} onChange={(e) => setServiceForm({ ...serviceForm, notes: e.target.value })} rows={2} placeholder="Observaciones..." className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none" />
+              <textarea value={serviceForm.notes} onChange={(e) => setServiceForm({ ...serviceForm, notes: e.target.value })} rows={3} placeholder="Observaciones..." className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-vertical min-h-[80px]" />
             </div>
             <div>
               <label className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground mb-1.5">
                 <Lock className="w-3.5 h-3.5" />
                 Notas privadas (solo admin)
               </label>
-              <textarea value={serviceForm.admin_notes} onChange={(e) => setServiceForm({ ...serviceForm, admin_notes: e.target.value })} rows={2} placeholder="Notas internas - el cliente no las verá..." className="flex w-full rounded-md border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none" />
+              <textarea value={serviceForm.admin_notes} onChange={(e) => setServiceForm({ ...serviceForm, admin_notes: e.target.value })} rows={6} placeholder="Notas internas - el cliente no las verá..." className="flex w-full rounded-md border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-vertical min-h-[160px] font-mono" />
             </div>
             <div className="flex gap-3 pt-2">
               <Button type="submit" className="flex-1">{editingService ? "Guardar Cambios" : "Agregar Servicio"}</Button>
