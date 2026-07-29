@@ -13,6 +13,7 @@ export function AuthProvider({ children }) {
   const [isOffline, setIsOffline] = useState(false);
   const lastActivity = useRef(Date.now());
   const inactivityCheckRef = useRef(null);
+  const userRef = useRef(null);
 
   const forceLogout = useCallback(() => {
     pb.authStore.clear();
@@ -25,6 +26,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    const safetyTimer = setTimeout(() => setLoading(false), 5000);
+
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
 
@@ -36,12 +39,14 @@ export function AuthProvider({ children }) {
 
     if (pb.authStore.isValid) {
       const model = pb.authStore.model;
+      userRef.current = model;
       setUser(model);
       setProfile(model);
     }
     setLoading(false);
 
     const unsubscribe = pb.authStore.onChange((token, model) => {
+      userRef.current = model;
       setUser(model);
       setProfile(model);
       setLoading(false);
@@ -49,19 +54,20 @@ export function AuthProvider({ children }) {
     });
 
     inactivityCheckRef.current = setInterval(() => {
-      if (user && Date.now() - lastActivity.current > INACTIVITY_TIMEOUT) {
+      if (userRef.current && Date.now() - lastActivity.current > INACTIVITY_TIMEOUT) {
         forceLogout();
       }
     }, 60000);
 
     return () => {
+      clearTimeout(safetyTimer);
       if (typeof unsubscribe === "function") unsubscribe();
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       ACTIVITY_EVENTS.forEach((event) => window.removeEventListener(event, handleActivity));
       if (inactivityCheckRef.current) clearInterval(inactivityCheckRef.current);
     };
-  }, [user, forceLogout, handleActivity]);
+  }, [forceLogout, handleActivity]);
 
   async function fetchProfile(userId, retry = true) {
     try {
