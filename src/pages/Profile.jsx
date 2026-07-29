@@ -4,11 +4,12 @@ import pb from "@/lib/pocketbaseClient"
 import { normalizeWhatsapp, formatWhatsapp } from "@/utils/formatUtils"
 import { notify } from "@/utils/notify"
 import { hashPin, isValidPin } from "@/utils/pinAuth"
+import { createSecret, createURI, generateQR, verifyToken } from "@/utils/totp"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, User, Mail, Phone, Lock, Save, ShieldCheck } from "lucide-react"
+import { Loader2, User, Mail, Phone, Lock, Save, ShieldCheck, Smartphone } from "lucide-react"
 
 export default function Profile() {
   const { user, profile, refreshProfile, isAdmin } = useAuth()
@@ -19,6 +20,12 @@ export default function Profile() {
   const [savingPin, setSavingPin] = useState(false)
   const [loading, setLoading] = useState(true)
   const [pinEnabled, setPinEnabled] = useState(false)
+  const [totpEnabled, setTotpEnabled] = useState(false)
+  const [showTotpSetup, setShowTotpSetup] = useState(false)
+  const [totpSecret, setTotpSecret] = useState("")
+  const [totpQR, setTotpQR] = useState("")
+  const [totpCode, setTotpCode] = useState("")
+  const [totpVerifying, setTotpVerifying] = useState(false)
 
   useEffect(() => {
     if (profile) {
@@ -30,6 +37,7 @@ export default function Profile() {
         newPassword: "",
       })
       setPinEnabled(!!profile.pin)
+      setTotpEnabled(!!profile.totp_enabled)
       setLoading(false)
     }
   }, [profile])
@@ -91,6 +99,57 @@ export default function Profile() {
       notify("Error al guardar PIN: " + (err.message || err), "error")
     } finally {
       setSavingPin(false)
+    }
+  }
+
+  async function handleStartTotpSetup() {
+    const secret = createSecret()
+    const uri = createURI(profile.email, secret)
+    const qr = await generateQR(uri)
+    setTotpSecret(secret)
+    setTotpQR(qr)
+    setShowTotpSetup(true)
+    setTotpCode("")
+  }
+
+  async function handleVerifyTotp() {
+    if (!verifyToken(totpCode, totpSecret)) {
+      notify("Código inválido. Intenta de nuevo.", "error")
+      return
+    }
+    setTotpVerifying(true)
+    try {
+      await pb.collection('users').update(user.id, {
+        totp_secret: totpSecret,
+        totp_enabled: true,
+      })
+      setTotpEnabled(true)
+      setShowTotpSetup(false)
+      setTotpCode("")
+      notify("Autenticación en dos pasos activada correctamente", "success")
+      await refreshProfile?.()
+    } catch (err) {
+      notify("Error al guardar: " + (err.message || err), "error")
+    } finally {
+      setTotpVerifying(false)
+    }
+  }
+
+  async function handleDisableTotp() {
+    try {
+      await pb.collection('users').update(user.id, {
+        totp_secret: "",
+        totp_enabled: false,
+      })
+      setTotpEnabled(false)
+      setShowTotpSetup(false)
+      setTotpSecret("")
+      setTotpQR("")
+      setTotpCode("")
+      notify("Autenticación en dos pasos desactivada", "success")
+      await refreshProfile?.()
+    } catch (err) {
+      notify("Error: " + (err.message || err), "error")
     }
   }
 
@@ -259,6 +318,87 @@ export default function Profile() {
                     )}
                   </Button>
                 </div>
+              </div>
+            )}
+
+            {isAdmin && (
+              <div className="border-t pt-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Smartphone className="w-5 h-5 text-primary" />
+                  <h3 className="font-semibold text-foreground">Autenticación en dos pasos</h3>
+                </div>
+
+                {showTotpSetup ? (
+                  <>
+                    <p className="text-xs text-muted-foreground mb-4">
+                      Escanea este código QR con <strong>Google Authenticator</strong> y luego ingresa el código de verificación.
+                    </p>
+                    {totpQR && (
+                      <div className="flex justify-center mb-4">
+                        <img src={totpQR} alt="Código QR para TOTP" className="rounded-lg border" />
+                      </div>
+                    )}
+                    <div className="space-y-2 mb-4">
+                      <Label htmlFor="totpVerify">Código de verificación</Label>
+                      <Input
+                        id="totpVerify"
+                        type="text"
+                        inputMode="numeric"
+                        value={totpCode}
+                        onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        placeholder="000000"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        onClick={handleVerifyTotp}
+                        disabled={totpVerifying || totpCode.length < 6}
+                        className="flex-1 gap-2"
+                      >
+                        {totpVerifying ? (
+                          <><Loader2 className="w-4 h-4 animate-spin" /> Verificando...</>
+                        ) : (
+                          <><ShieldCheck className="w-4 h-4" /> Verificar y activar</>
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setShowTotpSetup(false)}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground mb-4">
+                      {totpEnabled
+                        ? "Tienes la autenticación en dos pasos activada. Al iniciar sesión se te pedirá un código de Google Authenticator."
+                        : "Configura la autenticación en dos pasos para mayor seguridad al iniciar sesión."}
+                    </p>
+                    <Button
+                      type="button"
+                      variant={totpEnabled ? "secondary" : "default"}
+                      onClick={handleStartTotpSetup}
+                      className="w-full gap-2"
+                    >
+                      <Smartphone className="w-4 h-4" />
+                      {totpEnabled ? "Reconfigurar" : "Configurar"}
+                    </Button>
+                    {totpEnabled && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleDisableTotp}
+                        className="w-full gap-2 mt-2"
+                      >
+                        Deshabilitar
+                      </Button>
+                    )}
+                  </>
+                )}
               </div>
             )}
 
