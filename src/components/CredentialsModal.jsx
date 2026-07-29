@@ -46,6 +46,20 @@ export default function CredentialsModal({ service, isOpen, onClose, canEdit = f
 
   const isAdmin = profile?.role === "admin"
 
+  async function fetchServiceData() {
+    if (!service?.id) return
+    try {
+      const s = await pb.collection('user_services').getOne(service.id, { expand: 'service_id', requestKey: null })
+      setLocalService(s)
+      setEditUser(s.acceso_user || "")
+      setEditPassword(s.acceso_password || "")
+    } catch {
+      notify("Error al cargar credenciales", "error")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function handleAuth(e) {
     e?.preventDefault()
     if (!authCode) return
@@ -58,15 +72,18 @@ export default function CredentialsModal({ service, isOpen, onClose, canEdit = f
       }
       const valid = verifyToken(authCode, profile.totp_secret)
       if (valid) {
+        setLoading(true)
         setAuthGranted(true)
         setAuthCode("")
+        setAuthing(false)
+        await fetchServiceData()
       } else {
         setAuthError("Código incorrecto")
       }
     } catch {
       setAuthError("Error al verificar código")
     } finally {
-      setAuthing(false)
+      if (!authGranted) setAuthing(false)
     }
   }
 
@@ -96,16 +113,21 @@ export default function CredentialsModal({ service, isOpen, onClose, canEdit = f
 
   useEffect(() => {
     if (isOpen && service?.id) {
-      setLoading(true)
+      setLocalService(null)
       setAuthRequired(isAdmin && !!profile?.totp_enabled)
       setAuthGranted(false)
       setAuthCode("")
       setAuthError("")
       setShowPassword(false)
-      pb.collection('user_services').getOne(service.id, { expand: 'service_id', requestKey: null })
-        .then((s) => { setLocalService(s); setEditUser(s.acceso_user || ""); setEditPassword(s.acceso_password || "") })
-        .catch(() => notify("Error al cargar credenciales", "error"))
-        .finally(() => setLoading(false))
+      setEditUser("")
+      setEditPassword("")
+
+      if (isAdmin && profile?.totp_enabled) {
+        setLoading(false)
+      } else {
+        setLoading(true)
+        fetchServiceData()
+      }
     } else {
       setLocalService(null)
       setShowPassword(false)
