@@ -751,16 +751,22 @@ export default function AdminUsers() {
           </div>
         </div>
 
-        <Modal isOpen={showServiceModal} onClose={() => setShowServiceModal(false)} title={editingService ? "Editar Servicio" : "Agregar Servicio"} size="md">
-          <form onSubmit={handleSaveService} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-1.5">Servicio base</label>
-              <select value={serviceForm.service_id} onChange={(e) => setServiceForm({ ...serviceForm, service_id: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" required>
-                <option value="">Seleccionar servicio...</option>
-                {baseServices.map((s) => (<option key={s.id} value={s.id}>{s.name} ({s.type})</option>))}
-              </select>
+        <Modal isOpen={showServiceModal} onClose={() => setShowServiceModal(false)} title={editingService ? "Editar Servicio" : "Agregar Servicio"} size="xl">
+          <form onSubmit={handleSaveService} className="space-y-5">
+            <div className="grid grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-1.5">Servicio base</label>
+                <select value={serviceForm.service_id} onChange={(e) => setServiceForm({ ...serviceForm, service_id: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" required>
+                  <option value="">Seleccionar servicio...</option>
+                  {baseServices.map((s) => (<option key={s.id} value={s.id}>{s.name} ({s.type})</option>))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-1.5">URL del dominio</label>
+                <input type="url" value={serviceForm.url_dominio} onChange={(e) => setServiceForm({ ...serviceForm, url_dominio: e.target.value })} placeholder="https://dominio.com" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-5">
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1.5">Precio</label>
                 <input type="number" value={serviceForm.price} onChange={(e) => setServiceForm({ ...serviceForm, price: e.target.value })} placeholder="0" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
@@ -789,46 +795,50 @@ export default function AdminUsers() {
                 ))}
               </div>
             </div>
-            <label className="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-muted transition-all">
-              <input type="checkbox" checked={serviceForm.owner === 1} onChange={(e) => setServiceForm({ ...serviceForm, owner: e.target.checked ? 1 : 0, tarjeta: e.target.checked ? serviceForm.tarjeta : "" })} className="w-4 h-4 rounded border-primary text-primary" />
-              <div>
-                <span className="font-medium text-sm text-foreground">Cliente paga</span>
-                <p className="text-xs text-muted-foreground">El cliente gestiona y paga directamente este servicio</p>
+            <div className="grid grid-cols-2 gap-5">
+              <div className="space-y-3">
+                <label className="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-muted transition-all">
+                  <input type="checkbox" checked={serviceForm.owner === 1} onChange={(e) => setServiceForm({ ...serviceForm, owner: e.target.checked ? 1 : 0, tarjeta: e.target.checked ? serviceForm.tarjeta : "" })} className="w-4 h-4 rounded border-primary text-primary" />
+                  <div>
+                    <span className="font-medium text-sm text-foreground">Cliente paga</span>
+                    <p className="text-xs text-muted-foreground">El cliente gestiona y paga directamente</p>
+                  </div>
+                </label>
+                {serviceForm.owner === 1 && (
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1.5">4 últimos dígitos de la tarjeta</label>
+                    <input type="text" value={serviceForm.tarjeta} onChange={(e) => setServiceForm({ ...serviceForm, tarjeta: e.target.value.replace(/\D/g, '').slice(0, 4) })} placeholder="1234" maxLength={4} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                  </div>
+                )}
               </div>
-            </label>
-            {serviceForm.owner === 1 && (
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1.5">4 últimos dígitos de la tarjeta</label>
-                  <input type="text" value={serviceForm.tarjeta} onChange={(e) => setServiceForm({ ...serviceForm, tarjeta: e.target.value.replace(/\D/g, '').slice(0, 4) })} placeholder="1234" maxLength={4} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
-                </div>
-            )}
-            <label className="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-muted transition-all">
-              <input type="checkbox" checked={serviceForm.requiere_abono} onChange={(e) => setServiceForm({ ...serviceForm, requiere_abono: e.target.checked })} className="w-4 h-4 rounded border-primary text-primary" />
-              <div>
-                <span className="font-medium text-sm text-foreground">Requiere abono</span>
-                <p className="text-xs text-muted-foreground">Muestra el progreso de pago y el restante</p>
+              <div className="space-y-3">
+                <label className="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-muted transition-all">
+                  <input type="checkbox" checked={serviceForm.requiere_abono} onChange={(e) => setServiceForm({ ...serviceForm, requiere_abono: e.target.checked })} className="w-4 h-4 rounded border-primary text-primary" />
+                  <div>
+                    <span className="font-medium text-sm text-foreground">Requiere abono</span>
+                    <p className="text-xs text-muted-foreground">Muestra el progreso de pago y el restante</p>
+                  </div>
+                </label>
+                {serviceForm.requiere_abono && (
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1.5">Monto abonado</label>
+                    <input type="number" value={serviceForm.monto_abonado} onChange={(e) => setServiceForm({ ...serviceForm, monto_abonado: e.target.value })} placeholder="0" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                  </div>
+                )}
               </div>
-            </label>
-            {serviceForm.requiere_abono && (
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1.5">Monto abonado</label>
-                <input type="number" value={serviceForm.monto_abonado} onChange={(e) => setServiceForm({ ...serviceForm, monto_abonado: e.target.value })} placeholder="0" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
-              </div>
-            )}
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-1.5">URL del dominio</label>
-              <input type="url" value={serviceForm.url_dominio} onChange={(e) => setServiceForm({ ...serviceForm, url_dominio: e.target.value })} placeholder="https://dominio.com" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-1.5">Notas</label>
-              <textarea value={serviceForm.notes} onChange={(e) => setServiceForm({ ...serviceForm, notes: e.target.value })} rows={3} placeholder="Observaciones..." className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-vertical min-h-[80px]" />
-            </div>
-            <div>
-              <label className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground mb-1.5">
-                <Lock className="w-3.5 h-3.5" />
-                Notas privadas (solo admin)
-              </label>
-              <textarea value={serviceForm.admin_notes} onChange={(e) => setServiceForm({ ...serviceForm, admin_notes: e.target.value })} rows={6} placeholder="Notas internas - el cliente no las verá..." className="flex w-full rounded-md border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-vertical min-h-[160px] font-mono" />
+            <div className="grid grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-1.5">Notas</label>
+                <textarea value={serviceForm.notes} onChange={(e) => setServiceForm({ ...serviceForm, notes: e.target.value })} rows={4} placeholder="Observaciones..." className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-vertical min-h-[100px]" />
+              </div>
+              <div>
+                <label className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground mb-1.5">
+                  <Lock className="w-3.5 h-3.5" />
+                  Notas privadas (solo admin)
+                </label>
+                <textarea value={serviceForm.admin_notes} onChange={(e) => setServiceForm({ ...serviceForm, admin_notes: e.target.value })} rows={6} placeholder="Notas internas - el cliente no las verá..." className="flex w-full rounded-md border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-vertical min-h-[180px] font-mono" />
+              </div>
             </div>
             <div className="flex gap-3 pt-2">
               <Button type="submit" className="flex-1">{editingService ? "Guardar Cambios" : "Agregar Servicio"}</Button>
