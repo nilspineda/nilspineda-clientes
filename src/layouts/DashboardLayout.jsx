@@ -46,6 +46,7 @@ const adminLinks = [
   { path: "/admin/users", label: "Clientes", icon: Users },
   { path: "/admin/services", label: "Servicios", icon: Package },
   { path: "/admin/payments", label: "Pagos", icon: Wallet },
+  { path: "/profile", label: "Mi Perfil", icon: User },
 ]
 
 function SidebarNav({ collapsed, onClose }) {
