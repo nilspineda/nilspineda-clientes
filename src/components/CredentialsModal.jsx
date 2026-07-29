@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { notify } from "@/utils/notify"
 import { normalizeUrl } from "@/utils/formatUtils"
 import { sanitizeRichText } from "@/utils/sanitize"
-import { verifyPin } from "@/utils/pinAuth"
+import { verifyToken } from "@/utils/totp"
 import Modal from "@/components/Modal"
 import LexicalEditor from "@/components/LexicalEditor"
 import { Button } from "@/components/ui/button"
@@ -39,33 +39,32 @@ export default function CredentialsModal({ service, isOpen, onClose, canEdit = f
   const [editUser, setEditUser] = useState("")
   const [editPassword, setEditPassword] = useState("")
   const [authRequired, setAuthRequired] = useState(false)
-  const [authPin, setAuthPin] = useState("")
+  const [authCode, setAuthCode] = useState("")
   const [authError, setAuthError] = useState("")
   const [authing, setAuthing] = useState(false)
   const [authGranted, setAuthGranted] = useState(false)
-  const [hasPin, setHasPin] = useState(false)
 
   const isAdmin = profile?.role === "admin"
 
   async function handleAuth(e) {
     e?.preventDefault()
-    if (!authPin) return
+    if (!authCode) return
     setAuthing(true)
     setAuthError("")
     try {
-      if (!profile?.pin) {
-        setAuthError("No tienes un PIN configurado. Configúralo en tu perfil.")
+      if (!profile?.totp_secret) {
+        setAuthError("No tienes TOTP configurado. Configúralo en tu perfil.")
         return
       }
-      const valid = await verifyPin(authPin, profile.pin)
+      const valid = verifyToken(authCode, profile.totp_secret)
       if (valid) {
         setAuthGranted(true)
-        setAuthPin("")
+        setAuthCode("")
       } else {
-        setAuthError("PIN incorrecto")
+        setAuthError("Código incorrecto")
       }
     } catch {
-      setAuthError("Error al verificar PIN")
+      setAuthError("Error al verificar código")
     } finally {
       setAuthing(false)
     }
@@ -98,10 +97,9 @@ export default function CredentialsModal({ service, isOpen, onClose, canEdit = f
   useEffect(() => {
     if (isOpen && service?.id) {
       setLoading(true)
-      setHasPin(!!profile?.pin)
-      setAuthRequired(isAdmin && !!profile?.pin)
+      setAuthRequired(isAdmin && !!profile?.totp_enabled)
       setAuthGranted(false)
-      setAuthPin("")
+      setAuthCode("")
       setAuthError("")
       setShowPassword(false)
       pb.collection('user_services').getOne(service.id, { expand: 'service_id', requestKey: null })
@@ -115,10 +113,10 @@ export default function CredentialsModal({ service, isOpen, onClose, canEdit = f
       setEditPassword("")
       setAuthRequired(false)
       setAuthGranted(false)
-      setAuthPin("")
+      setAuthCode("")
       setAuthError("")
     }
-  }, [isOpen, service?.id, isAdmin, profile?.pin])
+  }, [isOpen, service?.id, isAdmin, profile?.totp_enabled, profile?.totp_secret])
 
   const s = localService || service
   const url = s?.url_dominio ? normalizeUrl(s.url_dominio) : null
@@ -208,13 +206,13 @@ export default function CredentialsModal({ service, isOpen, onClose, canEdit = f
     <Modal isOpen={isOpen} onClose={onClose} title={`Credenciales - ${s?.expand?.service_id?.name || "Servicio"}`} size="lg">
       {loading ? (
         <div className="flex justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
-      ) : isAdmin && !hasPin ? (
+      ) : isAdmin && !profile?.totp_enabled ? (
         <>
           <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 text-sm text-yellow-600 dark:text-yellow-400 text-center space-y-2">
             <ShieldCheck className="w-6 h-6 mx-auto" />
-            <p>No tienes un PIN de seguridad configurado.</p>
+            <p>No tienes la autenticación en dos pasos configurada.</p>
             <p>
-              <a href="/profile" className="underline font-medium">Configúralo en tu perfil</a>{" "}
+              <a href="/profile" className="underline font-medium">Configúrala en tu perfil</a>{" "}
               para proteger el acceso a las credenciales.
             </p>
           </div>
@@ -224,27 +222,27 @@ export default function CredentialsModal({ service, isOpen, onClose, canEdit = f
         <form onSubmit={handleAuth} className="space-y-4 py-4">
           <div className="text-center space-y-2">
             <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-              <ShieldCheck className="w-7 h-7 text-primary" />
+              <Key className="w-7 h-7 text-primary" />
             </div>
             <h3 className="text-lg font-bold text-foreground">Verificación de seguridad</h3>
-            <p className="text-sm text-muted-foreground">Ingresa tu PIN de seguridad para ver las credenciales</p>
+            <p className="text-sm text-muted-foreground">Ingresa el código de Google Authenticator para ver las credenciales</p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="authPin">Tu PIN</Label>
+            <Label htmlFor="authCode">Código de verificación</Label>
             <Input
-              id="authPin"
-              type="password"
+              id="authCode"
+              type="text"
               inputMode="numeric"
-              value={authPin}
-              onChange={(e) => setAuthPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              placeholder="••••••"
+              autoComplete="one-time-code"
+              value={authCode}
+              onChange={(e) => setAuthCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="000000"
               autoFocus
-              maxLength={6}
             />
             {authError && <p className="text-sm text-destructive">{authError}</p>}
           </div>
-          <Button type="submit" disabled={authing || !authPin} className="w-full gap-2">
-            {authing ? <><Loader2 className="w-4 h-4 animate-spin" /> Verificando...</> : <><ShieldCheck className="w-4 h-4" /> Verificar</>}
+          <Button type="submit" disabled={authing || authCode.length < 6} className="w-full gap-2">
+            {authing ? <><Loader2 className="w-4 h-4 animate-spin" /> Verificando...</> : <><Key className="w-4 h-4" /> Verificar</>}
           </Button>
         </form>
       ) : (
