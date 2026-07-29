@@ -79,8 +79,8 @@ export function AuthProvider({ children }) {
     }
   }
 
-  async function signIn(email, password) {
-    const authData = await pb.collection("users").authWithPassword(email, password);
+  async function signIn(email, password, mfaCode) {
+    const authData = await pb.collection("users").authWithPassword(email, password, mfaCode);
     return authData;
   }
 
