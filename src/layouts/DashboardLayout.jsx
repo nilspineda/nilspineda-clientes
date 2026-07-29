@@ -128,6 +128,7 @@ function Sidebar({ collapsed, onToggle, onClose }) {
   }, [])
 
   async function handleSignOut() {
+    localStorage.removeItem("dashboard-sidebar-collapsed")
     await signOut()
     navigate("/login")
   }
@@ -304,6 +305,7 @@ export default function DashboardLayout() {
   }, [])
 
   async function handleSignOut() {
+    localStorage.removeItem("dashboard-sidebar-collapsed")
     await signOut()
     navigate("/login")
   }

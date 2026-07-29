@@ -186,9 +186,6 @@ export default function AdminUsers() {
           updateData.passwordConfirm = formData.password
         }
         await pb.collection('users').update(editingUser.id, updateData)
-        if (formData.password) {
-          try { await pb.collection('users').update(editingUser.id, { plain_password: formData.password }) } catch (e) { console.warn("plain_password falló, ¿existe el campo?", e) }
-        }
         notify("Usuario actualizado correctamente", "success")
         fetchUsers()
         resetForm()
@@ -203,7 +200,6 @@ export default function AdminUsers() {
           role: "user",
           status: "active",
         })
-        try { await pb.collection('users').update(data.id, { plain_password: formData.password }) } catch (e) { console.warn("plain_password falló, ¿existe el campo?", e) }
         notify("Usuario creado correctamente. El usuario puede iniciar sesión.", "success")
         setNewUserWhatsapp(normalizedWhatsapp)
         setShowSendCreds(true)
@@ -224,36 +220,33 @@ export default function AdminUsers() {
     }
   }
 
-  function sendUserCredentials(user) {
-    const password = user.plain_password
-    if (!password) {
-      notify("No hay contraseña guardada. Edita el usuario y establece una contraseña primero.", "error")
-      return
-    }
+  async function sendUserCredentials(user) {
     const message = encodeURIComponent(
       `Hola ${user.name}, bienvenido/a.\n\n` +
-      `Tus credenciales de acceso: https://clientes.nilspineda.com\n` +
-      `Email: ${user.email}\n` +
-      `Contraseña: ${password}\n\n` +
-      `Puedes cambiar tu contraseña desde tu perfil.\n\n` +
+      `Tu portal de cliente: https://clientes.nilspineda.com\n` +
+      `Email: ${user.email}\n\n` +
+      `Para establecer tu contraseña, usa la opción "¿Olvidaste tu contraseña?" en la pantalla de inicio de sesión.\n\n` +
       `Gracias por confiar en nuestros servicios.`
     )
     const whatsappNum = normalizeWhatsapp(user.whatsapp).replace(/\D/g, "")
     window.open(`https://wa.me/${whatsappNum}?text=${message}`, "_blank")
+    try { await pb.collection('users').requestPasswordReset(user.email) } catch (e) { console.warn("Error al enviar reset de password:", e) }
   }
 
   function sendCredentials() {
     const message = encodeURIComponent(
       `Hola ${formData.name || ''}, bienvenido/a.\n\n` +
-      `Tus credenciales de acceso: https://clientes.nilspineda.com\n` +
-      `Email: ${formData.email}\n` +
-      `Contraseña: ${formData.password}\n\n` +
-      `Puedes cambiar tu contraseña desde tu perfil.\n\n` +
+      `Tu portal de cliente: https://clientes.nilspineda.com\n` +
+      `Email: ${formData.email}\n\n` +
+      `Para establecer tu contraseña, usa la opción "¿Olvidaste tu contraseña?" en la pantalla de inicio de sesión.\n\n` +
       `Gracias por confiar en nuestros servicios.`
     )
     const whatsappNum = newUserWhatsapp.replace(/\D/g, "")
     window.open(`https://wa.me/${whatsappNum}?text=${message}`, "_blank")
     setShowSendCreds(false)
+    if (formData.email) {
+      try { pb.collection('users').requestPasswordReset(formData.email) } catch (e) { console.warn("Error al enviar reset de password:", e) }
+    }
   }
 
   function resetForm() {

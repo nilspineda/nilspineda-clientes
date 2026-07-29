@@ -1,11 +1,15 @@
 import { useState, useEffect } from "react"
 import pb from "@/lib/pocketbaseClient"
+import { useAuth } from "@/hooks/useAuth"
 import { notify } from "@/utils/notify"
 import { normalizeUrl } from "@/utils/formatUtils"
+import { sanitizeRichText } from "@/utils/sanitize"
 import Modal from "@/components/Modal"
 import LexicalEditor from "@/components/LexicalEditor"
 import { Button } from "@/components/ui/button"
-import { ExternalLink, Copy, Eye, EyeOff, Loader2, Key } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { ExternalLink, Copy, Eye, EyeOff, Loader2, Key, Lock, ShieldCheck } from "lucide-react"
 
 function CopyButton({ value, label }) {
   const [copied, setCopied] = useState(false)
@@ -26,12 +30,38 @@ function CopyButton({ value, label }) {
 }
 
 export default function CredentialsModal({ service, isOpen, onClose, canEdit = false }) {
+  const { profile } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [saving, setSaving] = useState(false)
   const [localService, setLocalService] = useState(null)
   const [loading, setLoading] = useState(false)
   const [editUser, setEditUser] = useState("")
   const [editPassword, setEditPassword] = useState("")
+  const [authRequired, setAuthRequired] = useState(false)
+  const [authPassword, setAuthPassword] = useState("")
+  const [authError, setAuthError] = useState("")
+  const [authing, setAuthing] = useState(false)
+  const [authGranted, setAuthGranted] = useState(false)
+
+  const isAdmin = profile?.role === "admin"
+
+  async function handleAuth(e) {
+    e?.preventDefault()
+    if (!authPassword) return
+    setAuthing(true)
+    setAuthError("")
+    try {
+      const email = profile?.email
+      if (!email) { setAuthError("No se pudo verificar tu identidad"); return }
+      await pb.collection('users').authWithPassword(email, authPassword)
+      setAuthGranted(true)
+      setAuthPassword("")
+    } catch {
+      setAuthError("Contraseña incorrecta")
+    } finally {
+      setAuthing(false)
+    }
+  }
 
   async function handleSaveAccesos(content) {
     if (!localService?.id) return
@@ -60,6 +90,11 @@ export default function CredentialsModal({ service, isOpen, onClose, canEdit = f
   useEffect(() => {
     if (isOpen && service?.id) {
       setLoading(true)
+      setAuthRequired(isAdmin)
+      setAuthGranted(false)
+      setAuthPassword("")
+      setAuthError("")
+      setShowPassword(false)
       pb.collection('user_services').getOne(service.id, { expand: 'service_id', requestKey: null })
         .then((s) => { setLocalService(s); setEditUser(s.acceso_user || ""); setEditPassword(s.acceso_password || "") })
         .catch(() => notify("Error al cargar credenciales", "error"))
@@ -69,8 +104,12 @@ export default function CredentialsModal({ service, isOpen, onClose, canEdit = f
       setShowPassword(false)
       setEditUser("")
       setEditPassword("")
+      setAuthRequired(false)
+      setAuthGranted(false)
+      setAuthPassword("")
+      setAuthError("")
     }
-  }, [isOpen, service?.id])
+  }, [isOpen, service?.id, isAdmin])
 
   const s = localService || service
   const url = s?.url_dominio ? normalizeUrl(s.url_dominio) : null
@@ -79,6 +118,31 @@ export default function CredentialsModal({ service, isOpen, onClose, canEdit = f
     <Modal isOpen={isOpen} onClose={onClose} title={`Credenciales - ${s?.expand?.service_id?.name || "Servicio"}`} size="lg">
       {loading ? (
         <div className="flex justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+      ) : authRequired && !authGranted ? (
+        <form onSubmit={handleAuth} className="space-y-4 py-4">
+          <div className="text-center space-y-2">
+            <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+              <ShieldCheck className="w-7 h-7 text-primary" />
+            </div>
+            <h3 className="text-lg font-bold text-foreground">Verificación de seguridad</h3>
+            <p className="text-sm text-muted-foreground">Ingresa tu contraseña actual para ver las credenciales</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="authPassword">Tu contraseña</Label>
+            <Input
+              id="authPassword"
+              type="password"
+              value={authPassword}
+              onChange={(e) => setAuthPassword(e.target.value)}
+              placeholder="••••••••"
+              autoFocus
+            />
+            {authError && <p className="text-sm text-destructive">{authError}</p>}
+          </div>
+          <Button type="submit" disabled={authing || !authPassword} className="w-full gap-2">
+            {authing ? <><Loader2 className="w-4 h-4 animate-spin" /> Verificando...</> : <><Lock className="w-4 h-4" /> Verificar</>}
+          </Button>
+        </form>
       ) : (
         <div className="space-y-5">
           {url && (
@@ -146,7 +210,7 @@ export default function CredentialsModal({ service, isOpen, onClose, canEdit = f
               <div className="space-y-3">
                 <h3 className="text-lg font-bold text-foreground">Credenciales y Accesos</h3>
                 {s?.accesos ? (
-                  <div className="prose prose-invert max-w-none p-4 bg-muted/30 rounded-lg min-h-[100px] border border-border" dangerouslySetInnerHTML={{ __html: s.accesos.replace(/\n/g, "<br/>") }} />
+                  <div className="prose prose-invert max-w-none p-4 bg-muted/30 rounded-lg min-h-[100px] border border-border" dangerouslySetInnerHTML={{ __html: sanitizeRichText(s.accesos) }} />
                 ) : (
                   <div className="text-center py-8 bg-muted/30 rounded-lg border border-dashed border-border">
                     <p className="text-muted-foreground font-medium">No hay accesos registrados</p>

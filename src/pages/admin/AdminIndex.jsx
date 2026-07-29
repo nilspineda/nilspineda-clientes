@@ -148,7 +148,6 @@ export default function AdminIndex() {
         passwordConfirm: userForm.password,
         name: userForm.name,
         whatsapp: normalizeWhatsapp(userForm.whatsapp),
-        plain_password: userForm.password,
         role: "user",
         status: "active",
       })

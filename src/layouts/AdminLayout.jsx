@@ -123,6 +123,7 @@ function Sidebar({ collapsed, onToggle, onClose }) {
   }, []);
 
   async function handleSignOut() {
+    localStorage.removeItem("sidebar-collapsed");
     await signOut();
     navigate("/login");
   }
@@ -316,6 +317,7 @@ export default function AdminLayout() {
   }, []);
 
   async function handleSignOut() {
+    localStorage.removeItem("sidebar-collapsed");
     await signOut();
     navigate("/login");
   }

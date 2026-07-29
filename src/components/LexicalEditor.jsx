@@ -9,6 +9,7 @@ import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { ListItemNode, ListNode } from "@lexical/list";
 import { LinkNode, $createLinkNode } from "@lexical/link";
+import { sanitizeHtml, sanitizeRichText } from "@/utils/sanitize";
 import {
   $getRoot,
   $createParagraphNode,
@@ -328,8 +329,8 @@ export default function LexicalEditor({
             className="prose prose-invert max-w-none p-4 bg-muted/30 rounded-lg min-h-[100px] border border-border"
             dangerouslySetInnerHTML={{
               __html: format === "json"
-                ? (() => { try { const d = JSON.parse(value); return extractTextFromLexical(d).replace(/\n/g, "<br/>") } catch(e) { return value.replace(/\n/g, "<br/>") } })()
-                : value.replace(/\n/g, "<br/>")
+                ? (() => { try { const d = JSON.parse(value); return sanitizeHtml(extractTextFromLexical(d)) } catch(e) { return sanitizeHtml(value) } })()
+                : sanitizeHtml(value)
             }}
           />
         ) : (

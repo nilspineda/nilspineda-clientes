@@ -48,9 +48,6 @@ export default function Profile() {
         updateData.passwordConfirm = form.newPassword
       }
       await pb.collection('users').update(user.id, updateData)
-      if (form.newPassword) {
-        try { await pb.collection('users').update(user.id, { plain_password: form.newPassword }) } catch (e) { console.warn("plain_password fallo", e) }
-      }
       notify("Perfil actualizado correctamente", "success")
       setForm((f) => ({ ...f, currentPassword: "", newPassword: "" }))
       await refreshProfile?.()

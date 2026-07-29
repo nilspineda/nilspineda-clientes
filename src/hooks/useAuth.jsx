@@ -1,13 +1,28 @@
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect, useRef, createContext, useContext, useCallback } from "react";
 import pb from "../lib/pocketbaseClient";
 
 const AuthContext = createContext(null);
+
+const INACTIVITY_TIMEOUT = 30 * 60 * 1000;
+const ACTIVITY_EVENTS = ["mousedown", "keydown", "mousemove", "scroll", "touchstart", "click"];
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
+  const lastActivity = useRef(Date.now());
+  const inactivityCheckRef = useRef(null);
+
+  const forceLogout = useCallback(() => {
+    pb.authStore.clear();
+    setUser(null);
+    setProfile(null);
+  }, []);
+
+  const handleActivity = useCallback(() => {
+    lastActivity.current = Date.now();
+  }, []);
 
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
@@ -15,6 +30,7 @@ export function AuthProvider({ children }) {
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
+    ACTIVITY_EVENTS.forEach((event) => window.addEventListener(event, handleActivity));
 
     setIsOffline(!navigator.onLine);
 
@@ -29,14 +45,23 @@ export function AuthProvider({ children }) {
       setUser(model);
       setProfile(model);
       setLoading(false);
+      if (model) lastActivity.current = Date.now();
     });
+
+    inactivityCheckRef.current = setInterval(() => {
+      if (user && Date.now() - lastActivity.current > INACTIVITY_TIMEOUT) {
+        forceLogout();
+      }
+    }, 60000);
 
     return () => {
       if (typeof unsubscribe === "function") unsubscribe();
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+      ACTIVITY_EVENTS.forEach((event) => window.removeEventListener(event, handleActivity));
+      if (inactivityCheckRef.current) clearInterval(inactivityCheckRef.current);
     };
-  }, []);
+  }, [user, forceLogout, handleActivity]);
 
   async function fetchProfile(userId, retry = true) {
     try {
@@ -44,7 +69,6 @@ export function AuthProvider({ children }) {
       setProfile(record);
       setUser(record);
     } catch (err) {
-      console.error("Error fetching profile:", err);
       if (retry && !isOffline) {
         await new Promise((resolve) => setTimeout(resolve, 2000));
         return fetchProfile(userId, false);
