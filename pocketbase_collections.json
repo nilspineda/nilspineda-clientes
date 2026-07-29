@@ -22,7 +22,8 @@
       { "autogeneratePattern": "", "hidden": false, "id": "whatsapp", "max": 255, "min": 0, "name": "whatsapp", "pattern": "", "presentable": false, "primaryKey": false, "required": false, "system": false, "type": "text" },
       { "autogeneratePattern": "", "hidden": false, "id": "role", "max": 255, "min": 0, "name": "role", "pattern": "", "presentable": false, "primaryKey": false, "required": false, "system": false, "type": "text" },
       { "autogeneratePattern": "", "hidden": false, "id": "status", "max": 255, "min": 0, "name": "status", "pattern": "", "presentable": false, "primaryKey": false, "required": false, "system": false, "type": "text" },
-      { "autogeneratePattern": "", "hidden": false, "id": "accesos", "max": null, "min": 0, "name": "accesos", "pattern": "", "presentable": false, "primaryKey": false, "required": false, "system": false, "type": "editor" }
+      { "autogeneratePattern": "", "hidden": false, "id": "accesos", "max": null, "min": 0, "name": "accesos", "pattern": "", "presentable": false, "primaryKey": false, "required": false, "system": false, "type": "editor" },
+      { "autogeneratePattern": "", "hidden": false, "id": "pin", "max": 64, "min": 0, "name": "pin", "pattern": "", "presentable": false, "primaryKey": false, "required": false, "system": false, "type": "text" }
     ],
     "indexes": [
       "CREATE UNIQUE INDEX `idx_tokenKey__pb_users_auth_` ON `users` (`tokenKey`)",

@@ -3,17 +3,22 @@ import { useAuth } from "@/hooks/useAuth"
 import pb from "@/lib/pocketbaseClient"
 import { normalizeWhatsapp, formatWhatsapp } from "@/utils/formatUtils"
 import { notify } from "@/utils/notify"
+import { hashPin, isValidPin } from "@/utils/pinAuth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, User, Mail, Phone, Lock, Save } from "lucide-react"
+import { Loader2, User, Mail, Phone, Lock, Save, ShieldCheck } from "lucide-react"
 
 export default function Profile() {
-  const { user, profile, refreshProfile } = useAuth()
+  const { user, profile, refreshProfile, isAdmin } = useAuth()
   const [form, setForm] = useState({ name: "", email: "", whatsapp: "", currentPassword: "", newPassword: "" })
+  const [pin, setPin] = useState("")
+  const [pinConfirm, setPinConfirm] = useState("")
   const [saving, setSaving] = useState(false)
+  const [savingPin, setSavingPin] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [pinEnabled, setPinEnabled] = useState(false)
 
   useEffect(() => {
     if (profile) {
@@ -24,6 +29,7 @@ export default function Profile() {
         currentPassword: "",
         newPassword: "",
       })
+      setPinEnabled(!!profile.pin)
       setLoading(false)
     }
   }, [profile])
@@ -60,6 +66,31 @@ export default function Profile() {
       }
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleSavePin() {
+    if (!isValidPin(pin)) {
+      notify("El PIN debe ser de 4 a 6 dígitos numéricos", "error")
+      return
+    }
+    if (pin !== pinConfirm) {
+      notify("Los PIN no coinciden", "error")
+      return
+    }
+    setSavingPin(true)
+    try {
+      const hashed = await hashPin(pin)
+      await pb.collection('users').update(user.id, { pin: hashed })
+      setPinEnabled(true)
+      setPin("")
+      setPinConfirm("")
+      notify("PIN de seguridad guardado correctamente", "success")
+      await refreshProfile?.()
+    } catch (err) {
+      notify("Error al guardar PIN: " + (err.message || err), "error")
+    } finally {
+      setSavingPin(false)
     }
   }
 
@@ -175,6 +206,61 @@ export default function Profile() {
                 </div>
               </div>
             </div>
+
+            {isAdmin && (
+              <div className="border-t pt-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <ShieldCheck className="w-5 h-5 text-primary" />
+                  <h3 className="font-semibold text-foreground">PIN de seguridad</h3>
+                </div>
+                <p className="text-xs text-muted-foreground mb-4">
+                  {pinEnabled
+                    ? "Ingresa un nuevo PIN para reemplazar el actual."
+                    : "Configura un PIN de 4 a 6 dígitos para proteger el acceso a credenciales sensibles."}
+                </p>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="pin">PIN {pinEnabled ? "nuevo" : ""}</Label>
+                    <Input
+                      id="pin"
+                      type="password"
+                      inputMode="numeric"
+                      value={pin}
+                      onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="4-6 dígitos"
+                      maxLength={6}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="pinConfirm">Confirmar PIN</Label>
+                    <Input
+                      id="pinConfirm"
+                      type="password"
+                      inputMode="numeric"
+                      value={pinConfirm}
+                      onChange={(e) => setPinConfirm(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="Repite el PIN"
+                      maxLength={6}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant={pinEnabled ? "secondary" : "default"}
+                    onClick={handleSavePin}
+                    disabled={savingPin || !pin || !pinConfirm}
+                    className="w-full gap-2"
+                  >
+                    {savingPin ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Guardando...</>
+                    ) : pinEnabled ? (
+                      <><ShieldCheck className="w-4 h-4" /> Cambiar PIN</>
+                    ) : (
+                      <><ShieldCheck className="w-4 h-4" /> Activar PIN</>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
 
             <Button type="submit" disabled={saving} className="w-full gap-2">
               {saving ? (
