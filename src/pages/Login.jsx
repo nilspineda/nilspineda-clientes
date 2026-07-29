@@ -114,7 +114,11 @@ export default function Login() {
         }
       }
     } catch (err) {
-      setError(err?.message || "Error al iniciar sesión");
+      if (err?.response?.data?.mfa?.enabled) {
+        setError("MFA de PocketBase aún activo. Ve a Configuración > Colecciones > Users > Auth y deshabilita MFA.");
+      } else {
+        setError(err?.message || "Error al iniciar sesión");
+      }
     } finally {
       setLoading(false);
     }
