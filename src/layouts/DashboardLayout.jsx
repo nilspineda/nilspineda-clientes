@@ -312,7 +312,7 @@ export default function DashboardLayout() {
   }
 
   const sidebarWidth = collapsed ? "w-[72px]" : "w-72"
-  const sidebarMargin = collapsed ? "ml-[72px]" : "ml-72"
+  const sidebarMargin = collapsed ? "lg:ml-[72px]" : "lg:ml-72"
 
   return (
     <div className="flex min-h-screen bg-background">
