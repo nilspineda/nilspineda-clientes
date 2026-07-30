@@ -3,9 +3,12 @@ import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import "./index.css";
 
-// Conditionally unregister service workers and clear caches when needed.
-// Activate by setting `VITE_DISABLE_SW=true` in the deployment environment.
-if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+// Safety hatch: set VITE_DISABLE_SW=true to disable all service workers
+if (
+  import.meta.env.VITE_DISABLE_SW === "true" &&
+  typeof window !== "undefined" &&
+  "serviceWorker" in navigator
+) {
   navigator.serviceWorker.getRegistrations().then((regs) =>
     regs.forEach((r) => {
       try {
