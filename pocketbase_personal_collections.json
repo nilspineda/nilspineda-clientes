@@ -1,0 +1,33 @@
+[
+  {
+    "name": "personal_notes",
+    "type": "base",
+    "listRule": "@request.auth.role = \"admin\"",
+    "viewRule": "@request.auth.role = \"admin\"",
+    "createRule": "@request.auth.role = \"admin\"",
+    "updateRule": "@request.auth.role = \"admin\"",
+    "deleteRule": "@request.auth.role = \"admin\"",
+    "fields": [
+      { "name": "user_id", "type": "relation", "options": { "collectionId": "_pb_users_auth_", "maxSelect": 1 } },
+      { "name": "title", "type": "text", "options": { "max": 255 } },
+      { "name": "content", "type": "editor" }
+    ]
+  },
+  {
+    "name": "personal_tasks",
+    "type": "base",
+    "listRule": "@request.auth.role = \"admin\"",
+    "viewRule": "@request.auth.role = \"admin\"",
+    "createRule": "@request.auth.role = \"admin\"",
+    "updateRule": "@request.auth.role = \"admin\"",
+    "deleteRule": "@request.auth.role = \"admin\"",
+    "fields": [
+      { "name": "user_id", "type": "relation", "options": { "collectionId": "_pb_users_auth_", "maxSelect": 1 } },
+      { "name": "title", "type": "text", "options": { "max": 255 } },
+      { "name": "description", "type": "text", "options": { "max": null } },
+      { "name": "due_date", "type": "date" },
+      { "name": "completed", "type": "bool" },
+      { "name": "reminded_today", "type": "bool" }
+    ]
+  }
+]

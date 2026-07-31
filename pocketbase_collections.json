@@ -264,5 +264,5 @@
     ],
     "indexes": ["CREATE INDEX `idx_otps_collectionRef_recordRef` ON `_otps` (collectionRef, recordRef)"],
     "system": true
-  }
+  },
 ]

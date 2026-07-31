@@ -7,6 +7,7 @@ import logoSrc from "@/assets/logo.svg"
 import logoMarkSrc from "@/assets/logo-mark.svg"
 import { normalizeWhatsapp, formatWhatsapp } from "@/utils/formatUtils"
 import { Button } from "@/components/ui/button"
+import PicoPlacaIndicator from "@/components/PicoPlacaIndicator"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import {
@@ -31,6 +32,8 @@ import {
   Package,
   Home,
   User,
+  StickyNote,
+  ListTodo,
   Mail,
   MessageCircle,
 } from "lucide-react"
@@ -47,6 +50,9 @@ const adminLinks = [
   { path: "/admin/services", label: "Servicios", icon: Package },
   { path: "/admin/payments", label: "Pagos", icon: Wallet },
   { path: "/profile", label: "Mi Perfil", icon: User },
+  { path: null, label: "Personal", divider: true },
+  { path: "/admin/personal/notes", label: "Notas", icon: StickyNote },
+  { path: "/admin/personal/tasks", label: "Tareas", icon: ListTodo },
 ]
 
 function SidebarNav({ collapsed, onClose }) {
@@ -58,7 +64,18 @@ function SidebarNav({ collapsed, onClose }) {
     <nav className="flex-1 space-y-1 px-2 py-4">
       {links.map((link) => {
         const Icon = link.icon
-        const isActive = location.pathname === link.path
+        const isActive = link.path && location.pathname === link.path
+
+        if (link.divider) {
+          if (collapsed) return null
+          return (
+            <div key={link.label} className="pt-3 pb-1">
+              <span className="px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">
+                {link.label}
+              </span>
+            </div>
+          )
+        }
 
         if (collapsed) {
           return (
@@ -347,15 +364,20 @@ export default function DashboardLayout() {
         sidebarMargin
       )}>
         {/* Top bar */}
-        <header className="sticky top-0 z-20 flex items-center justify-end gap-4 h-16 px-6 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <header className="sticky top-0 z-20 flex items-center justify-between gap-2 h-16 pl-16 lg:pl-6 pr-4 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="flex items-center gap-2 min-w-0">
+            <Link to="/dashboard" className="lg:hidden shrink-0">
+              <img src={logoSrc} alt="Nilspineda" className="h-6" />
+            </Link>
+            <PicoPlacaIndicator />
+          </div>
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
             <span className="capitalize">
-              {colombiaTime.toLocaleDateString('es-CO', { timeZone: 'America/Bogota', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              {colombiaTime.toLocaleDateString('es-CO', { timeZone: 'America/Bogota', weekday: 'long', day: 'numeric', month: 'long' })}
             </span>
             <span className="hidden sm:inline">
               {colombiaTime.toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit' })}
             </span>
-            <span className="text-xs text-muted-foreground/60">COL</span>
           </div>
         </header>
 
