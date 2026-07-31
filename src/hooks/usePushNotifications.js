@@ -1,16 +1,10 @@
 import { useEffect, useRef } from 'react'
 import { useAuth } from './useAuth'
 import pb from '@/lib/pocketbaseClient'
-import { subscribeToPush, unsubscribeFromPush, subscriptionToJSON } from '@/lib/pushNotifications'
+import { subscribeToPush, subscriptionToJSON } from '@/lib/pushNotifications'
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY
 const COLLECTION = 'push notifications'
-
-async function getRegistration() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null
-  const regs = await navigator.serviceWorker.getRegistrations()
-  return regs.find((r) => r.active?.scriptURL?.includes('sw.js')) || null
-}
 
 async function saveSubscription(subscriptionJSON, userId) {
   try {
@@ -66,42 +60,38 @@ export function usePushNotifications() {
     let cancelled = false
 
     async function init() {
-      if (!('Notification' in window)) return
-      if (Notification.permission === 'denied') return
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
 
-      if (Notification.permission === 'default') {
-        const result = await Notification.requestPermission()
-        if (result !== 'granted') return
-      }
+      try {
+        const reg = await navigator.serviceWorker.ready
 
-      const reg = await getRegistration()
-      if (!reg || cancelled) return
+        if (cancelled) return
 
-      const existingSub = await reg.pushManager.getSubscription()
-      if (existingSub) {
-        const subJSON = subscriptionToJSON(existingSub)
-        if (subJSON) {
+        if (Notification.permission === 'denied') return
+        if (Notification.permission === 'default') {
+          const result = await Notification.requestPermission()
+          if (result !== 'granted') return
+        }
+
+        const existingSub = await reg.pushManager.getSubscription()
+        if (existingSub) {
+          const subJSON = subscriptionToJSON(existingSub)
+          if (subJSON) {
+            await saveSubscription(subJSON, pb.authStore.model?.id)
+            subscribedRef.current = true
+          }
+          return
+        }
+
+        const newSub = await subscribeToPush(reg, VAPID_PUBLIC_KEY)
+        if (newSub && !cancelled) {
+          const subJSON = subscriptionToJSON(newSub)
           await saveSubscription(subJSON, pb.authStore.model?.id)
           subscribedRef.current = true
-
-          existingSub.addEventListener('pushsubscriptionchange', async () => {
-            const newSub = await reg.pushManager.getSubscription()
-            if (newSub) {
-              await saveSubscription(subscriptionToJSON(newSub), pb.authStore.model?.id)
-            } else {
-              await removeSubscription(existingSub.endpoint)
-              subscribedRef.current = false
-            }
-          })
         }
-        return
-      }
-
-      const newSub = await subscribeToPush(reg, VAPID_PUBLIC_KEY)
-      if (newSub && !cancelled) {
-        const subJSON = subscriptionToJSON(newSub)
-        await saveSubscription(subJSON, pb.authStore.model?.id)
-        subscribedRef.current = true
+      } catch (err) {
+        console.warn('Push subscription failed:', err)
+        console.warn('Push notifications require HTTPS. If testing locally, the app must be deployed to Vercel or accessed via localhost.')
       }
     }
 
