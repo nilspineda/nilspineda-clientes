@@ -1,0 +1,44 @@
+[
+  {
+    "name": "push_subscriptions",
+    "type": "base",
+    "listRule": "@request.auth.role = \"admin\"",
+    "viewRule": "@request.auth.role = \"admin\"",
+    "createRule": "@request.auth.role = \"admin\"",
+    "updateRule": "@request.auth.role = \"admin\"",
+    "deleteRule": "@request.auth.role = \"admin\"",
+    "fields": [
+      {
+        "name": "user_id",
+        "type": "relation",
+        "options": {
+          "collectionId": "_pb_users_auth_",
+          "maxSelect": 1
+        }
+      },
+      {
+        "name": "endpoint",
+        "type": "text",
+        "required": true,
+        "unique": true,
+        "options": {
+          "max": 512
+        }
+      },
+      {
+        "name": "keys_p256dh",
+        "type": "text",
+        "options": {
+          "max": 256
+        }
+      },
+      {
+        "name": "keys_auth",
+        "type": "text",
+        "options": {
+          "max": 256
+        }
+      }
+    ]
+  }
+]

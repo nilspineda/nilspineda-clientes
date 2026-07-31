@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
+import { usePushNotifications } from "./hooks/usePushNotifications";
 
 import { Toaster } from "./components/ui/sonner";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -31,6 +32,7 @@ function Spinner() {
 
 function AppRoutes() {
   const { user, profile, loading } = useAuth();
+  usePushNotifications();
 
   if (loading) return <Spinner />;
 

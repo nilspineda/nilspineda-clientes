@@ -16,6 +16,10 @@ export default defineConfig(({ mode }) => {
   plugins: [
     react(),
     VitePWA({
+      strategies: 'injectManifest',
+      injectManifest: {
+        swSrc: 'public/sw.js',
+      },
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {

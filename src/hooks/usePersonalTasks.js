@@ -3,12 +3,6 @@ import { toast } from 'sonner'
 import pb from '@/lib/pocketbaseClient'
 import { fetchTasks, updateTask, toLocalDate } from '@/utils/personalTasks'
 
-const STORAGE_KEY = 'task_notified_date'
-
-function getToday() {
-  return new Date().toDateString()
-}
-
 export function usePersonalTasks() {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
@@ -29,11 +23,6 @@ export function usePersonalTasks() {
   }, [loadTasks])
 
   const checkTodayTasks = useCallback(async () => {
-    const todayKey = getToday()
-    const lastNotified = localStorage.getItem(STORAGE_KEY)
-
-    if (lastNotified === todayKey) return
-
     const today = new Date()
     const todaysTasks = tasks.filter((t) => {
       if (!t.due_date || t.completed) return false
@@ -52,15 +41,6 @@ export function usePersonalTasks() {
       description: titles,
       duration: 8000,
     })
-
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('Tareas del día', {
-        body: `${count} tarea${count > 1 ? 's' : ''}: ${titles}`,
-        icon: '/icon-192.png',
-      })
-    }
-
-    localStorage.setItem(STORAGE_KEY, todayKey)
   }, [tasks])
 
   useEffect(() => {
