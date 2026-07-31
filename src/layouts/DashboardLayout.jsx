@@ -305,18 +305,12 @@ export default function DashboardLayout() {
     const saved = localStorage.getItem("dashboard-sidebar-collapsed")
     return saved === "true"
   })
-  const [colombiaTime, setColombiaTime] = useState(new Date())
   const navigate = useNavigate()
   const { signOut, profile, isAdmin } = useAuth()
 
   useEffect(() => {
     localStorage.setItem("dashboard-sidebar-collapsed", collapsed)
   }, [collapsed])
-
-  useEffect(() => {
-    const timer = setInterval(() => setColombiaTime(new Date()), 60000)
-    return () => clearInterval(timer)
-  }, [])
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed(prev => !prev)
@@ -364,20 +358,12 @@ export default function DashboardLayout() {
         sidebarMargin
       )}>
         {/* Top bar */}
-        <header className="sticky top-0 z-20 flex items-center justify-between gap-2 h-16 pl-16 lg:pl-6 pr-4 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex items-center gap-2 min-w-0">
-            <Link to="/dashboard" className="lg:hidden shrink-0">
-              <img src={logoSrc} alt="Nilspineda" className="h-6" />
-            </Link>
+        <header className="sticky top-0 z-20 flex items-center gap-2 h-16 pl-16 lg:pl-6 pr-4 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <Link to="/dashboard" className="lg:hidden shrink-0">
+            <img src={logoSrc} alt="Nilspineda" className="h-6" />
+          </Link>
+          <div className="ml-auto lg:ml-0">
             <PicoPlacaIndicator />
-          </div>
-          <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
-            <span className="capitalize">
-              {colombiaTime.toLocaleDateString('es-CO', { timeZone: 'America/Bogota', weekday: 'long', day: 'numeric', month: 'long' })}
-            </span>
-            <span className="hidden sm:inline">
-              {colombiaTime.toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit' })}
-            </span>
           </div>
         </header>
 
