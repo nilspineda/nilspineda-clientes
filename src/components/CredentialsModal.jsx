@@ -5,6 +5,7 @@ import { notify } from "@/utils/notify"
 import { normalizeUrl } from "@/utils/formatUtils"
 import { sanitizeRichText } from "@/utils/sanitize"
 import { verifyToken } from "@/utils/totp"
+import { isTotpTrusted, setTotpTrusted } from "@/utils/totpTrust"
 import Modal from "@/components/Modal"
 import LexicalEditor from "@/components/LexicalEditor"
 import { Button } from "@/components/ui/button"
@@ -72,6 +73,7 @@ export default function CredentialsModal({ service, isOpen, onClose, canEdit = f
       }
       const valid = verifyToken(authCode, profile.totp_secret)
       if (valid) {
+        setTotpTrusted(profile.id)
         setLoading(true)
         setAuthGranted(true)
         setAuthCode("")
@@ -114,7 +116,7 @@ export default function CredentialsModal({ service, isOpen, onClose, canEdit = f
   useEffect(() => {
     if (isOpen && service?.id) {
       setLocalService(null)
-      setAuthRequired(isAdmin && !!profile?.totp_enabled)
+      setAuthRequired(isAdmin && !!profile?.totp_enabled && !isTotpTrusted(profile?.id))
       setAuthGranted(false)
       setAuthCode("")
       setAuthError("")

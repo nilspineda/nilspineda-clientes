@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import pb from "@/lib/pocketbaseClient";
 import { normalizeWhatsapp, formatWhatsapp } from "@/utils/formatUtils";
 import { verifyToken } from "@/utils/totp";
+import { isTotpTrusted, setTotpTrusted } from "@/utils/totpTrust";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,6 +39,7 @@ export default function Login() {
   const [pendingEmail, setPendingEmail] = useState("");
   const [pendingPassword, setPendingPassword] = useState("");
   const [pendingTotpSecret, setPendingTotpSecret] = useState("");
+  const [pendingUserId, setPendingUserId] = useState("");
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -78,12 +80,14 @@ export default function Login() {
       if (mfaRequired) {
         const isValid = verifyToken(mfaOtp, pendingTotpSecret);
         if (isValid) {
-          await signIn(pendingEmail, pendingPassword);
+          const authData = await signIn(pendingEmail, pendingPassword);
+          setTotpTrusted(pendingUserId || authData?.record?.id);
           setMfaRequired(false);
           setMfaOtp("");
           setPendingEmail("");
           setPendingPassword("");
           setPendingTotpSecret("");
+          setPendingUserId("");
           totpAttempts.current = 0;
           navigate(from, { replace: true });
         } else {
@@ -95,6 +99,7 @@ export default function Login() {
             setPendingEmail("");
             setPendingPassword("");
             setPendingTotpSecret("");
+            setPendingUserId("");
             totpAttempts.current = 0;
           } else {
             setError(`Código inválido. Intento ${totpAttempts.current}/3.`);
@@ -103,10 +108,15 @@ export default function Login() {
       } else {
         const authData = await signIn(email, password);
         if (authData?.record?.totp_enabled) {
+          if (isTotpTrusted(authData.record.id)) {
+            navigate(from, { replace: true });
+            return;
+          }
           setMfaRequired(true);
           setPendingEmail(email);
           setPendingPassword(password);
           setPendingTotpSecret(authData.record.totp_secret);
+          setPendingUserId(authData.record.id);
           pb.authStore.clear();
           setError("");
         } else {
@@ -254,6 +264,7 @@ export default function Login() {
                         setPendingEmail("");
                         setPendingPassword("");
                         setPendingTotpSecret("");
+                        setPendingUserId("");
                         totpAttempts.current = 0;
                         setError("");
                       }}
