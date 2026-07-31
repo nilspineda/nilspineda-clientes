@@ -6,6 +6,7 @@ export async function fetchTasks() {
   return pb.collection(COLLECTION).getFullList({
     sort: '+due_date,+created',
     expand: 'user_id',
+    requestKey: null,
   })
 }
 
@@ -36,10 +37,16 @@ export async function rescheduleTask(id, due_date) {
   return pb.collection(COLLECTION).update(id, { due_date, reminded_today: false, completed: false })
 }
 
+export function toLocalDate(dateStr) {
+  if (!dateStr) return null
+  const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
 export function getTasksForDate(tasks, date) {
   return tasks.filter((t) => {
-    if (!t.due_date) return false
-    const d = new Date(t.due_date)
+    const d = toLocalDate(t.due_date)
+    if (!d) return false
     return d.getFullYear() === date.getFullYear() &&
       d.getMonth() === date.getMonth() &&
       d.getDate() === date.getDate()
@@ -48,8 +55,8 @@ export function getTasksForDate(tasks, date) {
 
 export function getMonthTasks(tasks, year, month) {
   return tasks.filter((t) => {
-    if (!t.due_date) return false
-    const d = new Date(t.due_date)
+    const d = toLocalDate(t.due_date)
+    if (!d) return false
     return d.getFullYear() === year && d.getMonth() === month
   })
 }

@@ -10,7 +10,8 @@
     "fields": [
       { "name": "user_id", "type": "relation", "options": { "collectionId": "_pb_users_auth_", "maxSelect": 1 } },
       { "name": "title", "type": "text", "options": { "max": 255 } },
-      { "name": "content", "type": "editor" }
+      { "name": "content", "type": "editor" },
+      { "name": "category", "type": "relation", "options": { "collectionId": "personal_note_categories", "maxSelect": 1 } }
     ]
   },
   {
@@ -28,6 +29,20 @@
       { "name": "due_date", "type": "date" },
       { "name": "completed", "type": "bool" },
       { "name": "reminded_today", "type": "bool" }
+    ]
+  },
+  {
+    "name": "personal_note_categories",
+    "type": "base",
+    "listRule": "@request.auth.role = \"admin\"",
+    "viewRule": "@request.auth.role = \"admin\"",
+    "createRule": "@request.auth.role = \"admin\"",
+    "updateRule": "@request.auth.role = \"admin\"",
+    "deleteRule": "@request.auth.role = \"admin\"",
+    "fields": [
+      { "name": "user_id", "type": "relation", "options": { "collectionId": "_pb_users_auth_", "maxSelect": 1 } },
+      { "name": "name", "type": "text", "options": { "max": 255 } },
+      { "name": "color", "type": "text", "options": { "max": 20 } }
     ]
   }
 ]

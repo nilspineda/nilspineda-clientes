@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import pb from '@/lib/pocketbaseClient'
-import { fetchTasks, updateTask } from '@/utils/personalTasks'
+import { fetchTasks, updateTask, toLocalDate } from '@/utils/personalTasks'
 
 const STORAGE_KEY = 'task_notified_date'
 
@@ -37,7 +37,7 @@ export function usePersonalTasks() {
     const today = new Date()
     const todaysTasks = tasks.filter((t) => {
       if (!t.due_date || t.completed) return false
-      const d = new Date(t.due_date)
+      const d = toLocalDate(t.due_date)
       return d.getFullYear() === today.getFullYear() &&
         d.getMonth() === today.getMonth() &&
         d.getDate() === today.getDate()

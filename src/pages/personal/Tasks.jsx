@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, Plus, Trash2, CheckCircle2, Circle, Calendar, Clock, ListTodo } from 'lucide-react'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isToday, addMonths, subMonths } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { fetchTasks, createTask, deleteTask, completeTask, rescheduleTask } from '@/utils/personalTasks'
+import { fetchTasks, createTask, deleteTask, completeTask, rescheduleTask, toLocalDate } from '@/utils/personalTasks'
 import { usePersonalTasks } from '@/hooks/usePersonalTasks'
 
 export default function Tasks() {
@@ -38,23 +38,25 @@ export default function Tasks() {
   })
 
   const dayTasks = tasks.filter((t) => {
-    if (!t.due_date) return false
-    const d = new Date(t.due_date)
+    const d = toLocalDate(t.due_date)
+    if (!d) return false
     return isSameDay(d, selectedDate)
   })
 
   const hasTasksOn = (day) => {
     if (day.getMonth() !== currentMonth.getMonth()) return false
     return tasks.some((t) => {
-      if (!t.due_date) return false
-      return isSameDay(new Date(t.due_date), day) && !t.completed
+      const d = toLocalDate(t.due_date)
+      if (!d) return false
+      return isSameDay(d, day) && !t.completed
     })
   }
 
   const hasCompletedOn = (day) => {
     return tasks.some((t) => {
-      if (!t.due_date) return false
-      return isSameDay(new Date(t.due_date), day) && t.completed
+      const d = toLocalDate(t.due_date)
+      if (!d) return false
+      return isSameDay(d, day) && t.completed
     })
   }
 
@@ -117,8 +119,9 @@ export default function Tasks() {
 
   const getTaskCount = (day) => {
     return tasks.filter((t) => {
-      if (!t.due_date) return false
-      return isSameDay(new Date(t.due_date), day)
+      const d = toLocalDate(t.due_date)
+      if (!d) return false
+      return isSameDay(d, day)
     }).length
   }
 
@@ -162,22 +165,42 @@ export default function Tasks() {
               const count = getTaskCount(day)
 
               return (
-                <button
+                <div
                   key={idx}
-                  onClick={() => setSelectedDate(day)}
-                  disabled={!inMonth}
-                  className={`relative p-1.5 text-sm transition-colors ${
+                  className={`relative p-1.5 text-sm transition-colors group ${
                     !inMonth
-                      ? 'text-muted-foreground/20 cursor-default'
-                      : 'hover:bg-accent/50 cursor-pointer'
+                      ? 'text-muted-foreground/30 hover:bg-accent/30'
+                      : 'hover:bg-accent/50'
                   } ${
                     selected
                       ? 'bg-primary/10 ring-1 ring-primary/30'
                       : ''
                   }`}
                 >
+                  <button
+                    className="absolute inset-0 cursor-pointer"
+                    onClick={() => {
+                      setSelectedDate(day)
+                      if (!isSameMonth(day, currentMonth)) setCurrentMonth(day)
+                    }}
+                    aria-label={`Ver tareas del ${format(day, 'd')}`}
+                  />
+                  <button
+                    className={`absolute top-1 right-1 z-10 w-4 h-4 flex items-center justify-center rounded-full text-primary hover:bg-primary hover:text-primary-foreground transition-opacity ${
+                      selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    }`}
+                    onClick={() => {
+                      setSelectedDate(day)
+                      if (!isSameMonth(day, currentMonth)) setCurrentMonth(day)
+                      setNewTitle('')
+                      setAdding(true)
+                    }}
+                    aria-label={`Crear tarea el ${format(day, 'd')}`}
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
                   <span
-                    className={`flex items-center justify-center w-8 h-8 mx-auto rounded-full text-xs ${
+                    className={`flex items-center justify-center w-8 h-8 mx-auto rounded-full text-xs pointer-events-none ${
                       today ? 'bg-primary text-primary-foreground font-bold' : ''
                     } ${
                       selected && !today ? 'border border-primary/50' : ''
@@ -186,7 +209,7 @@ export default function Tasks() {
                     {format(day, 'd')}
                   </span>
                   {inMonth && (
-                    <div className="flex items-center justify-center gap-0.5 mt-0.5">
+                    <div className="flex items-center justify-center gap-0.5 mt-0.5 pointer-events-none">
                       {hasTasks && (
                         <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                       )}
@@ -196,11 +219,11 @@ export default function Tasks() {
                     </div>
                   )}
                   {count > 0 && inMonth && (
-                    <span className="absolute top-0.5 right-1.5 text-[9px] text-muted-foreground/60 font-mono">
+                    <span className="absolute top-0.5 left-1.5 text-[9px] text-muted-foreground/60 font-mono pointer-events-none">
                       {count}
                     </span>
                   )}
-                </button>
+                </div>
               )
             })}
           </div>
@@ -235,7 +258,7 @@ export default function Tasks() {
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleAddTask() }}
-              placeholder="Nueva tarea..."
+              placeholder={`Nueva tarea para ${format(selectedDate, "d 'de' MMM", { locale: es })}...`}
               className="flex-1 px-3 py-2 text-sm bg-background border border-border/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/40"
               autoFocus
             />
@@ -263,7 +286,7 @@ export default function Tasks() {
             </div>
           ) : (
             dayTasks.map((task) => {
-              const dd = task.due_date ? new Date(task.due_date) : null
+              const dd = toLocalDate(task.due_date)
               const overdue = dd && !task.completed && dd < new Date() && !isSameDay(dd, new Date())
 
               return (
@@ -299,7 +322,7 @@ export default function Tasks() {
                     )}
                     {overdue && (
                       <p className="text-[10px] text-red-400/70 mt-1 font-medium">
-                        Vencida · {format(new Date(task.due_date), "d 'de' MMM", { locale: es })}
+                        Vencida · {format(toLocalDate(task.due_date), "d 'de' MMM", { locale: es })}
                       </p>
                     )}
                   </div>
@@ -307,7 +330,7 @@ export default function Tasks() {
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => {
-                        const d = task.due_date ? format(new Date(task.due_date), 'yyyy-MM-dd') : ''
+                        const d = task.due_date ? format(toLocalDate(task.due_date), 'yyyy-MM-dd') : ''
                         setRescheduleTaskId(task.id)
                         setRescheduleDate(d)
                       }}
