@@ -1,4 +1,4 @@
-const TOTP_TRUST_DURATION = 20 * 60 * 1000;
+const TOTP_TRUST_DURATION = 7 * 24 * 60 * 60 * 1000;
 const STORAGE_KEY = "totp_trust";
 
 export function isTotpTrusted(userId) {

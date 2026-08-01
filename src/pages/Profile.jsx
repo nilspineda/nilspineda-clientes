@@ -5,6 +5,7 @@ import { normalizeWhatsapp, formatWhatsapp } from "@/utils/formatUtils"
 import { notify } from "@/utils/notify"
 import { hashPin, isValidPin } from "@/utils/pinAuth"
 import { createSecret, createURI, generateQR, verifyToken } from "@/utils/totp"
+import { clearTotpTrust } from "@/utils/totpTrust"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -146,6 +147,7 @@ export default function Profile() {
       setTotpSecret("")
       setTotpQR("")
       setTotpCode("")
+      clearTotpTrust()
       notify("Autenticación en dos pasos desactivada", "success")
       await refreshProfile?.()
     } catch (err) {

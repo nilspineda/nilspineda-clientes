@@ -11,6 +11,7 @@ export default function Tasks() {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [newTitle, setNewTitle] = useState('')
+  const [newDate, setNewDate] = useState('')
   const [newTime, setNewTime] = useState('')
   const [adding, setAdding] = useState(false)
   const [rescheduleTaskId, setRescheduleTaskId] = useState(null)
@@ -78,11 +79,12 @@ export default function Tasks() {
     try {
       const task = await createTask({
         title,
-        due_date: format(selectedDate, 'yyyy-MM-dd'),
+        due_date: newDate || format(selectedDate, 'yyyy-MM-dd'),
         due_time: newTime || null,
       })
       setTasks((prev) => [...prev, task])
       setNewTitle('')
+      setNewDate('')
       setNewTime('')
       setAdding(false)
     } catch (e) {
@@ -205,6 +207,7 @@ export default function Tasks() {
                       setSelectedDate(day)
                       if (!isSameMonth(day, currentMonth)) setCurrentMonth(day)
                       setNewTitle('')
+                      setNewDate(format(day, 'yyyy-MM-dd'))
                       setNewTime('')
                       setAdding(true)
                     }}
@@ -256,7 +259,7 @@ export default function Tasks() {
             Tareas del día
           </h3>
           <button
-            onClick={() => setAdding(true)}
+            onClick={() => { setNewDate(format(selectedDate, 'yyyy-MM-dd')); setAdding(true) }}
             className="flex items-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -265,15 +268,22 @@ export default function Tasks() {
         </div>
 
         {adding && (
-          <div className="flex items-center gap-2 mb-3 p-3 bg-muted/30 border border-border/50 rounded-xl">
+          <div className="flex flex-wrap items-center gap-2 mb-3 p-3 bg-muted/30 border border-border/50 rounded-xl">
             <input
               type="text"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleAddTask() }}
-              placeholder={`Nueva tarea para ${format(selectedDate, "d 'de' MMM", { locale: es })}...`}
-              className="flex-1 px-3 py-2 text-sm bg-background border border-border/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/40"
+              placeholder={`Nueva tarea para ${newDate ? format(toLocalDate(newDate), "d 'de' MMM", { locale: es }) : format(selectedDate, "d 'de' MMM", { locale: es })}...`}
+              className="flex-1 min-w-[140px] px-3 py-2 text-sm bg-background border border-border/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/40"
               autoFocus
+            />
+            <input
+              type="date"
+              value={newDate}
+              onChange={(e) => setNewDate(e.target.value)}
+              className="px-3 py-2 text-sm bg-background border border-border/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-muted-foreground"
+              title="Fecha"
             />
             <input
               type="time"
@@ -289,7 +299,7 @@ export default function Tasks() {
               Añadir
             </button>
             <button
-              onClick={() => { setAdding(false); setNewTitle(''); setNewTime('') }}
+              onClick={() => { setAdding(false); setNewTitle(''); setNewDate(''); setNewTime('') }}
               className="px-3 py-2 border border-border/50 rounded-lg text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               Cancelar
