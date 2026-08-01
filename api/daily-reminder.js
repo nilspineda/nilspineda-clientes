@@ -51,6 +51,7 @@ const SCHEDULES = [
   },
 ]
 const PERIOD = { start: new Date(2026, 6, 6), end: new Date(2026, 9, 3) }
+const RENEWAL_WINDOW_DAYS = 10
 
 function isSameDate(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
@@ -82,9 +83,9 @@ function getColombiaTimeHM() {
   return formatter.format(new Date())
 }
 
-async function getPBLatestNotifiedDate(pb) {
+async function getPBSetting(pb, key) {
   try {
-    const record = await pb.collection('settings').getFirstListItem('key = "pico_placa_last_notified"', {
+    const record = await pb.collection('settings').getFirstListItem(`key = "${key}"`, {
       requestKey: null,
     })
     return record?.value || null
@@ -93,14 +94,14 @@ async function getPBLatestNotifiedDate(pb) {
   }
 }
 
-async function setPBLatestNotifiedDate(pb, dateStr) {
+async function setPBSetting(pb, key, value) {
   try {
-    const record = await pb.collection('settings').getFirstListItem('key = "pico_placa_last_notified"', {
+    const record = await pb.collection('settings').getFirstListItem(`key = "${key}"`, {
       requestKey: null,
     })
-    await pb.collection('settings').update(record.id, { value: dateStr })
+    await pb.collection('settings').update(record.id, { value })
   } catch {
-    await pb.collection('settings').create({ key: 'pico_placa_last_notified', value: dateStr })
+    await pb.collection('settings').create({ key, value })
   }
 }
 
@@ -128,7 +129,7 @@ export default async function handler(request, response) {
 
   const restrictions = getTodaysRestrictions()
   if (restrictions.length > 0) {
-    const lastNotified = await getPBLatestNotifiedDate(pb)
+    const lastNotified = await getPBSetting(pb, 'pico_placa_last_notified')
     const todayStr = formatTodayUTC()
     if (lastNotified !== todayStr) {
       const vehicleList = restrictions.map((r) => r.label).join(' y ')
@@ -139,7 +140,7 @@ export default async function handler(request, response) {
         tag: 'pico-placa',
         data: { url: '/dashboard' },
       })
-      await setPBLatestNotifiedDate(pb, todayStr)
+      await setPBSetting(pb, 'pico_placa_last_notified', todayStr)
     }
   }
 
@@ -176,6 +177,52 @@ export default async function handler(request, response) {
       for (const task of untimed) {
         await pb.collection('personal_tasks').update(task.id, { reminded_today: true })
       }
+    }
+  }
+
+  {
+    const todayStr = formatTodayUTC()
+    const lastRenewalNotified = await getPBSetting(pb, 'service_renewal_last_notified')
+    if (lastRenewalNotified !== todayStr) {
+      const userServices = await pb.collection('user_services').getFullList({
+        filter: 'expires_at != null',
+        expand: 'service_id,user_id',
+        requestKey: null,
+      })
+
+      const now = getColombiaDate()
+      const windowEnd = new Date(now.getTime() + RENEWAL_WINDOW_DAYS * 24 * 60 * 60 * 1000)
+
+      const renewals = (userServices || [])
+        .filter((s) => {
+          if (s.no_expiry) return false
+          if (s.status === 'suspended') return false
+          const exp = new Date(s.expires_at)
+          if (isNaN(exp.getTime())) return false
+          return exp >= now && exp <= windowEnd
+        })
+        .sort((a, b) => new Date(a.expires_at) - new Date(b.expires_at))
+
+      if (renewals.length > 0) {
+        const lines = renewals.slice(0, 5).map((s) => {
+          const exp = new Date(s.expires_at)
+          const diff = exp.getTime() - now.getTime()
+          const days = Math.max(0, Math.ceil(diff / (24 * 60 * 60 * 1000)))
+          const label = days === 0 ? 'hoy' : `en ${days} día${days > 1 ? 's' : ''}`
+          const name = s.expand?.service_id?.name || s.name || 'Servicio'
+          const dom = s.url_dominio ? ` (${String(s.url_dominio).replace(/^https?:\/\//i, '')})` : ''
+          return `• ${name}${dom} · vence ${label}`
+        })
+        const extra = renewals.length > 5 ? `\n+${renewals.length - 5} servicio${renewals.length - 5 > 1 ? 's' : ''} más` : ''
+        messages.push({
+          title: 'Renovaciones próximas',
+          body: `${renewals.length} servicio${renewals.length > 1 ? 's' : ''} por vencer:\n${lines.join('\n')}${extra}`,
+          tag: 'service-renewals',
+          data: { url: '/dashboard' },
+        })
+      }
+
+      await setPBSetting(pb, 'service_renewal_last_notified', todayStr)
     }
   }
 
