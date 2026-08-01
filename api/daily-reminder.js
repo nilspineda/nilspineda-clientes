@@ -118,7 +118,7 @@ export default async function handler(request, response) {
   }
 
   if (CRON_SECRET) {
-    const auth = request.headers.get('authorization') || ''
+    const auth = request.headers?.authorization || ''
     const expected = `Bearer ${CRON_SECRET}`
     if (auth !== expected) {
       return response.status(401).json({ error: 'Unauthorized' })
