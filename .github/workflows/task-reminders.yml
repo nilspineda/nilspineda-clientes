@@ -8,6 +8,7 @@ on:
 jobs:
   run-reminders:
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Llamar endpoint de recordatorios
         env:
