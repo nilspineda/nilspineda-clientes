@@ -29,25 +29,27 @@ export default function PicoPlacaIndicator() {
 
         {isCarroRestricted && (
           <>
-            <span className="w-px h-3.5 bg-current opacity-20 hidden sm:block" />
-            <div className="hidden sm:flex items-center gap-1.5">
+            <span className="w-px h-3.5 bg-current opacity-20" />
+            <div className="flex items-center gap-1.5">
               <Car className="w-3.5 h-3.5" />
-              <span className="font-medium tabular-nums">3-4</span>
-              <AlertTriangle className="w-3 h-3 animate-pulse" />
+              <span className="font-medium tabular-nums">
+                {restrictions.find((r) => r.id === 'carro')?.plates}
+              </span>
+              <AlertTriangle className="w-3 h-3 animate-pulse hidden sm:block" />
             </div>
-            <span className="sm:hidden w-1.5 h-1.5 rounded-full bg-current shrink-0" />
           </>
         )}
 
         {isMotoRestricted && (
           <>
-            <span className="w-px h-3.5 bg-current opacity-20 hidden sm:block" />
-            <div className="hidden sm:flex items-center gap-1.5">
+            <span className="w-px h-3.5 bg-current opacity-20" />
+            <div className="flex items-center gap-1.5">
               <Bike className="w-3.5 h-3.5" />
-              <span className="font-medium tabular-nums">9-0</span>
-              <AlertTriangle className="w-3 h-3 animate-pulse" />
+              <span className="font-medium tabular-nums">
+                {restrictions.find((r) => r.id === 'moto')?.plates}
+              </span>
+              <AlertTriangle className="w-3 h-3 animate-pulse hidden sm:block" />
             </div>
-            <span className="sm:hidden w-1.5 h-1.5 rounded-full bg-current shrink-0" />
           </>
         )}
       </button>
