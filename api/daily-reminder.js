@@ -192,9 +192,11 @@ export default async function handler(request, response) {
   }
 
   {
+    const currentHour = getColombiaTimeHM().slice(0, 2)
     const todayStr = formatTodayUTC()
-    const lastRenewalNotified = await getPBSetting(pb, 'service_renewal_last_notified')
-    if (lastRenewalNotified !== todayStr) {
+    if (currentHour === '08') {
+      const lastRenewalNotified = await getPBSetting(pb, 'service_renewal_last_notified')
+      if (lastRenewalNotified !== todayStr) {
       const userServices = await pb.collection('user_services').getFullList({
         filter: 'expires_at != null',
         expand: 'service_id,user_id',
@@ -234,6 +236,7 @@ export default async function handler(request, response) {
       }
 
       await setPBSetting(pb, 'service_renewal_last_notified', todayStr)
+      }
     }
   }
 
