@@ -136,18 +136,22 @@ export default async function handler(request, response) {
 
   const restrictions = getTodaysRestrictions()
   if (restrictions.length > 0) {
-    const lastNotified = await getPBSetting(pb, 'pico_placa_last_notified')
     const todayStr = formatTodayUTC()
-    if (lastNotified !== todayStr) {
-      const vehicleList = restrictions.map((r) => r.label).join(' y ')
-      const platesList = restrictions.map((r) => `placas ${r.plates}`).join(', ')
-      messages.push({
-        title: 'Pico y Placa',
-        body: `Hoy te toca: ${vehicleList} (${platesList})`,
-        tag: 'pico-placa',
-        data: { url: '/dashboard' },
-      })
-      await setPBSetting(pb, 'pico_placa_last_notified', todayStr)
+    const currentHour = getColombiaTimeHM().slice(0, 2)
+    if (currentHour === '06' || currentHour === '08') {
+      const key = currentHour === '06' ? 'pico_placa_last_notified_6' : 'pico_placa_last_notified_8'
+      const lastNotified = await getPBSetting(pb, key)
+      if (lastNotified !== todayStr) {
+        const vehicleList = restrictions.map((r) => r.label).join(' y ')
+        const platesList = restrictions.map((r) => `placas ${r.plates}`).join(', ')
+        messages.push({
+          title: 'Pico y Placa',
+          body: `Hoy te toca: ${vehicleList} (${platesList})`,
+          tag: 'pico-placa',
+          data: { url: '/dashboard' },
+        })
+        await setPBSetting(pb, key, todayStr)
+      }
     }
   }
 
