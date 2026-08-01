@@ -12,13 +12,25 @@ export function urlBase64ToUint8Array(base64String) {
 export async function subscribeToPush(swRegistration, vapidPublicKey) {
   const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey)
   try {
-    const subscription = await swRegistration.pushManager.subscribe({
+    return await swRegistration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey,
     })
-    return subscription
   } catch (err) {
     console.error('Failed to subscribe to push:', err)
+    if (err.name === 'AbortError' || err.name === 'InvalidStateError') {
+      try {
+        const stale = await swRegistration.pushManager.getSubscription()
+        if (stale) await stale.unsubscribe()
+        return await swRegistration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey,
+        })
+      } catch (retryErr) {
+        console.error('Failed to resubscribe to push:', retryErr)
+        return null
+      }
+    }
     return null
   }
 }
