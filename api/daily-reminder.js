@@ -72,6 +72,16 @@ function formatTodayUTC() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+function getColombiaTimeHM() {
+  const formatter = new Intl.DateTimeFormat('es-CO', {
+    timeZone: 'America/Bogota',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  })
+  return formatter.format(new Date())
+}
+
 async function getPBLatestNotifiedDate(pb) {
   try {
     const record = await pb.collection('settings').getFirstListItem('key = "pico_placa_last_notified"', {
@@ -135,19 +145,35 @@ export default async function handler(request, response) {
 
   {
     const todayStr = formatTodayUTC()
+    const nowHM = getColombiaTimeHM()
     const tasks = await pb.collection('personal_tasks').getFullList({
       filter: `due_date >= "${todayStr} 00:00:00" && due_date <= "${todayStr} 23:59:59" && completed = false && reminded_today = false`,
       requestKey: null,
     })
-    if (tasks.length > 0) {
-      const titles = tasks.map((t) => t.title).join(', ')
+
+    const timed = tasks.filter((t) => t.due_time)
+    const untimed = tasks.filter((t) => !t.due_time)
+
+    for (const task of timed) {
+      if (String(task.due_time).trim() > nowHM) continue
       messages.push({
-        title: `Tienes ${tasks.length} tarea${tasks.length > 1 ? 's' : ''} para hoy`,
+        title: task.title,
+        body: `Tarea para hoy a las ${task.due_time}`,
+        tag: `task-${task.id}`,
+        data: { url: '/admin/personal/tasks' },
+      })
+      await pb.collection('personal_tasks').update(task.id, { reminded_today: true })
+    }
+
+    if (untimed.length > 0 && nowHM.startsWith('06')) {
+      const titles = untimed.map((t) => t.title).join(', ')
+      messages.push({
+        title: `Tienes ${untimed.length} tarea${untimed.length > 1 ? 's' : ''} para hoy`,
         body: titles,
         tag: 'tasks-today',
         data: { url: '/admin/personal/tasks' },
       })
-      for (const task of tasks) {
+      for (const task of untimed) {
         await pb.collection('personal_tasks').update(task.id, { reminded_today: true })
       }
     }

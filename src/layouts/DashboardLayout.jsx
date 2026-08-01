@@ -326,7 +326,7 @@ export default function DashboardLayout() {
   const sidebarMargin = collapsed ? "lg:ml-[72px]" : "lg:ml-72"
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-[100dvh] bg-background">
       {/* Desktop sidebar */}
       <TooltipProvider>
         <aside className={cn(
@@ -354,17 +354,17 @@ export default function DashboardLayout() {
       </Sheet>
 
       <main className={cn(
-        "flex-1 min-h-screen flex flex-col transition-all duration-300",
+        "flex-1 min-h-[100dvh] flex flex-col transition-all duration-300",
         sidebarMargin
       )}>
         {/* Top bar */}
-        <header className="sticky top-0 z-20 flex items-center gap-2 h-16 pl-16 lg:pl-6 pr-4 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <Link to="/dashboard" className="lg:hidden shrink-0">
-            <img src={logoSrc} alt="Nilspineda" className="h-6" />
-          </Link>
-          <div className="ml-auto lg:ml-0">
+        <header className="sticky top-0 z-20 flex items-center gap-2 h-16 pl-14 lg:pl-6 pr-4 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="flex-1 lg:flex-none flex items-center justify-center min-w-0">
             <PicoPlacaIndicator />
           </div>
+          <Link to="/dashboard" className="lg:hidden shrink-0">
+            <img src={logoSrc} alt="Nilspineda" className="h-7" />
+          </Link>
         </header>
 
         <div className="p-4 md:p-8 flex-1">

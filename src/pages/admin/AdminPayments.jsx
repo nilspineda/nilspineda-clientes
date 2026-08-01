@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useMemo, Fragment } from "react"
+﻿import { useState, useEffect, useRef, useMemo } from "react"
 import pb from "@/lib/pocketbaseClient"
 import { normalizeWhatsapp } from "@/utils/formatUtils"
 import { notify } from "@/utils/notify"
@@ -350,27 +350,26 @@ export default function AdminPayments() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center shrink-0">
             <Wallet className="w-6 h-6 text-green-500" />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Pagos</h1>
+          <div className="min-w-0">
+            <h1 className="text-xl md:text-2xl font-bold text-foreground">Pagos</h1>
             <p className="text-sm text-muted-foreground">{groupedByClient.length} clientes en {monthLabel}</p>
           </div>
         </div>
-      </div>
-
-      <div className="flex gap-2 flex-wrap">
-        <Button variant="outline" size="sm" onClick={exportCSV}>
-          <Download className="w-4 h-4 mr-2" />
-          Exportar CSV
-        </Button>
-        <Button size="sm" onClick={() => setShowModal(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Registrar Pago
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={exportCSV}>
+            <Download className="w-4 h-4 mr-2" />
+            Exportar CSV
+          </Button>
+          <Button size="sm" onClick={() => setShowModal(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Registrar Pago
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -435,167 +434,125 @@ export default function AdminPayments() {
             </div>
           </Card>
 
-          <Card className="overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted/50 border-b">
-                  <tr>
-                    <th className="px-2 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground"></th>
-                    <th className="px-2 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground">Cliente</th>
-                    <th className="px-2 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground hidden sm:table-cell">Servicios</th>
-                    <th className="px-2 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground">Total Pendiente</th>
-                    <th className="px-2 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground hidden sm:table-cell">Pagados</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {groupedByClient.length === 0 ? (
-                    <tr><td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">No hay pagos registrados.</td></tr>
-                  ) : (
-                    groupedByClient.map((group) => {
-                      const isExpanded = expandedId === group.userId
-                      const totalPendingAmount = group.payments
-                        .filter(p => p.status === "pending")
-                        .reduce((s, p) => s + (parseFloat(p.amount) || 0), 0)
-                      const paidCount = group.payments.filter(p => p.status === "paid").length
-                      const pendingCount = group.payments.filter(p => p.status === "pending").length
-                      const serviceNames = [...new Set(group.payments.map(p =>
-                        p.expand?.user_service_id?.name || p.expand?.user_service_id?.expand?.service_id?.name || null
-                      ).filter(Boolean))].slice(0, 3)
-                      return (
-                        <Fragment key={group.userId}>
-                           <tr className="hover:bg-muted/50 transition-all cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : group.userId)}>
-                            <td className="px-2 md:px-3 py-2 md:py-4">
-                              <button className="text-muted-foreground hover:text-foreground">
-                                {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                              </button>
-                            </td>
-                            <td className="px-2 md:px-6 py-2 md:py-4">
-                              <div className="flex items-center gap-2 md:gap-3">
-                                {group.whatsapp && (
-                                  <a href={`https://wa.me/${normalizeWhatsapp(group.whatsapp)}`} target="_blank" rel="noopener noreferrer" className="w-7 h-7 md:w-8 md:h-8 rounded-md bg-green-500/10 flex items-center justify-center hover:bg-green-500/20 transition-colors" onClick={e => e.stopPropagation()}>
-                                    <MessageCircle className="w-3.5 h-3.5 md:w-4 md:h-4 text-green-500" />
-                                  </a>
-                                )}
-                                <span className="font-semibold text-foreground text-sm md:text-base">{group.userName}</span>
-                              </div>
-                            </td>
-                            <td className="px-2 md:px-6 py-2 md:py-4 hidden sm:table-cell">
-                              <div className="flex flex-wrap gap-1">
-                                {serviceNames.length > 0
-                                  ? serviceNames.map((n, i) => <span key={i} className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">{n}</span>)
-                                  : <span className="text-xs text-muted-foreground">{group.payments.length} pago(s)</span>}
-                                {group.payments.length > 3 && <span className="text-xs text-muted-foreground">+{group.payments.length - 3} más</span>}
-                              </div>
-                            </td>
-                            <td className="px-2 md:px-6 py-2 md:py-4">
-                              <span className="font-bold text-orange-500 text-sm md:text-base">{formatCurrency(totalPendingAmount)}</span>
-                              {pendingCount > 0 && <span className="text-xs text-muted-foreground ml-1">({pendingCount})</span>}
-                            </td>
-                            <td className="px-2 md:px-6 py-2 md:py-4 hidden sm:table-cell">
-                              <span className="text-xs font-medium text-green-500">{paidCount} pagado(s)</span>
-                            </td>
-                          </tr>
-                          {isExpanded && (
-                            <tr>
-                              <td colSpan={5} className="px-2 md:px-6 py-0 bg-muted/10">
-                                <div className="py-2 md:py-3 px-1 md:px-2">
-                                  <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                      <thead>
-                                        <tr className="border-b border-muted-foreground/20">
-                                          <th className="px-2 md:px-4 py-1.5 md:py-2 text-left text-muted-foreground font-medium text-xs md:text-sm">Servicio</th>
-                                          <th className="px-2 md:px-4 py-1.5 md:py-2 text-left text-muted-foreground font-medium text-xs md:text-sm hidden md:table-cell">Descripción</th>
-                                          <th className="px-2 md:px-4 py-1.5 md:py-2 text-left text-muted-foreground font-medium text-xs md:text-sm">Monto</th>
-                                          <th className="px-2 md:px-4 py-1.5 md:py-2 text-left text-muted-foreground font-medium text-xs md:text-sm hidden sm:table-cell">Cuenta</th>
-                                          <th className="px-2 md:px-4 py-1.5 md:py-2 text-left text-muted-foreground font-medium text-xs md:text-sm">Estado</th>
-                                          <th className="px-2 md:px-4 py-1.5 md:py-2 text-left text-muted-foreground font-medium text-xs md:text-sm">Comp.</th>
-                                          <th className="px-2 md:px-4 py-1.5 md:py-2 text-left text-muted-foreground font-medium text-xs md:text-sm">Acción</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {group.payments.map(h => {
-                                          const hSvcName = h.expand?.user_service_id?.name || h.expand?.user_service_id?.expand?.service_id?.name || "-"
-                                          const hAccName = typeof h.payment_account === 'object'
-                                            ? h.payment_account?.name
-                                            : h.expand?.payment_account?.name || ""
-                                          const hDesc = h.payment_date
-                                            ? new Date(h.payment_date).toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" })
-                                            : "—"
-                                          const svc = h.user_service_id ? serviceMap[h.user_service_id] : null
-                                          const isPartial = h.status === "pending" && svc && svc.monto_abonado > 0
-                                          return (
-                                            <tr key={h.id} className="border-b border-muted-foreground/10 hover:bg-muted/20">
-                                              <td className="px-2 md:px-4 py-1.5 md:py-2 text-muted-foreground text-xs md:text-sm">{hSvcName}</td>
-                                              <td className="px-2 md:px-4 py-1.5 md:py-2 text-xs md:text-sm hidden md:table-cell">{hDesc}</td>
-                                              <td className="px-2 md:px-4 py-1.5 md:py-2 font-semibold text-xs md:text-sm">
-                                                {formatCurrency(h.amount)}
-                                                {isPartial && <span className="block text-[10px] md:text-xs text-blue-500">Abonado {formatCurrency(svc.monto_abonado)} / {formatCurrency(svc.price)}</span>}
-                                              </td>
-                                              <td className="px-2 md:px-4 py-1.5 md:py-2 text-muted-foreground text-xs md:text-sm hidden sm:table-cell">{hAccName || "—"}</td>
-                                              <td className="px-2 md:px-4 py-1.5 md:py-2">
-                                                {isPartial ? (
-                                                  <span className="px-1.5 md:px-2 py-0.5 rounded text-[10px] md:text-xs font-medium bg-blue-500/10 text-blue-500 border border-blue-500/30">Parcial</span>
-                                                ) : (
-                                                  <span className={`px-1.5 md:px-2 py-0.5 rounded text-[10px] md:text-xs font-medium ${h.status === "paid" ? "bg-green-500/10 text-green-500" : h.status === "pending" ? "bg-orange-500/10 text-orange-500" : "bg-destructive/10 text-destructive"}`}>
-                                                    {h.status === "paid" ? "Pagado" : h.status === "pending" ? "Pendiente" : "Fallido"}
-                                                  </span>
-                                                )}
-                                              </td>
-                                                <td className="px-2 md:px-4 py-1.5 md:py-2">
-                                                  <div className="flex flex-wrap items-center gap-1">
-                                                    {(comprobantesMap[h.id] || []).map(c => (
-                                                      <span key={c.id} className="inline-flex items-center gap-0.5 group">
-                                                        <a href={pb.files.getURL(c, 'file')} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">
-                                                          <Image className="w-3 h-3 inline" />
-                                                        </a>
-                                                        <button onClick={() => handleDeleteComprobante(c.id)} className="text-destructive/60 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                                                          <X className="w-3 h-3" />
-                                                        </button>
-                                                      </span>
-                                                    ))}
-                                                    <button
-                                                      onClick={() => document.getElementById(`comp-upload-${h.id}`)?.click()}
-                                                      className="text-xs text-muted-foreground hover:text-foreground border border-dashed border-input rounded px-1.5 py-0.5"
-                                                      title="Agregar comprobante"
-                                                    >
-                                                      {uploadingComprobanteId === h.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "+"}
-                                                    </button>
-                                                    <input
-                                                      id={`comp-upload-${h.id}`}
-                                                      type="file"
-                                                      accept="image/*"
-                                                      multiple
-                                                      className="hidden"
-                                                      onChange={(e) => {
-                                                        const files = Array.from(e.target.files || [])
-                                                        if (files.length) handleUploadComprobante(h.id, h.user_id, files)
-                                                        e.target.value = ''
-                                                      }}
-                                                    />
-                                                  </div>
-                                                </td>
-                                                <td className="px-2 md:px-4 py-1.5 md:py-2">
-                                                  {h.status !== "paid" && (
-                                                    <Button size="sm" variant="outline" className="h-6 md:h-7 text-[10px] md:text-xs" onClick={() => handleEdit(h)}>Pagar</Button>
-                                                  )}
-                                                </td>
-                                            </tr>
-                                          )
-                                        })}
-                                      </tbody>
-                                    </table>
+          <Card className="p-3">
+            {groupedByClient.length === 0 ? (
+              <div className="px-6 py-12 text-center text-muted-foreground text-sm">No hay pagos registrados.</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {groupedByClient.map((group, index) => {
+                  const isExpanded = expandedId === group.userId
+                  const totalPendingAmount = group.payments
+                    .filter(p => p.status === "pending")
+                    .reduce((s, p) => s + (parseFloat(p.amount) || 0), 0)
+                  const paidCount = group.payments.filter(p => p.status === "paid").length
+                  const pendingCount = group.payments.filter(p => p.status === "pending").length
+                  const serviceNames = [...new Set(group.payments.map(p =>
+                    p.expand?.user_service_id?.name || p.expand?.user_service_id?.expand?.service_id?.name || null
+                  ).filter(Boolean))].slice(0, 3)
+                  return (
+                    <div key={group.userId} className={`rounded-lg border bg-card p-3 h-full ${index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"}`}>
+                      <div className="flex items-start justify-between gap-3 cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : group.userId)}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          {group.whatsapp && (
+                            <a href={`https://wa.me/${normalizeWhatsapp(group.whatsapp)}`} target="_blank" rel="noopener noreferrer" className="w-7 h-7 rounded-md bg-green-500/10 flex items-center justify-center hover:bg-green-500/20 transition-colors shrink-0" onClick={e => e.stopPropagation()}>
+                              <MessageCircle className="w-3.5 h-3.5 text-green-500" />
+                            </a>
+                          )}
+                          <span className="font-semibold text-foreground text-sm truncate">{group.userName}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-bold text-orange-500 text-sm">{formatCurrency(totalPendingAmount)}</span>
+                          <button className="text-muted-foreground hover:text-foreground">
+                            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      {serviceNames.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {serviceNames.map((n, i) => <span key={i} className="text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground truncate max-w-full">{n}</span>)}
+                          {group.payments.length > 3 && <span className="text-[10px] text-muted-foreground">+{group.payments.length - 3} más</span>}
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t text-xs">
+                        <span className="text-green-500 font-medium">{paidCount} pagado(s)</span>
+                        {pendingCount > 0 && <span className="text-orange-500 font-medium">{pendingCount} pendiente(s)</span>}
+                      </div>
+                      {isExpanded && (
+                        <div className="mt-2 space-y-2">
+                          {group.payments.map(h => {
+                            const hSvcName = h.expand?.user_service_id?.name || h.expand?.user_service_id?.expand?.service_id?.name || "-"
+                            const hAccName = typeof h.payment_account === 'object'
+                              ? h.payment_account?.name
+                              : h.expand?.payment_account?.name || ""
+                            const hDesc = h.payment_date
+                              ? new Date(h.payment_date).toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" })
+                              : "—"
+                            const svc = h.user_service_id ? serviceMap[h.user_service_id] : null
+                            const isPartial = h.status === "pending" && svc && svc.monto_abonado > 0
+                            return (
+                              <div key={h.id} className="rounded-md border bg-muted/30 p-2.5 space-y-1.5">
+                                <div className="flex items-start justify-between gap-2">
+                                  <span className="text-xs font-medium text-foreground min-w-0 truncate">{hSvcName}</span>
+                                  <span className="text-xs font-semibold text-foreground shrink-0">{formatCurrency(h.amount)}</span>
+                                </div>
+                                {isPartial && <div className="text-[10px] text-blue-500">Abonado {formatCurrency(svc.monto_abonado)} / {formatCurrency(svc.price)}</div>}
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[10px] text-muted-foreground min-w-0 truncate">{hDesc}</span>
+                                  {isPartial ? (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-500 border border-blue-500/30 shrink-0">Parcial</span>
+                                  ) : (
+                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${h.status === "paid" ? "bg-green-500/10 text-green-500" : h.status === "pending" ? "bg-orange-500/10 text-orange-500" : "bg-destructive/10 text-destructive"}`}>
+                                      {h.status === "paid" ? "Pagado" : h.status === "pending" ? "Pendiente" : "Fallido"}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center justify-between gap-2 pt-1 border-t border-muted-foreground/10">
+                                  <span className="text-[10px] text-muted-foreground min-w-0 truncate">{hAccName || "—"}</span>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    {(comprobantesMap[h.id] || []).map(c => (
+                                      <span key={c.id} className="inline-flex items-center gap-0.5 group">
+                                        <a href={pb.files.getURL(c, 'file')} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">
+                                          <Image className="w-3 h-3 inline" />
+                                        </a>
+                                        <button onClick={() => handleDeleteComprobante(c.id)} className="text-destructive/60 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      </span>
+                                    ))}
+                                    <button
+                                      onClick={() => document.getElementById(`comp-upload-${h.id}`)?.click()}
+                                      className="text-xs text-muted-foreground hover:text-foreground border border-dashed border-input rounded px-1.5 py-0.5"
+                                      title="Agregar comprobante"
+                                    >
+                                      {uploadingComprobanteId === h.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "+"}
+                                    </button>
+                                    <input
+                                      id={`comp-upload-${h.id}`}
+                                      type="file"
+                                      accept="image/*"
+                                      multiple
+                                      className="hidden"
+                                      onChange={(e) => {
+                                        const files = Array.from(e.target.files || [])
+                                        if (files.length) handleUploadComprobante(h.id, h.user_id, files)
+                                        e.target.value = ''
+                                      }}
+                                    />
+                                    {h.status !== "paid" && (
+                                      <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => handleEdit(h)}>Pagar</Button>
+                                    )}
                                   </div>
                                 </div>
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      )
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </Card>
         </TabsContent>
 

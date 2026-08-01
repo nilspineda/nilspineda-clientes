@@ -1,197 +1,270 @@
-import { useState, useEffect } from "react"
-import { Link } from "react-router-dom"
-import pb from "@/lib/pocketbaseClient"
-import { useAuth } from "@/hooks/useAuth"
-import { normalizeWhatsapp, formatWhatsapp, normalizeUrl, formatCurrency } from "@/utils/formatUtils"
-import { notify } from "@/utils/notify"
-import { formatDate } from "@/utils/dateUtils"
-import Modal from "@/components/Modal"
-import CredentialsModal from "@/components/CredentialsModal"
-import LexicalEditor from "@/components/LexicalEditor"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Card } from "@/components/ui/card"
-import { generateMonthlyPayments, getPaymentsByUserService, updatePaymentStatus, syncOneTimeAbono, createPendingPayment } from "@/utils/paymentUtils"
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import pb from "@/lib/pocketbaseClient";
+import { useAuth } from "@/hooks/useAuth";
 import {
-  Users, UserPlus, Mail, Phone, MessageCircle, ChevronLeft, Edit3, Trash2, Plus,
-  Eye, EyeOff, Loader2, ExternalLink, Key, Calendar, CreditCard,
-  User, Package, Activity, ToggleLeft, ToggleRight, Lock, RefreshCw, Search, Zap,
-  Landmark, FileText,
-} from "lucide-react"
+  normalizeWhatsapp,
+  formatWhatsapp,
+  normalizeUrl,
+  formatCurrency,
+} from "@/utils/formatUtils";
+import { notify } from "@/utils/notify";
+import { formatDate } from "@/utils/dateUtils";
+import Modal from "@/components/Modal";
+import CredentialsModal from "@/components/CredentialsModal";
+import LexicalEditor from "@/components/LexicalEditor";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import {
+  generateMonthlyPayments,
+  getPaymentsByUserService,
+  updatePaymentStatus,
+  syncOneTimeAbono,
+  createPendingPayment,
+} from "@/utils/paymentUtils";
+import {
+  Users,
+  UserPlus,
+  Mail,
+  Phone,
+  MessageCircle,
+  ChevronLeft,
+  Edit3,
+  Trash2,
+  Plus,
+  Eye,
+  EyeOff,
+  Loader2,
+  ExternalLink,
+  Key,
+  Calendar,
+  CreditCard,
+  User,
+  Package,
+  Activity,
+  ToggleLeft,
+  ToggleRight,
+  Lock,
+  RefreshCw,
+  Search,
+  Zap,
+  Landmark,
+  FileText,
+} from "lucide-react";
 
 export default function AdminUsers() {
-  const [users, setUsers] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [editingUser, setEditingUser] = useState(null)
-  const [formData, setFormData] = useState({ name: "", whatsapp: "", email: "", password: "" })
-  const [showSendCreds, setShowSendCreds] = useState(false)
-  const [newUserWhatsapp, setNewUserWhatsapp] = useState("")
-  const [selectedUser, setSelectedUser] = useState(null)
-  const [userServices, setUserServices] = useState([])
-  const [showServiceModal, setShowServiceModal] = useState(false)
-  const [editingService, setEditingService] = useState(null)
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    whatsapp: "",
+    email: "",
+    password: "",
+  });
+  const [showSendCreds, setShowSendCreds] = useState(false);
+  const [newUserWhatsapp, setNewUserWhatsapp] = useState("");
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [userServices, setUserServices] = useState([]);
+  const [showServiceModal, setShowServiceModal] = useState(false);
+  const [editingService, setEditingService] = useState(null);
   const [serviceForm, setServiceForm] = useState({
-    service_id: "", price: "", owner: 0, expires_at: "", next_billing_date: "",
-    url_dominio: "", notes: "", billing_type: "monthly", no_expiry: false, tarjeta: "", start_date: "", requiere_abono: false, monto_abonado: "",
-  })
-  const [baseServices, setBaseServices] = useState([])
-  const [showPaymentsModal, setShowPaymentsModal] = useState(false)
-  const [servicePayments, setServicePayments] = useState([])
-  const [loadingPayments, setLoadingPayments] = useState(false)
-  const [selectedService, setSelectedService] = useState(null)
-  const { isAdmin, profile } = useAuth()
-  const [showPasswordModal, setShowPasswordModal] = useState(false)
-  const [newPassword, setNewPassword] = useState("")
-  const [changingPassword, setChangingPassword] = useState(false)
-  const [passwordUser, setPasswordUser] = useState(null)
-  const [paymentAccounts, setPaymentAccounts] = useState([])
-  const [showAccountDialog, setShowAccountDialog] = useState(false)
-  const [pendingPayAccount, setPendingPayAccount] = useState("")
-  const [pendingPaymentId, setPendingPaymentId] = useState(null)
-  const [serviceSearch, setServiceSearch] = useState("")
-  const [credentialsService, setCredentialsService] = useState(null)
-  const [showNotesModal, setShowNotesModal] = useState(false)
-  const [notesUser, setNotesUser] = useState(null)
-  const [notesContent, setNotesContent] = useState("")
-  const [savingNotes, setSavingNotes] = useState(false)
+    service_id: "",
+    price: "",
+    owner: 0,
+    expires_at: "",
+    next_billing_date: "",
+    url_dominio: "",
+    notes: "",
+    billing_type: "monthly",
+    no_expiry: false,
+    tarjeta: "",
+    start_date: "",
+    requiere_abono: false,
+    monto_abonado: "",
+  });
+  const [baseServices, setBaseServices] = useState([]);
+  const [showPaymentsModal, setShowPaymentsModal] = useState(false);
+  const [servicePayments, setServicePayments] = useState([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
+  const [selectedService, setSelectedService] = useState(null);
+  const { isAdmin, profile } = useAuth();
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordUser, setPasswordUser] = useState(null);
+  const [paymentAccounts, setPaymentAccounts] = useState([]);
+  const [showAccountDialog, setShowAccountDialog] = useState(false);
+  const [pendingPayAccount, setPendingPayAccount] = useState("");
+  const [pendingPaymentId, setPendingPaymentId] = useState(null);
+  const [serviceSearch, setServiceSearch] = useState("");
+  const [credentialsService, setCredentialsService] = useState(null);
+  const [showNotesModal, setShowNotesModal] = useState(false);
+  const [notesUser, setNotesUser] = useState(null);
+  const [notesContent, setNotesContent] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
 
   function openNotesModal(user) {
-    setNotesUser(user)
-    setNotesContent(user.notas || "")
-    setShowNotesModal(true)
+    setNotesUser(user);
+    setNotesContent(user.notas || "");
+    setShowNotesModal(true);
   }
 
   async function handleSaveNotes() {
-    if (!notesUser) return
-    setSavingNotes(true)
+    if (!notesUser) return;
+    setSavingNotes(true);
     try {
-      await pb.collection('users').update(notesUser.id, { notas: notesContent })
-      notify("Notas guardadas correctamente", "success")
-      setSelectedUser(prev => prev?.id === notesUser.id ? { ...prev, notas: notesContent } : prev)
-      setShowNotesModal(false)
-      setNotesUser(null)
+      await pb
+        .collection("users")
+        .update(notesUser.id, { notas: notesContent });
+      notify("Notas guardadas correctamente", "success");
+      setSelectedUser((prev) =>
+        prev?.id === notesUser.id ? { ...prev, notas: notesContent } : prev,
+      );
+      setShowNotesModal(false);
+      setNotesUser(null);
     } catch (err) {
-      console.error("Error guardando notas:", err)
-      notify("Error al guardar notas", "error")
+      console.error("Error guardando notas:", err);
+      notify("Error al guardar notas", "error");
     } finally {
-      setSavingNotes(false)
+      setSavingNotes(false);
     }
   }
 
-  useEffect(() => { fetchUsers() }, [])
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   async function fetchUsers() {
-    setLoading(true)
+    setLoading(true);
     try {
-      const usersData = await pb.collection('users').getFullList({ requestKey: null })
-      const userServicesData = await pb.collection('user_services').getFullList({ requestKey: null })
+      const usersData = await pb
+        .collection("users")
+        .getFullList({ requestKey: null });
+      const userServicesData = await pb
+        .collection("user_services")
+        .getFullList({ requestKey: null });
 
       const usersWithCount = (usersData || []).map((u) => ({
         ...u,
         user_services: userServicesData.filter((us) => us.user_id === u.id),
-        service_count: userServicesData.filter((us) => us.user_id === u.id).length,
-      }))
+        service_count: userServicesData.filter((us) => us.user_id === u.id)
+          .length,
+      }));
 
       const usersWithRenewal = usersWithCount.map((u) => {
         const daysList = u.user_services
           .map((s) => getDaysRemaining(s.expires_at))
-          .filter((d) => d !== null && typeof d === "number")
-        const minDays = daysList.length > 0 ? Math.min(...daysList) : null
-        return { ...u, min_days_to_renewal: minDays }
-      })
+          .filter((d) => d !== null && typeof d === "number");
+        const minDays = daysList.length > 0 ? Math.min(...daysList) : null;
+        return { ...u, min_days_to_renewal: minDays };
+      });
 
       usersWithRenewal.sort((a, b) => {
-        if (a.min_days_to_renewal === null && b.min_days_to_renewal === null) return 0
-        if (a.min_days_to_renewal === null) return 1
-        if (b.min_days_to_renewal === null) return -1
-        return a.min_days_to_renewal - b.min_days_to_renewal
-      })
+        if (a.min_days_to_renewal === null && b.min_days_to_renewal === null)
+          return 0;
+        if (a.min_days_to_renewal === null) return 1;
+        if (b.min_days_to_renewal === null) return -1;
+        return a.min_days_to_renewal - b.min_days_to_renewal;
+      });
 
-      setUsers(usersWithRenewal)
+      setUsers(usersWithRenewal);
     } catch (err) {
-      console.error("Error cargando usuarios:", err)
-      notify("Error al cargar usuarios: " + (err?.message || err), "error")
-      setUsers([])
+      console.error("Error cargando usuarios:", err);
+      notify("Error al cargar usuarios: " + (err?.message || err), "error");
+      setUsers([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   async function fetchBaseServices() {
     try {
-      const data = await pb.collection('services').getFullList({ sort: 'name', requestKey: null })
-      setBaseServices(data || [])
+      const data = await pb
+        .collection("services")
+        .getFullList({ sort: "name", requestKey: null });
+      setBaseServices(data || []);
     } catch (err) {
-      console.error("Error cargando servicios base:", err)
-      setBaseServices([])
+      console.error("Error cargando servicios base:", err);
+      setBaseServices([]);
     }
   }
 
   async function viewUserDetails(user) {
-    setSelectedUser(user)
+    setSelectedUser(user);
     try {
-      const data = await pb.collection('user_services').getFullList({
+      const data = await pb.collection("user_services").getFullList({
         filter: `user_id = "${user.id}"`,
-        sort: '-created',
-        expand: 'service_id',
+        sort: "-created",
+        expand: "service_id",
         requestKey: null,
-      })
+      });
       const servicesWithDays = (data || [])
         .map((s) => ({ ...s, daysRemaining: getDaysRemaining(s.expires_at) }))
         .sort((a, b) => {
-          const da = a.daysRemaining, db = b.daysRemaining
-          if (da === null && db === null) return 0
-          if (da === null) return 1
-          if (db === null) return -1
-          return da - db
-        })
-      const servicesWithPayment = await Promise.all(servicesWithDays.map(async (s) => {
-        if (s.requiere_abono) {
-          if (s.billing_type === "one_time") {
-            return { ...s, totalPaid: parseFloat(s.monto_abonado) || 0, totalExpected: parseFloat(s.price) || 0 }
+          const da = a.daysRemaining,
+            db = b.daysRemaining;
+          if (da === null && db === null) return 0;
+          if (da === null) return 1;
+          if (db === null) return -1;
+          return da - db;
+        });
+      const servicesWithPayment = await Promise.all(
+        servicesWithDays.map(async (s) => {
+          if (s.requiere_abono) {
+            if (s.billing_type === "one_time") {
+              return {
+                ...s,
+                totalPaid: parseFloat(s.monto_abonado) || 0,
+                totalExpected: parseFloat(s.price) || 0,
+              };
+            }
+            const payments = await pb.collection("payments").getFullList({
+              filter: `user_service_id = "${s.id}"`,
+              requestKey: null,
+            });
+            const totalPaid = payments
+              .filter((p) => p.status === "paid")
+              .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+            const totalExpected = payments.reduce(
+              (sum, p) => sum + (parseFloat(p.amount) || 0),
+              0,
+            );
+            return { ...s, totalPaid, totalExpected };
           }
-          const payments = await pb.collection('payments').getFullList({
-            filter: `user_service_id = "${s.id}"`,
-            requestKey: null,
-          })
-          const totalPaid = payments
-            .filter(p => p.status === 'paid')
-            .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
-          const totalExpected = payments
-            .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
-          return { ...s, totalPaid, totalExpected }
-        }
-        return s
-      }))
-      setUserServices(servicesWithPayment)
+          return s;
+        }),
+      );
+      setUserServices(servicesWithPayment);
     } catch (err) {
-      console.error("Error cargando servicios del usuario:", err)
-      setUserServices([])
+      console.error("Error cargando servicios del usuario:", err);
+      setUserServices([]);
     }
   }
 
   async function handleSubmit(e) {
-    e.preventDefault()
+    e.preventDefault();
     try {
       if (editingUser) {
         const updateData = {
           name: formData.name,
           whatsapp: normalizeWhatsapp(formData.whatsapp),
           email: formData.email || null,
-        }
+        };
         if (formData.password) {
-          updateData.password = formData.password
-          updateData.passwordConfirm = formData.password
+          updateData.password = formData.password;
+          updateData.passwordConfirm = formData.password;
         }
-        await pb.collection('users').update(editingUser.id, updateData)
-        notify("Usuario actualizado correctamente", "success")
-        fetchUsers()
-        resetForm()
+        await pb.collection("users").update(editingUser.id, updateData);
+        notify("Usuario actualizado correctamente", "success");
+        fetchUsers();
+        resetForm();
       } else {
-        const normalizedWhatsapp = normalizeWhatsapp(formData.whatsapp)
-        const data = await pb.collection('users').create({
+        const normalizedWhatsapp = normalizeWhatsapp(formData.whatsapp);
+        const data = await pb.collection("users").create({
           email: formData.email,
           password: formData.password,
           passwordConfirm: formData.password,
@@ -199,23 +272,34 @@ export default function AdminUsers() {
           whatsapp: normalizedWhatsapp,
           role: "user",
           status: "active",
-        })
-        notify("Usuario creado correctamente. El usuario puede iniciar sesión.", "success")
-        setNewUserWhatsapp(normalizedWhatsapp)
-        setShowSendCreds(true)
-        fetchUsers()
-        resetForm()
+        });
+        notify(
+          "Usuario creado correctamente. El usuario puede iniciar sesión.",
+          "success",
+        );
+        setNewUserWhatsapp(normalizedWhatsapp);
+        setShowSendCreds(true);
+        fetchUsers();
+        resetForm();
       }
     } catch (error) {
-      console.error("Error guardando usuario:", error)
-      console.error("Detalles:", JSON.stringify(error.data || error.response || {}, null, 2))
+      console.error("Error guardando usuario:", error);
+      console.error(
+        "Detalles:",
+        JSON.stringify(error.data || error.response || {}, null, 2),
+      );
       if (error.message?.includes("already exists")) {
-        notify("El email ya está registrado. Usa otro email.", "error")
+        notify("El email ya está registrado. Usa otro email.", "error");
       } else if (error.data?.data) {
-        const details = Object.entries(error.data.data).map(([k, v]) => `${k}: ${v?.message || v?.code}`).join(", ")
-        notify("Error: " + details || (error.message || error), "error")
+        const details = Object.entries(error.data.data)
+          .map(([k, v]) => `${k}: ${v?.message || v?.code}`)
+          .join(", ");
+        notify("Error: " + details || error.message || error, "error");
       } else {
-        notify("Error al guardar usuario: " + (error.message || error), "error")
+        notify(
+          "Error al guardar usuario: " + (error.message || error),
+          "error",
+        );
       }
     }
   }
@@ -223,131 +307,172 @@ export default function AdminUsers() {
   async function sendUserCredentials(user) {
     const message = encodeURIComponent(
       `Hola ${user.name}, bienvenido/a.\n\n` +
-      `Tu portal de cliente: https://clientes.nilspineda.com\n` +
-      `Email: ${user.email}\n\n` +
-      `Para establecer tu contraseña, usa la opción "¿Olvidaste tu contraseña?" en la pantalla de inicio de sesión.\n\n` +
-      `Gracias por confiar en nuestros servicios.`
-    )
-    const whatsappNum = normalizeWhatsapp(user.whatsapp).replace(/\D/g, "")
-    window.open(`https://wa.me/${whatsappNum}?text=${message}`, "_blank")
-    try { await pb.collection('users').requestPasswordReset(user.email) } catch (e) { console.warn("Error al enviar reset de password:", e) }
+        `Tu portal de cliente: https://clientes.nilspineda.com\n` +
+        `Email: ${user.email}\n\n` +
+        `Para establecer tu contraseña, usa la opción "¿Olvidaste tu contraseña?" en la pantalla de inicio de sesión.\n\n` +
+        `Gracias por confiar en nuestros servicios.`,
+    );
+    const whatsappNum = normalizeWhatsapp(user.whatsapp).replace(/\D/g, "");
+    window.open(`https://wa.me/${whatsappNum}?text=${message}`, "_blank");
+    try {
+      await pb.collection("users").requestPasswordReset(user.email);
+    } catch (e) {
+      console.warn("Error al enviar reset de password:", e);
+    }
   }
 
   function sendCredentials() {
     const message = encodeURIComponent(
-      `Hola ${formData.name || ''}, bienvenido/a.\n\n` +
-      `Tu portal de cliente: https://clientes.nilspineda.com\n` +
-      `Email: ${formData.email}\n\n` +
-      `Para establecer tu contraseña, usa la opción "¿Olvidaste tu contraseña?" en la pantalla de inicio de sesión.\n\n` +
-      `Gracias por confiar en nuestros servicios.`
-    )
-    const whatsappNum = newUserWhatsapp.replace(/\D/g, "")
-    window.open(`https://wa.me/${whatsappNum}?text=${message}`, "_blank")
-    setShowSendCreds(false)
+      `Hola ${formData.name || ""}, bienvenido/a.\n\n` +
+        `Tu portal de cliente: https://clientes.nilspineda.com\n` +
+        `Email: ${formData.email}\n\n` +
+        `Para establecer tu contraseña, usa la opción "¿Olvidaste tu contraseña?" en la pantalla de inicio de sesión.\n\n` +
+        `Gracias por confiar en nuestros servicios.`,
+    );
+    const whatsappNum = newUserWhatsapp.replace(/\D/g, "");
+    window.open(`https://wa.me/${whatsappNum}?text=${message}`, "_blank");
+    setShowSendCreds(false);
     if (formData.email) {
-      try { pb.collection('users').requestPasswordReset(formData.email) } catch (e) { console.warn("Error al enviar reset de password:", e) }
+      try {
+        pb.collection("users").requestPasswordReset(formData.email);
+      } catch (e) {
+        console.warn("Error al enviar reset de password:", e);
+      }
     }
   }
 
   function resetForm() {
-    setShowForm(false)
-    setEditingUser(null)
-    setFormData({ name: "", whatsapp: "", email: "", password: "" })
+    setShowForm(false);
+    setEditingUser(null);
+    setFormData({ name: "", whatsapp: "", email: "", password: "" });
   }
 
   function handleEdit(user) {
-    setEditingUser(user)
-    setFormData({ name: user.name, whatsapp: user.whatsapp || "", email: user.email || "", password: "" })
-    setShowForm(true)
+    setEditingUser(user);
+    setFormData({
+      name: user.name,
+      whatsapp: user.whatsapp || "",
+      email: user.email || "",
+      password: "",
+    });
+    setShowForm(true);
   }
 
   async function handleDelete(userOrId) {
-    const isObject = typeof userOrId === "object" && userOrId !== null
-    const id = isObject ? userOrId.id : userOrId
-    const name = isObject ? userOrId.name : "este usuario"
-    if (!confirm(`¿Estás seguro de eliminar a ${name}?`)) return
+    const isObject = typeof userOrId === "object" && userOrId !== null;
+    const id = isObject ? userOrId.id : userOrId;
+    const name = isObject ? userOrId.name : "este usuario";
+    if (!confirm(`¿Estás seguro de eliminar a ${name}?`)) return;
     try {
-      await pb.collection('users').delete(id)
-      fetchUsers()
+      await pb.collection("users").delete(id);
+      fetchUsers();
     } catch (error) {
-      console.error("Error eliminando usuario:", error)
-      notify("Error al eliminar usuario", "error")
+      console.error("Error eliminando usuario:", error);
+      notify("Error al eliminar usuario", "error");
     }
   }
 
   async function toggleUserStatus(user) {
     try {
-      const newStatus = user.status === "active" ? "suspended" : "active"
-      await pb.collection('users').update(user.id, { status: newStatus })
-      setUsers(users.map((u) => (u.id === user.id ? { ...u, status: newStatus } : u)))
+      const newStatus = user.status === "active" ? "suspended" : "active";
+      await pb.collection("users").update(user.id, { status: newStatus });
+      setUsers(
+        users.map((u) => (u.id === user.id ? { ...u, status: newStatus } : u)),
+      );
     } catch (err) {
-      console.error("Error al cambiar estado:", err)
-      notify("Error al cambiar el estado del usuario", "error")
+      console.error("Error al cambiar estado:", err);
+      notify("Error al cambiar el estado del usuario", "error");
     }
   }
 
   async function handleChangePassword() {
     if (!newPassword || newPassword.length < 6) {
-      notify("La contraseña debe tener al menos 6 caracteres", "error")
-      return
+      notify("La contraseña debe tener al menos 6 caracteres", "error");
+      return;
     }
     if (!passwordUser?.id) {
-      notify("Error: No hay usuario seleccionado", "error")
-      return
+      notify("Error: No hay usuario seleccionado", "error");
+      return;
     }
-    setChangingPassword(true)
+    setChangingPassword(true);
     try {
-      await pb.collection('users').update(passwordUser.id, { password: newPassword, passwordConfirm: newPassword })
-      notify("Contraseña actualizada correctamente", "success")
-      setShowPasswordModal(false)
-      setNewPassword("")
-      setPasswordUser(null)
+      await pb
+        .collection("users")
+        .update(passwordUser.id, {
+          password: newPassword,
+          passwordConfirm: newPassword,
+        });
+      notify("Contraseña actualizada correctamente", "success");
+      setShowPasswordModal(false);
+      setNewPassword("");
+      setPasswordUser(null);
     } catch (err) {
-      console.error("Error cambiando contraseña:", err)
-      notify("Error al cambiar contraseña: " + (err.message || err), "error")
+      console.error("Error cambiando contraseña:", err);
+      notify("Error al cambiar contraseña: " + (err.message || err), "error");
     } finally {
-      setChangingPassword(false)
+      setChangingPassword(false);
     }
   }
 
   function openAddService() {
-    setEditingService(null)
-    setServiceForm({ service_id: "", price: "", owner: 0, expires_at: "", next_billing_date: "", url_dominio: "", notes: "", admin_notes: "", billing_type: "monthly", no_expiry: false, tarjeta: "", start_date: "", requiere_abono: false, monto_abonado: "" })
-    fetchBaseServices()
-    setShowServiceModal(true)
+    setEditingService(null);
+    setServiceForm({
+      service_id: "",
+      price: "",
+      owner: 0,
+      expires_at: "",
+      next_billing_date: "",
+      url_dominio: "",
+      notes: "",
+      admin_notes: "",
+      billing_type: "monthly",
+      no_expiry: false,
+      tarjeta: "",
+      start_date: "",
+      requiere_abono: false,
+      monto_abonado: "",
+    });
+    fetchBaseServices();
+    setShowServiceModal(true);
   }
 
   function openEditService(service) {
-    setEditingService(service)
+    setEditingService(service);
     setServiceForm({
       service_id: service.service_id || "",
       price: service.price || "",
       owner: service.owner ?? 0,
-      expires_at: service.expires_at ? service.expires_at.split("T")[0].split(" ")[0] : "",
-      next_billing_date: service.next_billing_date ? service.next_billing_date.split("T")[0].split(" ")[0] : "",
+      expires_at: service.expires_at
+        ? service.expires_at.split("T")[0].split(" ")[0]
+        : "",
+      next_billing_date: service.next_billing_date
+        ? service.next_billing_date.split("T")[0].split(" ")[0]
+        : "",
       url_dominio: service.url_dominio || "",
       notes: service.notes || "",
       admin_notes: service.admin_notes || "",
       billing_type: service.billing_type || "monthly",
       no_expiry: service.no_expiry === true,
       tarjeta: service.tarjeta || "",
-      start_date: service.start_date ? service.start_date.split("T")[0].split(" ")[0] : "",
+      start_date: service.start_date
+        ? service.start_date.split("T")[0].split(" ")[0]
+        : "",
       requiere_abono: service.requiere_abono === true,
       monto_abonado: service.monto_abonado || "",
-    })
-    fetchBaseServices()
-    setShowServiceModal(true)
+    });
+    fetchBaseServices();
+    setShowServiceModal(true);
   }
 
   async function handleSaveService(e) {
-    e.preventDefault()
+    e.preventDefault();
     if (!serviceForm.service_id) {
-      notify("Selecciona un servicio base", "warning")
-      return
+      notify("Selecciona un servicio base", "warning");
+      return;
     }
     if (!selectedUser?.id) {
-      notify("Error: No hay cliente seleccionado", "error")
-      return
+      notify("Error: No hay cliente seleccionado", "error");
+      return;
     }
     try {
       const data = {
@@ -359,154 +484,203 @@ export default function AdminUsers() {
         requiere_abono: serviceForm.requiere_abono,
         billing_type: serviceForm.billing_type,
         no_expiry: serviceForm.no_expiry,
-        expires_at: serviceForm.no_expiry ? null : (serviceForm.expires_at || null),
+        expires_at: serviceForm.no_expiry
+          ? null
+          : serviceForm.expires_at || null,
         next_billing_date: serviceForm.next_billing_date || null,
         url_dominio: serviceForm.url_dominio || null,
         notes: serviceForm.notes || null,
         admin_notes: serviceForm.admin_notes || null,
-        monto_abonado: serviceForm.monto_abonado ? parseFloat(serviceForm.monto_abonado) : null,
-        status: serviceForm.no_expiry || serviceForm.expires_at ? "active" : "pending",
-      }
+        monto_abonado: serviceForm.monto_abonado
+          ? parseFloat(serviceForm.monto_abonado)
+          : null,
+        status:
+          serviceForm.no_expiry || serviceForm.expires_at
+            ? "active"
+            : "pending",
+      };
 
       if (editingService) {
-        await pb.collection('user_services').update(editingService.id, data)
+        await pb.collection("user_services").update(editingService.id, data);
       } else {
-        const newService = await pb.collection('user_services').create({ ...data, user_id: selectedUser.id })
-        const baseService = baseServices.find(s => s.id === serviceForm.service_id)
+        const newService = await pb
+          .collection("user_services")
+          .create({ ...data, user_id: selectedUser.id });
+        const baseService = baseServices.find(
+          (s) => s.id === serviceForm.service_id,
+        );
         if (baseService?.type === "membresia" && data.owner === 0) {
-          try { await generateMonthlyPayments(newService.id) } catch (err) { console.error(err) }
+          try {
+            await generateMonthlyPayments(newService.id);
+          } catch (err) {
+            console.error(err);
+          }
         }
         if ((data.price || 0) > 0) {
-          const pendingAmount = data.requiere_abono && data.monto_abonado
-            ? (data.price || 0) - parseFloat(data.monto_abonado)
-            : (data.price || 0)
+          const pendingAmount =
+            data.requiere_abono && data.monto_abonado
+              ? (data.price || 0) - parseFloat(data.monto_abonado)
+              : data.price || 0;
           if (pendingAmount > 0) {
             try {
-              await pb.collection('payments').create({
+              await pb.collection("payments").create({
                 user_service_id: newService.id,
                 user_id: selectedUser.id,
                 amount: pendingAmount,
                 payment_date: data.start_date || new Date().toISOString(),
                 status: "pending",
-              })
-            } catch (err) { console.error("Error creando pago pendiente inicial:", err) }
+              });
+            } catch (err) {
+              console.error("Error creando pago pendiente inicial:", err);
+            }
           }
         }
       }
 
-      notify(editingService ? "Servicio actualizado" : "Servicio agregado", "success")
-      setShowServiceModal(false)
-      viewUserDetails(selectedUser)
-      fetchUsers()
+      notify(
+        editingService ? "Servicio actualizado" : "Servicio agregado",
+        "success",
+      );
+      setShowServiceModal(false);
+      viewUserDetails(selectedUser);
+      fetchUsers();
     } catch (error) {
-      console.error("Error guardando servicio:", error)
-      notify("Error al guardar servicio: " + (error.message || error), "error")
+      console.error("Error guardando servicio:", error);
+      notify("Error al guardar servicio: " + (error.message || error), "error");
     }
   }
 
   async function handleDeleteService(serviceId) {
-    if (!confirm("¿Eliminar este servicio?")) return
+    if (!confirm("¿Eliminar este servicio?")) return;
     try {
-      await pb.collection('user_services').delete(serviceId)
-      viewUserDetails(selectedUser)
-      fetchUsers()
+      await pb.collection("user_services").delete(serviceId);
+      viewUserDetails(selectedUser);
+      fetchUsers();
     } catch (error) {
-      console.error("Error eliminando servicio:", error)
+      console.error("Error eliminando servicio:", error);
     }
   }
 
   async function handleSaveServiceAccesses(serviceId, content) {
     try {
-      await pb.collection('user_services').update(serviceId, { accesos: content })
-      setUserServices(userServices.map((s) => (s.id === serviceId ? { ...s, accesos: content } : s)))
+      await pb
+        .collection("user_services")
+        .update(serviceId, { accesos: content });
+      setUserServices(
+        userServices.map((s) =>
+          s.id === serviceId ? { ...s, accesos: content } : s,
+        ),
+      );
       if (selectedService?.id === serviceId) {
-        setSelectedService({ ...selectedService, accesos: content })
+        setSelectedService({ ...selectedService, accesos: content });
       }
     } catch (err) {
-      console.error("Error guardando accesos de servicio:", err)
+      console.error("Error guardando accesos de servicio:", err);
     }
   }
 
   async function viewServicePayments(service) {
-    setSelectedService(service)
-    setLoadingPayments(true)
-    setShowPaymentsModal(true)
-    const result = await getPaymentsByUserService(service.id)
-    setServicePayments(result.success ? (result.data || []) : [])
-    if (!result.success) notify("Error al cargar pagos", "error")
-    setLoadingPayments(false)
+    setSelectedService(service);
+    setLoadingPayments(true);
+    setShowPaymentsModal(true);
+    const result = await getPaymentsByUserService(service.id);
+    setServicePayments(result.success ? result.data || [] : []);
+    if (!result.success) notify("Error al cargar pagos", "error");
+    setLoadingPayments(false);
   }
 
   async function fetchPaymentAccounts() {
     try {
-      const data = await pb.collection('payment_accounts').getFullList({ sort: 'name', requestKey: null })
-      setPaymentAccounts(data || [])
+      const data = await pb
+        .collection("payment_accounts")
+        .getFullList({ sort: "name", requestKey: null });
+      setPaymentAccounts(data || []);
     } catch (err) {
-      console.error("Error cargando cuentas:", err)
-      setPaymentAccounts([])
+      console.error("Error cargando cuentas:", err);
+      setPaymentAccounts([]);
     }
   }
 
   async function handleMarkPaymentPaid(paymentId, accountId) {
-    const payload = { status: "paid" }
-    if (accountId) payload.payment_account = accountId
+    const payload = { status: "paid" };
+    if (accountId) payload.payment_account = accountId;
     try {
-      const updated = await pb.collection('payments').update(paymentId, payload)
-      await syncOneTimeAbono(updated.user_service_id)
-      notify('Pago actualizado correctamente', 'success')
-      setServicePayments((prev) => prev.map((p) => (p.id === paymentId ? { ...p, status: "paid", payment_account: accountId } : p)))
-      viewUserDetails(selectedUser)
+      const updated = await pb
+        .collection("payments")
+        .update(paymentId, payload);
+      await syncOneTimeAbono(updated.user_service_id);
+      notify("Pago actualizado correctamente", "success");
+      setServicePayments((prev) =>
+        prev.map((p) =>
+          p.id === paymentId
+            ? { ...p, status: "paid", payment_account: accountId }
+            : p,
+        ),
+      );
+      viewUserDetails(selectedUser);
     } catch (err) {
-      console.error('Error updating payment status:', err)
-      notify('Error al actualizar el pago', 'error')
+      console.error("Error updating payment status:", err);
+      notify("Error al actualizar el pago", "error");
     }
   }
 
   async function handleMarkPaymentPending(paymentId) {
-    const result = await updatePaymentStatus(paymentId, "pending")
+    const result = await updatePaymentStatus(paymentId, "pending");
     if (result.success) {
-      setServicePayments((prev) => prev.map((p) => (p.id === paymentId ? { ...p, status: "pending" } : p)))
+      setServicePayments((prev) =>
+        prev.map((p) => (p.id === paymentId ? { ...p, status: "pending" } : p)),
+      );
     }
   }
 
   async function handleRenewService(service) {
-    if (!confirm(`¿Renovar "${service.expand?.service_id?.name || 'este servicio'}" por 1 año más?`)) return
+    if (
+      !confirm(
+        `¿Renovar "${service.expand?.service_id?.name || "este servicio"}" por 1 año más?`,
+      )
+    )
+      return;
     try {
-      const currentExpiry = new Date(service.expires_at)
-      const newExpiry = new Date(currentExpiry)
-      newExpiry.setFullYear(newExpiry.getFullYear() + 1)
-      await pb.collection('user_services').update(service.id, {
-        expires_at: newExpiry.toISOString().split('T')[0],
-        status: 'active',
-      })
-      const pending = await pb.collection('payments').getFullList({
+      const currentExpiry = new Date(service.expires_at);
+      const newExpiry = new Date(currentExpiry);
+      newExpiry.setFullYear(newExpiry.getFullYear() + 1);
+      await pb.collection("user_services").update(service.id, {
+        expires_at: newExpiry.toISOString().split("T")[0],
+        status: "active",
+      });
+      const pending = await pb.collection("payments").getFullList({
         filter: `user_service_id = "${service.id}" && status = "pending"`,
         requestKey: null,
-      })
-      for (const p of pending) { await pb.collection('payments').delete(p.id) }
-      await generateMonthlyPayments(service.id)
-      notify(`Servicio renovado hasta ${formatDate(newExpiry.toISOString())}`, "success")
-      viewUserDetails(selectedUser)
-      fetchUsers()
+      });
+      for (const p of pending) {
+        await pb.collection("payments").delete(p.id);
+      }
+      await generateMonthlyPayments(service.id);
+      notify(
+        `Servicio renovado hasta ${formatDate(newExpiry.toISOString())}`,
+        "success",
+      );
+      viewUserDetails(selectedUser);
+      fetchUsers();
     } catch (err) {
-      console.error("Error renovando servicio:", err)
-      notify("Error al renovar servicio", "error")
+      console.error("Error renovando servicio:", err);
+      notify("Error al renovar servicio", "error");
     }
   }
 
   function getDaysRemaining(expiresAt) {
-    if (!expiresAt) return null
-    const today = new Date()
-    const expires = new Date(expiresAt)
-    return Math.ceil((expires - today) / (1000 * 60 * 60 * 24))
+    if (!expiresAt) return null;
+    const today = new Date();
+    const expires = new Date(expiresAt);
+    return Math.ceil((expires - today) / (1000 * 60 * 60 * 24));
   }
 
   function getPaymentStatus(service) {
-    const days = getDaysRemaining(service.expires_at)
-    if (days === null) return { label: "Sin fecha", color: "secondary" }
-    if (days < 0) return { label: "Vencido", color: "destructive" }
-    if (days <= 7) return { label: "Por Vencer", color: "outline" }
-    return { label: "Al día", color: "default" }
+    const days = getDaysRemaining(service.expires_at);
+    if (days === null) return { label: "Sin fecha", color: "secondary" };
+    if (days < 0) return { label: "Vencido", color: "destructive" };
+    if (days <= 7) return { label: "Por Vencer", color: "outline" };
+    return { label: "Al día", color: "default" };
   }
 
   if (loading) {
@@ -514,14 +688,21 @@ export default function AdminUsers() {
       <div className="flex justify-center py-20">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
-    )
+    );
   }
 
   if (selectedUser) {
     return (
       <div className="space-y-6">
         <div>
-          <Button variant="ghost" onClick={() => { setSelectedUser(null); setUserServices([]) }} className="gap-2 mb-4">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSelectedUser(null);
+              setUserServices([]);
+            }}
+            className="gap-2 mb-4"
+          >
             <ChevronLeft className="w-4 h-4" />
             Volver a usuarios
           </Button>
@@ -530,7 +711,9 @@ export default function AdminUsers() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground">Cliente</p>
-                <h1 className="text-lg sm:text-xl font-bold text-foreground">{selectedUser.name}</h1>
+                <h1 className="text-lg sm:text-xl font-bold text-foreground">
+                  {selectedUser.name}
+                </h1>
                 <div className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground mt-0.5">
                   {selectedUser.email && (
                     <span className="inline-flex items-center gap-1">
@@ -541,7 +724,8 @@ export default function AdminUsers() {
                   {selectedUser.whatsapp && (
                     <span className="inline-flex items-center gap-1">
                       <MessageCircle className="w-3 h-3" />
-                      {formatWhatsapp(selectedUser.whatsapp) || selectedUser.whatsapp}
+                      {formatWhatsapp(selectedUser.whatsapp) ||
+                        selectedUser.whatsapp}
                     </span>
                   )}
                   {selectedUser.lastLogin && (
@@ -552,20 +736,28 @@ export default function AdminUsers() {
                 </div>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-muted border border-border flex items-center justify-center shrink-0">
-                <span className="text-xl sm:text-2xl font-bold text-foreground">{selectedUser.name?.charAt(0).toUpperCase() || "U"}</span>
+                <span className="text-xl sm:text-2xl font-bold text-foreground">
+                  {selectedUser.name?.charAt(0).toUpperCase() || "U"}
+                </span>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-3 mt-4 pt-3 border-t border-border/50">
               <div className="text-center">
-                <p className="text-lg font-bold text-foreground">{userServices.filter((s) => s.status === "active").length}</p>
+                <p className="text-lg font-bold text-foreground">
+                  {userServices.filter((s) => s.status === "active").length}
+                </p>
                 <p className="text-xs text-muted-foreground">Activos</p>
               </div>
               <div className="text-center">
-                <p className="text-lg font-bold text-foreground">{userServices.filter((s) => s.status === "pending").length}</p>
+                <p className="text-lg font-bold text-foreground">
+                  {userServices.filter((s) => s.status === "pending").length}
+                </p>
                 <p className="text-xs text-muted-foreground">Pendientes</p>
               </div>
               <div className="text-center">
-                <p className="text-lg font-bold text-foreground">{userServices.length}</p>
+                <p className="text-lg font-bold text-foreground">
+                  {userServices.length}
+                </p>
                 <p className="text-xs text-muted-foreground">Total</p>
               </div>
             </div>
@@ -574,18 +766,36 @@ export default function AdminUsers() {
           <div className="space-y-4 mt-6">
             <div className="flex gap-2 flex-wrap">
               {isAdmin && (
-                <Button variant="outline" size="sm" onClick={() => openNotesModal(selectedUser)} className="gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openNotesModal(selectedUser)}
+                  className="gap-2"
+                >
                   <FileText className="w-4 h-4" />
                   Notas
                 </Button>
               )}
               {selectedUser.whatsapp && (
-                <Button variant="outline" size="sm" onClick={() => sendUserCredentials(selectedUser)} className="gap-2 text-green-500 border-green-500/30 hover:bg-green-500/10">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => sendUserCredentials(selectedUser)}
+                  className="gap-2 text-green-500 border-green-500/30 hover:bg-green-500/10"
+                >
                   <MessageCircle className="w-4 h-4" />
                   Enviar Credenciales
                 </Button>
               )}
-              <Button variant="outline" size="sm" onClick={() => { setPasswordUser(selectedUser); setShowPasswordModal(true) }} className="gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setPasswordUser(selectedUser);
+                  setShowPasswordModal(true);
+                }}
+                className="gap-2"
+              >
                 <Lock className="w-4 h-4" />
                 Cambiar Pass
               </Button>
@@ -597,7 +807,9 @@ export default function AdminUsers() {
                   <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
                     <Package className="w-4 h-4 text-primary" />
                   </div>
-                  <h2 className="text-base font-bold text-foreground">Dominios / Servicios</h2>
+                  <h2 className="text-base font-bold text-foreground">
+                    Dominios / Servicios
+                  </h2>
                 </div>
                 <Button size="sm" onClick={openAddService}>
                   <Plus className="w-4 h-4 mr-2" />
@@ -606,7 +818,11 @@ export default function AdminUsers() {
               </div>
               <div className="p-4">
                 {userServices.length === 0 ? (
-                  <div className="text-center py-6"><p className="text-muted-foreground font-medium">No tiene servicios contratados</p></div>
+                  <div className="text-center py-6">
+                    <p className="text-muted-foreground font-medium">
+                      No tiene servicios contratados
+                    </p>
+                  </div>
                 ) : (
                   <>
                     {userServices.length > 4 && (
@@ -623,125 +839,259 @@ export default function AdminUsers() {
                     <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
                       {(serviceSearch
                         ? userServices.filter((s) => {
-                            const term = serviceSearch.toLowerCase()
-                            const domain = s.url_dominio?.toLowerCase() || ""
-                            const name = s.expand?.service_id?.name?.toLowerCase() || ""
-                            return domain.includes(term) || name.includes(term)
+                            const term = serviceSearch.toLowerCase();
+                            const domain = s.url_dominio?.toLowerCase() || "";
+                            const name =
+                              s.expand?.service_id?.name?.toLowerCase() || "";
+                            return domain.includes(term) || name.includes(term);
                           })
                         : userServices
                       ).map((service) => {
-                        const daysRemaining = getDaysRemaining(service.expires_at)
-                        const paymentStatus = getPaymentStatus(service)
-                        const ownerLabel = service.owner === 1 ? "Cliente paga" : "Lo administro"
-                        const ownerColor = service.owner === 1 ? "default" : "secondary"
+                        const daysRemaining = getDaysRemaining(
+                          service.expires_at,
+                        );
+                        const paymentStatus = getPaymentStatus(service);
+                        const ownerLabel =
+                          service.owner === 1
+                            ? "Cliente paga"
+                            : "Lo administro";
+                        const ownerColor =
+                          service.owner === 1 ? "default" : "secondary";
                         const websiteName = (() => {
-                          if (!service.url_dominio) return null
-                          try { return new URL(normalizeUrl(service.url_dominio)).hostname }
-                          catch (e) { return service.url_dominio }
-                        })()
-                        const displayName = websiteName || service.expand?.service_id?.name || service.name || "Servicio"
+                          if (!service.url_dominio) return null;
+                          try {
+                            return new URL(normalizeUrl(service.url_dominio))
+                              .hostname;
+                          } catch (e) {
+                            return service.url_dominio;
+                          }
+                        })();
+                        const displayName =
+                          websiteName ||
+                          service.expand?.service_id?.name ||
+                          service.name ||
+                          "Servicio";
                         return (
-                          <div key={service.id} className="group relative overflow-hidden rounded-lg border bg-card p-3 hover:border-primary/50 transition-all">
+                          <div
+                            key={service.id}
+                            className="group relative overflow-hidden rounded-lg border bg-card p-3 hover:border-primary/50 transition-all"
+                          >
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                                  <Badge variant={ownerColor} className="text-[10px] px-1.5 py-0">{ownerLabel}</Badge>
-                                  <Badge variant={service.status === "active" ? "default" : service.status === "pending" ? "secondary" : "destructive"} className="text-[10px] px-1.5 py-0">
-                                    {service.status === "active" ? "Activo" : service.status === "pending" ? "Pendiente" : "Vencido"}
+                                  <Badge
+                                    variant={ownerColor}
+                                    className="text-[10px] px-1.5 py-0"
+                                  >
+                                    {ownerLabel}
                                   </Badge>
-                                  <Badge variant={paymentStatus.color} className="text-[10px] px-1.5 py-0">{paymentStatus.label}</Badge>
+                                  <Badge
+                                    variant={
+                                      service.status === "active"
+                                        ? "default"
+                                        : service.status === "pending"
+                                          ? "secondary"
+                                          : "destructive"
+                                    }
+                                    className="text-[10px] px-1.5 py-0"
+                                  >
+                                    {service.status === "active"
+                                      ? "Activo"
+                                      : service.status === "pending"
+                                        ? "Pendiente"
+                                        : "Vencido"}
+                                  </Badge>
+                                  <Badge
+                                    variant={paymentStatus.color}
+                                    className="text-[10px] px-1.5 py-0"
+                                  >
+                                    {paymentStatus.label}
+                                  </Badge>
                                 </div>
                                 <p className="text-sm font-semibold text-foreground truncate">
                                   {websiteName ? (
-                                    <a href={normalizeUrl(service.url_dominio)} target="_blank" rel="noopener noreferrer" className="hover:underline inline-flex items-center gap-1">
+                                    <a
+                                      href={normalizeUrl(service.url_dominio)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="hover:underline inline-flex items-center gap-1"
+                                    >
                                       {websiteName}
                                       <ExternalLink className="w-3 h-3 shrink-0" />
                                     </a>
-                                  ) : displayName}
+                                  ) : (
+                                    displayName
+                                  )}
                                 </p>
-                                {websiteName && service.expand?.service_id?.name && (
-                                  <p className="text-xs text-muted-foreground truncate">{service.expand.service_id.name}</p>
-                                )}
+                                {websiteName &&
+                                  service.expand?.service_id?.name && (
+                                    <p className="text-xs text-muted-foreground truncate">
+                                      {service.expand.service_id.name}
+                                    </p>
+                                  )}
                               </div>
                               <div className="flex items-center gap-1.5 shrink-0">
-                                <button onClick={(e) => { e.stopPropagation(); setCredentialsService(service) }} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-medium transition-all">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCredentialsService(service);
+                                  }}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-medium transition-all"
+                                >
                                   <Key className="w-3 h-3" />
                                 </button>
                                 {isAdmin && (
-                                  <button onClick={(e) => { e.stopPropagation(); viewServicePayments(service) }} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white text-xs font-medium transition-all">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      viewServicePayments(service);
+                                    }}
+                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white text-xs font-medium transition-all"
+                                  >
                                     <CreditCard className="w-3 h-3" />
                                   </button>
                                 )}
-                                {service.expand?.service_id?.type === "membresia" && daysRemaining !== null && daysRemaining <= 30 && (
-                                  <button onClick={(e) => { e.stopPropagation(); handleRenewService(service) }} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white text-xs font-medium transition-all">
-                                    <RefreshCw className="w-3 h-3" />
-                                  </button>
-                                )}
-                                <button onClick={(e) => { e.stopPropagation(); openEditService(service) }} className="p-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all">
+                                {service.expand?.service_id?.type ===
+                                  "membresia" &&
+                                  daysRemaining !== null &&
+                                  daysRemaining <= 30 && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRenewService(service);
+                                      }}
+                                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white text-xs font-medium transition-all"
+                                    >
+                                      <RefreshCw className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openEditService(service);
+                                  }}
+                                  className="p-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all"
+                                >
                                   <Edit3 className="w-3.5 h-3.5" />
                                 </button>
-                                <button onClick={(e) => { e.stopPropagation(); handleDeleteService(service.id) }} className="p-1.5 rounded-md bg-destructive/10 text-destructive hover:bg-destructive hover:text-white transition-all">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteService(service.id);
+                                  }}
+                                  className="p-1.5 rounded-md bg-destructive/10 text-destructive hover:bg-destructive hover:text-white transition-all"
+                                >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             </div>
                             <div className="flex items-center justify-between mt-2 pt-2 border-t gap-3">
                               <div className="flex items-center gap-3">
-                                <span className="text-sm font-bold text-primary">{formatCurrency(service.price || 0)}</span>
-                                <span className="text-[10px] text-muted-foreground">{service.billing_type === "annual" ? "anual" : service.billing_type === "one_time" ? "único" : "mensual"}</span>
-                                {service.billing_type === "one_time" && service.requiere_abono && (service.monto_abonado || 0) < (service.price || 0) && (
-                                  <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-orange-500/10 text-orange-500 border border-orange-500/20">
-                                    Pendiente pago
-                                  </span>
-                                )}
-                                {service.expires_at && service.billing_type !== "one_time" && (
-                                  <span className="text-xs text-muted-foreground">Vence: {formatDate(service.expires_at)}</span>
-                                )}
-                                {service.start_date && (service.no_expiry || service.billing_type === "one_time") && (
-                                  <span className="text-xs text-muted-foreground">Inicio: {formatDate(service.start_date)}</span>
-                                )}
+                                <span className="text-sm font-bold text-primary">
+                                  {formatCurrency(service.price || 0)}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">
+                                  {service.billing_type === "annual"
+                                    ? "anual"
+                                    : service.billing_type === "one_time"
+                                      ? "único"
+                                      : "mensual"}
+                                </span>
+                                {service.billing_type === "one_time" &&
+                                  service.requiere_abono &&
+                                  (service.monto_abonado || 0) <
+                                    (service.price || 0) && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-orange-500/10 text-orange-500 border border-orange-500/20">
+                                      Pendiente pago
+                                    </span>
+                                  )}
+                                {service.expires_at &&
+                                  service.billing_type !== "one_time" && (
+                                    <span className="text-xs text-muted-foreground">
+                                      Vence: {formatDate(service.expires_at)}
+                                    </span>
+                                  )}
+                                {service.start_date &&
+                                  (service.no_expiry ||
+                                    service.billing_type === "one_time") && (
+                                    <span className="text-xs text-muted-foreground">
+                                      Inicio: {formatDate(service.start_date)}
+                                    </span>
+                                  )}
                               </div>
-                              {service.expires_at && daysRemaining !== null && service.billing_type !== "one_time" && (
-                                <div className={`flex items-center justify-center w-10 h-10 rounded-md text-sm font-extrabold shrink-0 ${
-                                  daysRemaining >= 20 ? "bg-green-500/10 text-green-500 border border-green-500/20" :
-                                  daysRemaining >= 7 ? "bg-orange-500/10 text-orange-500 border border-orange-500/20" :
-                                  daysRemaining >= 0 ? "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20" :
-                                  "bg-destructive/10 text-destructive border border-destructive/20"
-                                }`}>
-                                  <span>{daysRemaining}</span>
-                                  <span className="text-[8px] font-normal">d</span>
+                              {service.expires_at &&
+                                daysRemaining !== null &&
+                                service.billing_type !== "one_time" && (
+                                  <div
+                                    className={`flex items-center justify-center w-10 h-10 rounded-md text-sm font-extrabold shrink-0 ${
+                                      daysRemaining >= 20
+                                        ? "bg-green-500/10 text-green-500 border border-green-500/20"
+                                        : daysRemaining >= 7
+                                          ? "bg-orange-500/10 text-orange-500 border border-orange-500/20"
+                                          : daysRemaining >= 0
+                                            ? "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20"
+                                            : "bg-destructive/10 text-destructive border border-destructive/20"
+                                    }`}
+                                  >
+                                    <span>{daysRemaining}</span>
+                                    <span className="text-[8px] font-normal">
+                                      d
+                                    </span>
+                                  </div>
+                                )}
+                            </div>
+                            {service.owner === 1 &&
+                              (service.next_billing_date ||
+                                service.tarjeta) && (
+                                <div className="flex items-center gap-3 mt-2 pt-2 border-t text-xs text-muted-foreground">
+                                  {service.next_billing_date && (
+                                    <span className="text-green-500 font-medium">
+                                      Prox. cobro:{" "}
+                                      {formatDate(service.next_billing_date)}
+                                    </span>
+                                  )}
+                                  {service.tarjeta && (
+                                    <span>Tarjeta: ****{service.tarjeta}</span>
+                                  )}
                                 </div>
                               )}
-                            </div>
-                            {service.owner === 1 && (service.next_billing_date || service.tarjeta) && (
-                              <div className="flex items-center gap-3 mt-2 pt-2 border-t text-xs text-muted-foreground">
-                                {service.next_billing_date && (
-                                  <span className="text-green-500 font-medium">Prox. cobro: {formatDate(service.next_billing_date)}</span>
-                                )}
-                                {service.tarjeta && (
-                                  <span>Tarjeta: ****{service.tarjeta}</span>
-                                )}
-                              </div>
-                            )}
-                            {service.requiere_abono && service.totalExpected > 0 && (
-                              <div className="mt-2 pt-2 border-t text-xs text-muted-foreground">
-                                Abonado: <span className="font-semibold text-foreground">{formatCurrency(service.totalPaid || 0)}</span> de <span className="font-semibold text-foreground">{formatCurrency(service.totalExpected)}</span>
-                                {(service.totalPaid || 0) < service.totalExpected && (
-                                  <span className="text-destructive"> - Restante: {formatCurrency(service.totalExpected - (service.totalPaid || 0))}</span>
-                                )}
-                              </div>
-                            )}
+                            {service.requiere_abono &&
+                              service.totalExpected > 0 && (
+                                <div className="mt-2 pt-2 border-t text-xs text-muted-foreground">
+                                  Abonado:{" "}
+                                  <span className="font-semibold text-foreground">
+                                    {formatCurrency(service.totalPaid || 0)}
+                                  </span>{" "}
+                                  de{" "}
+                                  <span className="font-semibold text-foreground">
+                                    {formatCurrency(service.totalExpected)}
+                                  </span>
+                                  {(service.totalPaid || 0) <
+                                    service.totalExpected && (
+                                    <span className="text-destructive">
+                                      {" "}
+                                      - Restante:{" "}
+                                      {formatCurrency(
+                                        service.totalExpected -
+                                          (service.totalPaid || 0),
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             {service.admin_notes && (
                               <div className="mt-2 pt-2 border-t border-yellow-500/20 text-xs text-yellow-600 dark:text-yellow-400">
                                 <span className="flex items-center gap-1 font-medium mb-0.5">
                                   <Lock className="w-3 h-3" />
                                   Nota interna
                                 </span>
-                                <p className="whitespace-pre-wrap break-words leading-relaxed">{service.admin_notes}</p>
+                                <p className="whitespace-pre-wrap break-words leading-relaxed">
+                                  {service.admin_notes}
+                                </p>
                               </div>
                             )}
                           </div>
-                        )
+                        );
                       })}
                     </div>
                   </>
@@ -751,113 +1101,343 @@ export default function AdminUsers() {
           </div>
         </div>
 
-        <Modal isOpen={showServiceModal} onClose={() => setShowServiceModal(false)} title={editingService ? "Editar Servicio" : "Agregar Servicio"} size="xl">
+        <Modal
+          isOpen={showServiceModal}
+          onClose={() => setShowServiceModal(false)}
+          title={editingService ? "Editar Servicio" : "Agregar Servicio"}
+          size="xl"
+        >
           <form onSubmit={handleSaveService} className="space-y-5">
-            <div className="grid grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1.5">Servicio base</label>
-                <select value={serviceForm.service_id} onChange={(e) => setServiceForm({ ...serviceForm, service_id: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" required>
+                <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+                  Servicio base
+                </label>
+                <select
+                  value={serviceForm.service_id}
+                  onChange={(e) =>
+                    setServiceForm({
+                      ...serviceForm,
+                      service_id: e.target.value,
+                    })
+                  }
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  required
+                >
                   <option value="">Seleccionar servicio...</option>
-                  {baseServices.map((s) => (<option key={s.id} value={s.id}>{s.name} ({s.type})</option>))}
+                  {baseServices.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.type})
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1.5">URL del dominio</label>
-                <input type="url" value={serviceForm.url_dominio} onChange={(e) => setServiceForm({ ...serviceForm, url_dominio: e.target.value })} placeholder="https://dominio.com" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+                  URL del dominio
+                </label>
+                <input
+                  type="url"
+                  value={serviceForm.url_dominio}
+                  onChange={(e) =>
+                    setServiceForm({
+                      ...serviceForm,
+                      url_dominio: e.target.value,
+                    })
+                  }
+                  placeholder="https://dominio.com"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1.5">Precio</label>
-                <input type="number" value={serviceForm.price} onChange={(e) => setServiceForm({ ...serviceForm, price: e.target.value })} placeholder="0" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+                  Precio
+                </label>
+                <input
+                  type="number"
+                  value={serviceForm.price}
+                  onChange={(e) =>
+                    setServiceForm({ ...serviceForm, price: e.target.value })
+                  }
+                  placeholder="0"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
               </div>
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-1.5 cursor-pointer">
-                  <input type="checkbox" checked={serviceForm.no_expiry} onChange={(e) => setServiceForm({ ...serviceForm, no_expiry: e.target.checked, expires_at: e.target.checked ? "" : serviceForm.expires_at })} className="w-4 h-4 rounded border-primary text-primary" />
+                  <input
+                    type="checkbox"
+                    checked={serviceForm.no_expiry}
+                    onChange={(e) =>
+                      setServiceForm({
+                        ...serviceForm,
+                        no_expiry: e.target.checked,
+                        expires_at: e.target.checked
+                          ? ""
+                          : serviceForm.expires_at,
+                      })
+                    }
+                    className="w-4 h-4 rounded border-primary text-primary"
+                  />
                   Sin fecha de vencimiento
                 </label>
                 {!serviceForm.no_expiry ? (
-                  <input type="date" value={serviceForm.expires_at} onChange={(e) => setServiceForm({ ...serviceForm, expires_at: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                  <input
+                    type="date"
+                    value={serviceForm.expires_at}
+                    onChange={(e) =>
+                      setServiceForm({
+                        ...serviceForm,
+                        expires_at: e.target.value,
+                      })
+                    }
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
                 ) : (
-                  <input type="date" value={serviceForm.start_date} onChange={(e) => setServiceForm({ ...serviceForm, start_date: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                  <input
+                    type="date"
+                    value={serviceForm.start_date}
+                    onChange={(e) =>
+                      setServiceForm({
+                        ...serviceForm,
+                        start_date: e.target.value,
+                      })
+                    }
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
                 )}
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-1.5">Tipo de facturación</label>
-              <div className="grid grid-cols-3 gap-3">
-                {(["monthly", "annual", "one_time"]).map((type) => (
-                  <label key={type} className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${serviceForm.billing_type === type ? "border-primary bg-primary/10" : "border-border hover:bg-muted"}`}>
-                    <input type="radio" name="billing_type" value={type} checked={serviceForm.billing_type === type} onChange={() => setServiceForm({ ...serviceForm, billing_type: type })} className="hidden" />
-                    {type === "one_time" ? <Zap className={`w-5 h-5 ${serviceForm.billing_type === type ? "text-primary" : "text-muted-foreground"}`} /> : <Calendar className={`w-5 h-5 ${serviceForm.billing_type === type ? "text-primary" : "text-muted-foreground"}`} />}
-                    <span className="font-medium text-sm">{type === "monthly" ? "Mensual" : type === "annual" ? "Anual" : "Pago Único"}</span>
+              <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+                Tipo de facturación
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {["monthly", "annual", "one_time"].map((type) => (
+                  <label
+                    key={type}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${serviceForm.billing_type === type ? "border-primary bg-primary/10" : "border-border hover:bg-muted"}`}
+                  >
+                    <input
+                      type="radio"
+                      name="billing_type"
+                      value={type}
+                      checked={serviceForm.billing_type === type}
+                      onChange={() =>
+                        setServiceForm({ ...serviceForm, billing_type: type })
+                      }
+                      className="hidden"
+                    />
+                    {type === "one_time" ? (
+                      <Zap
+                        className={`w-5 h-5 ${serviceForm.billing_type === type ? "text-primary" : "text-muted-foreground"}`}
+                      />
+                    ) : (
+                      <Calendar
+                        className={`w-5 h-5 ${serviceForm.billing_type === type ? "text-primary" : "text-muted-foreground"}`}
+                      />
+                    )}
+                    <span className="font-medium text-sm">
+                      {type === "monthly"
+                        ? "Mensual"
+                        : type === "annual"
+                          ? "Anual"
+                          : "Pago Único"}
+                    </span>
                   </label>
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="space-y-3">
                 <label className="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-muted transition-all">
-                  <input type="checkbox" checked={serviceForm.owner === 1} onChange={(e) => setServiceForm({ ...serviceForm, owner: e.target.checked ? 1 : 0, tarjeta: e.target.checked ? serviceForm.tarjeta : "" })} className="w-4 h-4 rounded border-primary text-primary" />
+                  <input
+                    type="checkbox"
+                    checked={serviceForm.owner === 1}
+                    onChange={(e) =>
+                      setServiceForm({
+                        ...serviceForm,
+                        owner: e.target.checked ? 1 : 0,
+                        tarjeta: e.target.checked ? serviceForm.tarjeta : "",
+                      })
+                    }
+                    className="w-4 h-4 rounded border-primary text-primary"
+                  />
                   <div>
-                    <span className="font-medium text-sm text-foreground">Cliente paga</span>
-                    <p className="text-xs text-muted-foreground">El cliente gestiona y paga directamente</p>
+                    <span className="font-medium text-sm text-foreground">
+                      Cliente paga
+                    </span>
+                    <p className="text-xs text-muted-foreground">
+                      El cliente gestiona y paga directamente
+                    </p>
                   </div>
                 </label>
                 {serviceForm.owner === 1 && (
                   <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1.5">4 últimos dígitos de la tarjeta</label>
-                    <input type="text" value={serviceForm.tarjeta} onChange={(e) => setServiceForm({ ...serviceForm, tarjeta: e.target.value.replace(/\D/g, '').slice(0, 4) })} placeholder="1234" maxLength={4} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                    <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+                      4 últimos dígitos de la tarjeta
+                    </label>
+                    <input
+                      type="text"
+                      value={serviceForm.tarjeta}
+                      onChange={(e) =>
+                        setServiceForm({
+                          ...serviceForm,
+                          tarjeta: e.target.value
+                            .replace(/\D/g, "")
+                            .slice(0, 4),
+                        })
+                      }
+                      placeholder="1234"
+                      maxLength={4}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    />
                   </div>
                 )}
               </div>
               <div className="space-y-3">
                 <label className="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-muted transition-all">
-                  <input type="checkbox" checked={serviceForm.requiere_abono} onChange={(e) => setServiceForm({ ...serviceForm, requiere_abono: e.target.checked })} className="w-4 h-4 rounded border-primary text-primary" />
+                  <input
+                    type="checkbox"
+                    checked={serviceForm.requiere_abono}
+                    onChange={(e) =>
+                      setServiceForm({
+                        ...serviceForm,
+                        requiere_abono: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 rounded border-primary text-primary"
+                  />
                   <div>
-                    <span className="font-medium text-sm text-foreground">Requiere abono</span>
-                    <p className="text-xs text-muted-foreground">Muestra el progreso de pago y el restante</p>
+                    <span className="font-medium text-sm text-foreground">
+                      Requiere abono
+                    </span>
+                    <p className="text-xs text-muted-foreground">
+                      Muestra el progreso de pago y el restante
+                    </p>
                   </div>
                 </label>
                 {serviceForm.requiere_abono && (
                   <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1.5">Monto abonado</label>
-                    <input type="number" value={serviceForm.monto_abonado} onChange={(e) => setServiceForm({ ...serviceForm, monto_abonado: e.target.value })} placeholder="0" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                    <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+                      Monto abonado
+                    </label>
+                    <input
+                      type="number"
+                      value={serviceForm.monto_abonado}
+                      onChange={(e) =>
+                        setServiceForm({
+                          ...serviceForm,
+                          monto_abonado: e.target.value,
+                        })
+                      }
+                      placeholder="0"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    />
                   </div>
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1.5">Notas</label>
-                <textarea value={serviceForm.notes} onChange={(e) => setServiceForm({ ...serviceForm, notes: e.target.value })} rows={4} placeholder="Observaciones..." className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-vertical min-h-[100px]" />
+                <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+                  Notas
+                </label>
+                <textarea
+                  value={serviceForm.notes}
+                  onChange={(e) =>
+                    setServiceForm({ ...serviceForm, notes: e.target.value })
+                  }
+                  rows={4}
+                  placeholder="Observaciones..."
+                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-vertical min-h-[100px]"
+                />
               </div>
               <div>
                 <label className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground mb-1.5">
                   <Lock className="w-3.5 h-3.5" />
                   Notas privadas (solo admin)
                 </label>
-                <textarea value={serviceForm.admin_notes} onChange={(e) => setServiceForm({ ...serviceForm, admin_notes: e.target.value })} rows={6} placeholder="Notas internas - el cliente no las verá..." className="flex w-full rounded-md border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-vertical min-h-[180px] font-mono" />
+                <textarea
+                  value={serviceForm.admin_notes}
+                  onChange={(e) =>
+                    setServiceForm({
+                      ...serviceForm,
+                      admin_notes: e.target.value,
+                    })
+                  }
+                  rows={6}
+                  placeholder="Notas internas - el cliente no las verá..."
+                  className="flex w-full rounded-md border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-vertical min-h-[180px] font-mono"
+                />
               </div>
             </div>
             <div className="flex gap-3 pt-2">
-              <Button type="submit" className="flex-1">{editingService ? "Guardar Cambios" : "Agregar Servicio"}</Button>
-              <Button type="button" variant="outline" onClick={() => setShowServiceModal(false)} className="flex-1">Cancelar</Button>
+              <Button type="submit" className="flex-1">
+                {editingService ? "Guardar Cambios" : "Agregar Servicio"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowServiceModal(false)}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
             </div>
           </form>
         </Modal>
 
         {showPasswordModal && (
-          <Modal isOpen={showPasswordModal} onClose={() => { setShowPasswordModal(false); setNewPassword(""); setPasswordUser(null) }} title="Cambiar Contraseña" size="sm">
+          <Modal
+            isOpen={showPasswordModal}
+            onClose={() => {
+              setShowPasswordModal(false);
+              setNewPassword("");
+              setPasswordUser(null);
+            }}
+            title="Cambiar Contraseña"
+            size="sm"
+          >
             <div className="space-y-4">
-              <p className="text-muted-foreground text-sm">Ingresa la nueva contraseña para el usuario <span className="text-foreground font-medium">{passwordUser?.name}</span></p>
+              <p className="text-muted-foreground text-sm">
+                Ingresa la nueva contraseña para el usuario{" "}
+                <span className="text-foreground font-medium">
+                  {passwordUser?.name}
+                </span>
+              </p>
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1.5">Nueva contraseña</label>
-                <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
+                <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+                  Nueva contraseña
+                </label>
+                <Input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                />
               </div>
               <div className="flex gap-3">
-                <Button variant="outline" onClick={() => { setShowPasswordModal(false); setNewPassword(""); setPasswordUser(null) }} className="flex-1">Cancelar</Button>
-                <Button onClick={handleChangePassword} disabled={changingPassword || newPassword.length < 6} className="flex-1">{changingPassword ? "Cambiando..." : "Guardar"}</Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setNewPassword("");
+                    setPasswordUser(null);
+                  }}
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleChangePassword}
+                  disabled={changingPassword || newPassword.length < 6}
+                  className="flex-1"
+                >
+                  {changingPassword ? "Cambiando..." : "Guardar"}
+                </Button>
               </div>
             </div>
           </Modal>
@@ -870,67 +1450,144 @@ export default function AdminUsers() {
           canEdit={true}
         />
 
-        <Modal isOpen={showPaymentsModal} onClose={() => setShowPaymentsModal(false)} title={`Pagos - ${selectedService?.expand?.service_id?.name || "Servicio"}`} size="md">
+        <Modal
+          isOpen={showPaymentsModal}
+          onClose={() => setShowPaymentsModal(false)}
+          title={`Pagos - ${selectedService?.expand?.service_id?.name || "Servicio"}`}
+          size="md"
+        >
           {loadingPayments ? (
-            <div className="flex justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">{servicePayments.length} pagos registrados</p>
+                <p className="text-sm text-muted-foreground">
+                  {servicePayments.length} pagos registrados
+                </p>
                 {selectedService?.billing_type === "one_time" ? (
-                  <Button size="sm" variant="outline" onClick={async () => {
-                    const pendientes = servicePayments.filter(p => p.status === "pending")
-                    if (pendientes.length > 0) {
-                      notify("Ya hay un pago pendiente para este servicio", "warning")
-                      return
-                    }
-                    const result = await createPendingPayment(selectedService.id)
-                    if (result.success) {
-                      notify("Pago pendiente creado", "success")
-                      const paymentsResult = await getPaymentsByUserService(selectedService.id)
-                      setServicePayments(paymentsResult.success ? (paymentsResult.data || []) : [])
-                      viewUserDetails(selectedUser)
-                    } else {
-                      notify("Error: " + (result.error?.message || result.error), "error")
-                    }
-                  }}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      const pendientes = servicePayments.filter(
+                        (p) => p.status === "pending",
+                      );
+                      if (pendientes.length > 0) {
+                        notify(
+                          "Ya hay un pago pendiente para este servicio",
+                          "warning",
+                        );
+                        return;
+                      }
+                      const result = await createPendingPayment(
+                        selectedService.id,
+                      );
+                      if (result.success) {
+                        notify("Pago pendiente creado", "success");
+                        const paymentsResult = await getPaymentsByUserService(
+                          selectedService.id,
+                        );
+                        setServicePayments(
+                          paymentsResult.success
+                            ? paymentsResult.data || []
+                            : [],
+                        );
+                        viewUserDetails(selectedUser);
+                      } else {
+                        notify(
+                          "Error: " + (result.error?.message || result.error),
+                          "error",
+                        );
+                      }
+                    }}
+                  >
                     Agregar Pendiente
                   </Button>
                 ) : (
-                  <Button size="sm" variant="outline" onClick={async () => {
-                    const result = await generateMonthlyPayments(selectedService.id)
-                    if (result.success) {
-                      notify("Pagos generados correctamente", "success")
-                      const paymentsResult = await getPaymentsByUserService(selectedService.id)
-                      setServicePayments(paymentsResult.success ? (paymentsResult.data || []) : [])
-                      viewUserDetails(selectedUser)
-                    }
-                  }}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      const result = await generateMonthlyPayments(
+                        selectedService.id,
+                      );
+                      if (result.success) {
+                        notify("Pagos generados correctamente", "success");
+                        const paymentsResult = await getPaymentsByUserService(
+                          selectedService.id,
+                        );
+                        setServicePayments(
+                          paymentsResult.success
+                            ? paymentsResult.data || []
+                            : [],
+                        );
+                        viewUserDetails(selectedUser);
+                      }
+                    }}
+                  >
                     Generar Pagos
                   </Button>
                 )}
               </div>
               {servicePayments.length === 0 ? (
-                <p className="text-center text-muted-foreground py-6">No hay pagos para este servicio</p>
+                <p className="text-center text-muted-foreground py-6">
+                  No hay pagos para este servicio
+                </p>
               ) : (
                 <div className="space-y-3">
                   {servicePayments.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
+                    >
                       <div>
-                        <p className="font-medium text-foreground">{formatCurrency(p.amount)}</p>
-                        <p className="text-xs text-muted-foreground">{formatDate(p.payment_date)}</p>
+                        <p className="font-medium text-foreground">
+                          {formatCurrency(p.amount)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(p.payment_date)}
+                        </p>
                         {p.payment_account && (
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            Cuenta: {typeof p.payment_account === 'object' ? p.payment_account.name : p.expand?.payment_account?.name || p.payment_account}
+                            Cuenta:{" "}
+                            {typeof p.payment_account === "object"
+                              ? p.payment_account.name
+                              : p.expand?.payment_account?.name ||
+                                p.payment_account}
                           </p>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant={p.status === "paid" ? "default" : "secondary"}>{p.status === "paid" ? "Pagado" : "Pendiente"}</Badge>
+                        <Badge
+                          variant={
+                            p.status === "paid" ? "default" : "secondary"
+                          }
+                        >
+                          {p.status === "paid" ? "Pagado" : "Pendiente"}
+                        </Badge>
                         {p.status !== "paid" && (
-                          <Button size="sm" variant="outline" onClick={() => { setPendingPaymentId(p.id); setPendingPayAccount(""); fetchPaymentAccounts(); setShowAccountDialog(true) }}>Pagar</Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setPendingPaymentId(p.id);
+                              setPendingPayAccount("");
+                              fetchPaymentAccounts();
+                              setShowAccountDialog(true);
+                            }}
+                          >
+                            Pagar
+                          </Button>
                         )}
-                        <Button size="sm" variant="ghost" onClick={() => handleMarkPaymentPending(p.id)}>Pendiente</Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleMarkPaymentPending(p.id)}
+                        >
+                          Pendiente
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -941,44 +1598,96 @@ export default function AdminUsers() {
         </Modal>
 
         {showAccountDialog && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onClick={() => setShowAccountDialog(false)}>
-            <div className="bg-card border rounded-lg p-5 w-80 shadow-xl" onClick={e => e.stopPropagation()}>
-              <h3 className="font-semibold text-foreground mb-1">Registrar pago</h3>
-              <p className="text-sm text-muted-foreground mb-4">¿A qué cuenta te pagaron?</p>
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50"
+            onClick={() => setShowAccountDialog(false)}
+          >
+            <div
+              className="bg-card border rounded-lg p-5 w-full max-w-sm mx-4 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="font-semibold text-foreground mb-1">
+                Registrar pago
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                ¿A qué cuenta te pagaron?
+              </p>
               {paymentAccounts.length === 0 ? (
-                <p className="text-xs text-muted-foreground mb-3">No hay cuentas registradas. Créalas desde Control de Pagos.</p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  No hay cuentas registradas. Créalas desde Control de Pagos.
+                </p>
               ) : (
-                <select value={pendingPayAccount} onChange={(e) => setPendingPayAccount(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm mb-4">
+                <select
+                  value={pendingPayAccount}
+                  onChange={(e) => setPendingPayAccount(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm mb-4"
+                >
                   <option value="">Seleccionar cuenta...</option>
-                  {paymentAccounts.map((a) => (<option key={a.id} value={a.id}>{a.name}</option>))}
+                  {paymentAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
                 </select>
               )}
               <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setShowAccountDialog(false)} className="flex-1">Cancelar</Button>
-                <Button onClick={async () => {
-                  await handleMarkPaymentPaid(pendingPaymentId, pendingPayAccount || null)
-                  setShowAccountDialog(false)
-                }} className="flex-1">Confirmar</Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAccountDialog(false)}
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={async () => {
+                    await handleMarkPaymentPaid(
+                      pendingPaymentId,
+                      pendingPayAccount || null,
+                    );
+                    setShowAccountDialog(false);
+                  }}
+                  className="flex-1"
+                >
+                  Confirmar
+                </Button>
               </div>
             </div>
           </div>
         )}
 
-        <Modal isOpen={showNotesModal} onClose={() => { setShowNotesModal(false); setNotesUser(null) }} title={`Notas - ${notesUser?.name}`} size="lg">
+        <Modal
+          isOpen={showNotesModal}
+          onClose={() => {
+            setShowNotesModal(false);
+            setNotesUser(null);
+          }}
+          title={`Notas - ${notesUser?.name}`}
+          size="lg"
+        >
           <div className="space-y-4">
             <LexicalEditor
               value={notesContent}
               format="json"
               onChange={async (text) => {
-                setNotesContent(text)
+                setNotesContent(text);
                 if (notesUser) {
                   try {
-                    await pb.collection('users').update(notesUser.id, { notas: text }, { requestKey: null })
-                    notify("Notas guardadas", "success")
-                    setSelectedUser(prev => prev?.id === notesUser.id ? { ...prev, notas: text } : prev)
+                    await pb
+                      .collection("users")
+                      .update(
+                        notesUser.id,
+                        { notas: text },
+                        { requestKey: null },
+                      );
+                    notify("Notas guardadas", "success");
+                    setSelectedUser((prev) =>
+                      prev?.id === notesUser.id
+                        ? { ...prev, notas: text }
+                        : prev,
+                    );
                   } catch (err) {
-                    console.error("Error guardando notas:", err)
-                    notify("Error al guardar notas", "error")
+                    console.error("Error guardando notas:", err);
+                    notify("Error al guardar notas", "error");
                   }
                 }
               }}
@@ -992,17 +1701,24 @@ export default function AdminUsers() {
           </div>
         </Modal>
       </div>
-    )
+    );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
             <Users className="w-6 h-6 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Usuarios</h1>
+          <div className="min-w-0">
+            <h1 className="text-xl md:text-2xl font-bold text-foreground">
+              Usuarios
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {users.length} clientes
+            </p>
+          </div>
         </div>
         <Button onClick={() => setShowForm(true)}>
           <UserPlus className="w-4 h-4 mr-2" />
@@ -1010,44 +1726,115 @@ export default function AdminUsers() {
         </Button>
       </div>
 
-      <Modal isOpen={showForm} onClose={resetForm} title={editingUser ? "Editar Usuario" : "Nuevo Usuario"} size="md">
+      <Modal
+        isOpen={showForm}
+        onClose={resetForm}
+        title={editingUser ? "Editar Usuario" : "Nuevo Usuario"}
+        size="md"
+      >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1.5">Nombre</label>
-            <Input placeholder="Nombre completo" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1.5">Email</label>
-            <Input type="email" placeholder="correo@ejemplo.com" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
+            <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+              Nombre
+            </label>
+            <Input
+              placeholder="Nombre completo"
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              required
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1.5">
-              Contraseña {!editingUser && <span className="text-destructive">*</span>}
-              {editingUser && <span className="text-muted-foreground text-xs font-normal"> (dejar vacío para mantener)</span>}
+              Email
             </label>
-            <Input type="password" placeholder="Contraseña" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} required={!editingUser} />
+            <Input
+              type="email"
+              placeholder="correo@ejemplo.com"
+              value={formData.email}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
+              required
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1.5">WhatsApp</label>
-            <Input type="text" placeholder="+57 3201112233" value={formData.whatsapp} onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })} />
+            <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+              Contraseña{" "}
+              {!editingUser && <span className="text-destructive">*</span>}
+              {editingUser && (
+                <span className="text-muted-foreground text-xs font-normal">
+                  {" "}
+                  (dejar vacío para mantener)
+                </span>
+              )}
+            </label>
+            <Input
+              type="password"
+              placeholder="Contraseña"
+              value={formData.password}
+              onChange={(e) =>
+                setFormData({ ...formData, password: e.target.value })
+              }
+              required={!editingUser}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+              WhatsApp
+            </label>
+            <Input
+              type="text"
+              placeholder="+57 3201112233"
+              value={formData.whatsapp}
+              onChange={(e) =>
+                setFormData({ ...formData, whatsapp: e.target.value })
+              }
+            />
           </div>
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <Button type="submit" className="flex-1">{editingUser ? "Guardar Cambios" : "Crear Usuario"}</Button>
-            <Button type="button" variant="outline" onClick={resetForm} className="flex-1">Cancelar</Button>
+            <Button type="submit" className="flex-1">
+              {editingUser ? "Guardar Cambios" : "Crear Usuario"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={resetForm}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
           </div>
         </form>
       </Modal>
 
       {showSendCreds && (
-        <Modal isOpen={showSendCreds} onClose={() => setShowSendCreds(false)} title="Enviar Credenciales" size="sm">
+        <Modal
+          isOpen={showSendCreds}
+          onClose={() => setShowSendCreds(false)}
+          title="Enviar Credenciales"
+          size="sm"
+        >
           <div className="text-center space-y-4">
             <div className="w-16 h-16 mx-auto rounded-full bg-green-500/10 flex items-center justify-center">
               <MessageCircle className="w-8 h-8 text-green-500" />
             </div>
-            <p className="text-foreground font-medium">¿Enviar credenciales por WhatsApp?</p>
-            <p className="text-muted-foreground text-sm">Se enviarán el email y contraseña al número registrado</p>
+            <p className="text-foreground font-medium">
+              ¿Enviar credenciales por WhatsApp?
+            </p>
+            <p className="text-muted-foreground text-sm">
+              Se enviarán el email y contraseña al número registrado
+            </p>
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setShowSendCreds(false)} className="flex-1">Ahora no</Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowSendCreds(false)}
+                className="flex-1"
+              >
+                Ahora no
+              </Button>
               <Button onClick={sendCredentials} className="flex-1 gap-2">
                 <MessageCircle className="w-4 h-4" />
                 Enviar
@@ -1057,76 +1844,103 @@ export default function AdminUsers() {
         </Modal>
       )}
 
-      <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-muted/50 border-b">
-              <tr>
-                <th className="px-3 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground">Usuario</th>
-                <th className="px-3 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground hidden md:table-cell">WhatsApp</th>
-                <th className="px-3 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground">Servicios</th>
-                <th className="px-3 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground hidden sm:table-cell">Vencimiento</th>
-                <th className="px-3 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground">Estado</th>
-                <th className="px-3 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {users.length === 0 ? (
-                <tr><td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">No hay usuarios registrados.</td></tr>
-              ) : (
-                users.map((user) => (
-                  <tr key={user.id} className="hover:bg-muted/50 transition-all cursor-pointer" onClick={() => viewUserDetails(user)}>
-                    <td className="px-3 md:px-6 py-2 md:py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-sm md:text-base">
-                          {user.name?.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-foreground text-sm md:text-base truncate">{user.name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-3 md:px-6 py-2 md:py-4 hidden md:table-cell">
-                      {user.whatsapp ? (
-                        <a href={`https://wa.me/${normalizeWhatsapp(user.whatsapp)}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-green-500 hover:underline text-sm">
-                          <MessageCircle className="w-3 h-3" />
-                          {formatWhatsapp(user.whatsapp)}
-                        </a>
-                      ) : <span className="text-muted-foreground text-sm">-</span>}
-                    </td>
-                    <td className="px-3 md:px-6 py-2 md:py-4"><span className="font-semibold text-foreground">{user.service_count}</span></td>
-                    <td className="px-3 md:px-6 py-2 md:py-4 hidden sm:table-cell">
-                      {user.min_days_to_renewal !== null ? (
-                        <span className={`text-sm font-medium ${user.min_days_to_renewal < 0 ? "text-destructive" : user.min_days_to_renewal <= 7 ? "text-orange-500" : "text-green-500"}`}>
-                          {user.min_days_to_renewal < 0 ? `${Math.abs(user.min_days_to_renewal)}d vencido` : `${user.min_days_to_renewal}d`}
-                        </span>
-                      ) : <span className="text-muted-foreground text-sm">-</span>}
-                    </td>
-                    <td className="px-3 md:px-6 py-2 md:py-4">
-                      <button onClick={(e) => { e.stopPropagation(); toggleUserStatus(user) }} className={`inline-flex items-center gap-1.5 px-2 md:px-3 py-1 md:py-1.5 rounded-md text-xs font-medium transition-all ${user.status === "active" ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" : "bg-destructive/10 text-destructive hover:bg-destructive/20"}`}>
-                        {user.status === "active" ? <><Activity className="w-3 h-3" />Activo</> : <><EyeOff className="w-3 h-3" />Suspendido</>}
-                      </button>
-                    </td>
-                    <td className="px-3 md:px-6 py-2 md:py-4">
-                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                        {user.whatsapp && (
-                          <Button variant="ghost" size="sm" onClick={() => sendUserCredentials(user)} className="text-green-500 hover:text-green-600">
-                            <MessageCircle className="w-4 h-4 mr-1" />Credenciales
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(user)}><Edit3 className="w-4 h-4 mr-1" />Editar</Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(user)} className="text-destructive hover:text-destructive"><Trash2 className="w-4 h-4 mr-1" />Eliminar</Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      <Card className="p-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {users.length === 0 ? (
+            <div className="px-6 py-12 text-center text-muted-foreground text-sm">
+              No hay usuarios registrados.
+            </div>
+          ) : (
+            users.map((user, index) => (
+              <div
+                key={user.id}
+                className={`p-3 cursor-pointer hover:border-primary/50 transition-all rounded-xl border bg-card shadow-sm h-full ${
+                  index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"
+                }`}
+                onClick={() => viewUserDetails(user)}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
+                      {user.name?.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-foreground text-sm truncate">
+                        {user.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {user.email}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="shrink-0">
+                    {user.status === "active" ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-green-500/10 text-green-500">
+                        <Activity className="w-3 h-3" />
+                        Activo
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-destructive/10 text-destructive">
+                        <EyeOff className="w-3 h-3" />
+                        Suspendido
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-3 mt-4 pt-2 border-t">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="font-semibold text-foreground">
+                      {user.service_count}
+                    </span>{" "}
+                    servicios
+                    {user.min_days_to_renewal !== null && (
+                      <span
+                        className={`font-medium ${user.min_days_to_renewal < 0 ? "text-destructive" : user.min_days_to_renewal <= 7 ? "text-orange-500" : "text-green-500"}`}
+                      >
+                        ·{" "}
+                        {user.min_days_to_renewal < 0
+                          ? `${Math.abs(user.min_days_to_renewal)}d vencido`
+                          : `${user.min_days_to_renewal}d`}
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    className="flex items-center gap-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {user.whatsapp && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => sendUserCredentials(user)}
+                        className="text-green-500 hover:text-green-600 h-8 px-2 text-xs"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => handleEdit(user)}
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={() => handleDelete(user)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </Card>
-
     </div>
-  )
+  );
 }

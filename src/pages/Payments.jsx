@@ -4,14 +4,6 @@ import pb from "@/lib/pocketbaseClient"
 
 import { formatCurrency } from "@/utils/formatUtils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { Wallet, CheckCircle, Clock, FileText, Loader2, Image } from "lucide-react"
 
 export default function Payments() {
@@ -136,82 +128,68 @@ export default function Payments() {
               <p className="text-muted-foreground font-medium">No hay pagos registrados</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="px-4 md:px-6 py-3 md:py-4">Servicio</TableHead>
-                    <TableHead className="px-4 md:px-6 py-3 md:py-4 hidden md:table-cell">Descripción</TableHead>
-                    <TableHead className="px-4 md:px-6 py-3 md:py-4">Monto</TableHead>
-                    <TableHead className="px-4 md:px-6 py-3 md:py-4 hidden md:table-cell">Cuenta</TableHead>
-                    <TableHead className="px-4 md:px-6 py-3 md:py-4">Comp.</TableHead>
-                    <TableHead className="px-4 md:px-6 py-3 md:py-4">Estado</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {allItems.map((payment) => {
-                    const isPendingItem = payment.id?.startsWith?.("one_time_pending_")
-                    const svcName = isPendingItem
-                      ? payment.service_name
-                      : payment.expand?.user_service_id?.name || payment.expand?.user_service_id?.expand?.service_id?.name || "-"
-                    const svcDomain = isPendingItem
-                      ? ""
-                      : payment.expand?.user_service_id?.url_dominio
-                    const desc = isPendingItem
-                      ? "Pendiente por pagar"
-                      : payment.payment_date
-                        ? new Date(payment.payment_date).toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" })
-                        : "—"
-                    const accName = isPendingItem
-                      ? ""
-                      : typeof payment.payment_account === 'object'
-                        ? payment.payment_account?.name
-                        : payment.expand?.payment_account?.name || ""
-                    return (
-                      <TableRow key={payment.id} className={`${isPendingItem ? "bg-orange-500/5" : ""}`}>
-                        <TableCell className="px-4 md:px-6 py-3 md:py-4">
-                          <span className="font-semibold text-foreground text-sm">{svcName}</span>
-                          {svcDomain && <span className="block text-xs text-blue-500">{svcDomain}</span>}
-                        </TableCell>
-                        <TableCell className="px-4 md:px-6 py-3 md:py-4 text-sm text-muted-foreground hidden md:table-cell">{desc}</TableCell>
-                        <TableCell className="px-4 md:px-6 py-3 md:py-4">
-                          <span className="font-bold text-foreground">{formatCurrency(payment.amount)}</span>
-                        </TableCell>
-                        <TableCell className="px-4 md:px-6 py-3 md:py-4 text-sm text-muted-foreground hidden md:table-cell">{accName || "—"}</TableCell>
-                        <TableCell className="px-4 md:px-6 py-3 md:py-4">
-                          {!isPendingItem && comprobantesMap[payment.id]?.length ? (
-                            <div className="flex gap-1">
-                              {comprobantesMap[payment.id].map((c) => (
-                                <a key={c.id} href={pb.files.getURL(c, 'file')} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                                  <Image className="w-4 h-4" />
-                                  Ver
-                                </a>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="px-4 md:px-6 py-3 md:py-4">
-                          <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md font-medium ${
-                            isPendingItem || payment.status === "pending"
-                              ? "bg-orange-500/10 border border-orange-500/30 text-orange-500"
-                              : payment.status === "paid"
-                                ? "bg-green-500/10 border border-green-500/30 text-green-500"
-                                : "bg-destructive/10 border border-destructive/30 text-destructive"
-                          }`}>
-                            {isPendingItem || payment.status === "pending" ? (
-                              <><Clock className="w-3 h-3" /> Pendiente</>
-                            ) : (
-                              <><CheckCircle className="w-3 h-3" /> Pagado</>
-                            )}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-4">
+              {allItems.map((payment, index) => {
+                const isPendingItem = payment.id?.startsWith?.("one_time_pending_")
+                const svcName = isPendingItem
+                  ? payment.service_name
+                  : payment.expand?.user_service_id?.name || payment.expand?.user_service_id?.expand?.service_id?.name || "-"
+                const svcDomain = isPendingItem
+                  ? ""
+                  : payment.expand?.user_service_id?.url_dominio
+                const desc = isPendingItem
+                  ? "Pendiente por pagar"
+                  : payment.payment_date
+                    ? new Date(payment.payment_date).toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" })
+                    : "—"
+                const accName = isPendingItem
+                  ? ""
+                  : typeof payment.payment_account === 'object'
+                    ? payment.payment_account?.name
+                    : payment.expand?.payment_account?.name || ""
+                return (
+                  <div key={payment.id} className={`rounded-lg border bg-card p-3 space-y-2 h-full ${isPendingItem ? "border-orange-500/20" : ""} ${index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-foreground text-sm truncate">{svcName}</p>
+                        {svcDomain && <p className="text-xs text-blue-500 truncate">{svcDomain}</p>}
+                      </div>
+                      <span className="font-bold text-foreground shrink-0">{formatCurrency(payment.amount)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs text-muted-foreground min-w-0 truncate">{desc}</span>
+                      <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md font-medium shrink-0 ${
+                        isPendingItem || payment.status === "pending"
+                          ? "bg-orange-500/10 border border-orange-500/30 text-orange-500"
+                          : payment.status === "paid"
+                            ? "bg-green-500/10 border border-green-500/30 text-green-500"
+                            : "bg-destructive/10 border border-destructive/30 text-destructive"
+                      }`}>
+                        {isPendingItem || payment.status === "pending" ? (
+                          <><Clock className="w-3 h-3" /> Pendiente</>
+                        ) : (
+                          <><CheckCircle className="w-3 h-3" /> Pagado</>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 pt-2 border-t">
+                      {accName ? <span className="text-xs text-muted-foreground">Cuenta: {accName}</span> : <span />}
+                      {!isPendingItem && comprobantesMap[payment.id]?.length ? (
+                        <div className="flex gap-1">
+                          {comprobantesMap[payment.id].map((c) => (
+                            <a key={c.id} href={pb.files.getURL(c, 'file')} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                              <Image className="w-4 h-4" />
+                              Ver
+                            </a>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </CardContent>

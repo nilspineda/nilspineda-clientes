@@ -5,7 +5,6 @@ import { notify } from "@/utils/notify"
 import { getDaysRemaining } from "@/utils/dateUtils"
 import { createRecurringPayments } from "@/utils/paymentUtils"
 import Modal from "@/components/Modal"
-import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ClipboardList, Plus, Trash2, Loader2, ExternalLink } from "lucide-react"
@@ -113,12 +112,12 @@ export default function AdminAssignments() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
             <ClipboardList className="w-6 h-6 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Asignaciones</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">Asignaciones</h1>
         </div>
         <Button onClick={() => setShowForm(true)}>
           <Plus className="w-4 h-4 mr-2" />
@@ -184,82 +183,71 @@ export default function AdminAssignments() {
         </form>
       </Modal>
 
-      <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-muted/50 border-b">
-              <tr>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Usuario</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Dominio</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Servicio</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Tipo</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Precio</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Vencimiento</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Días</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Estado</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {assignments.map((assignment) => {
-                const daysLeft = getDaysRemaining(assignment.expires_at)
-                const isRecurring = assignment.owner === 1
-                return (
-                  <tr key={assignment.id} className="hover:bg-muted/50 transition-all duration-300">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold">
-                          {assignment.expand?.user_id?.name?.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="text-foreground font-semibold">{assignment.expand?.user_id?.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {assignment.url_dominio ? (
-                        <a href={assignment.url_dominio} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm inline-flex items-center gap-1">
-                          {assignment.url_dominio.replace(/^https?:\/\//, "")}
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      ) : "-"}
-                    </td>
-                    <td className="px-6 py-4 text-muted-foreground">{assignment.expand?.service_id?.name || "-"}</td>
-                    <td className="px-6 py-4">
-                      {isRecurring ? (
-                        <Badge variant="secondary">Recurrente</Badge>
-                      ) : (
-                        <Badge variant="outline">Fijo</Badge>
-                      )}
-                    </td>
-                    <td className="px-6 py-4"><span className="px-3 py-1.5 rounded-md bg-green-500/10 border border-green-500/20 text-green-500 font-bold">{formatCurrency(assignment.price || 0)}</span></td>
-                    <td className="px-6 py-4">
-                      <input type="date" value={assignment.expires_at ? assignment.expires_at.split("T")[0] : ""} onChange={(e) => updateExpiresAt(assignment.id, e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm" />
-                    </td>
-                    <td className="px-6 py-4">
-                      {daysLeft !== null ? (
-                        <span className={`px-3 py-1.5 rounded-md text-xs font-semibold ${daysLeft < 0 ? "bg-destructive/10 border border-destructive/20 text-destructive" : daysLeft <= 5 ? "bg-orange-500/10 border border-orange-500/20 text-orange-500" : "bg-green-500/10 border border-green-500/20 text-green-500"}`}>
-                          {daysLeft < 0 ? Math.abs(daysLeft) + " dias vencido" : daysLeft + " dias"}
-                        </span>
-                      ) : "-"}
-                    </td>
-                    <td className="px-6 py-4">
-                      <select value={assignment.status} onChange={(e) => updateStatus(assignment.id, e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm">
-                        <option value="active">Activo</option>
-                        <option value="pending">Pendiente</option>
-                        <option value="expired">Vencido</option>
-                      </select>
-                    </td>
-                    <td className="px-6 py-4">
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(assignment.id)} className="text-destructive hover:text-destructive">
-                        <Trash2 className="w-4 h-4 mr-1" />Eliminar
-                      </Button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {assignments.map((assignment, index) => {
+          const daysLeft = getDaysRemaining(assignment.expires_at)
+          const isRecurring = assignment.owner === 1
+          return (
+            <div key={assignment.id} className={`p-4 rounded-xl border bg-card hover:border-primary/50 transition-all h-full ${index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"}`}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold shrink-0">
+                  {assignment.expand?.user_id?.name?.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-foreground font-semibold truncate">{assignment.expand?.user_id?.name}</p>
+                  {isRecurring ? (
+                    <Badge variant="secondary">Recurrente</Badge>
+                  ) : (
+                    <Badge variant="outline">Fijo</Badge>
+                  )}
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => handleDelete(assignment.id)} className="text-destructive hover:text-destructive shrink-0">
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="mt-3 space-y-2 text-sm">
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Dominio</span>
+                  {assignment.url_dominio ? (
+                    <a href={assignment.url_dominio} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1 truncate max-w-[60%]">
+                      {assignment.url_dominio.replace(/^https?:\/\//, "")}
+                      <ExternalLink className="w-3 h-3 shrink-0" />
+                    </a>
+                  ) : <span className="text-foreground font-medium">-</span>}
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Servicio</span>
+                  <span className="text-foreground font-medium truncate max-w-[60%]">{assignment.expand?.service_id?.name || "-"}</span>
+                </div>
+                <div className="flex justify-between gap-2 items-center">
+                  <span className="text-muted-foreground">Precio</span>
+                  <span className="px-3 py-1.5 rounded-md bg-green-500/10 border border-green-500/20 text-green-500 font-bold">{formatCurrency(assignment.price || 0)}</span>
+                </div>
+                <div className="flex justify-between gap-2 items-center">
+                  <span className="text-muted-foreground">Vencimiento</span>
+                  <input type="date" value={assignment.expires_at ? assignment.expires_at.split("T")[0] : ""} onChange={(e) => updateExpiresAt(assignment.id, e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm" />
+                </div>
+                <div className="flex justify-between gap-2 items-center">
+                  <span className="text-muted-foreground">Días</span>
+                  {daysLeft !== null ? (
+                    <span className={`px-3 py-1.5 rounded-md text-xs font-semibold ${daysLeft < 0 ? "bg-destructive/10 border border-destructive/20 text-destructive" : daysLeft <= 5 ? "bg-orange-500/10 border border-orange-500/20 text-orange-500" : "bg-green-500/10 border border-green-500/20 text-green-500"}`}>
+                      {daysLeft < 0 ? Math.abs(daysLeft) + " dias vencido" : daysLeft + " dias"}
+                    </span>
+                  ) : "-"}
+                </div>
+                <div className="flex justify-between gap-2 items-center">
+                  <span className="text-muted-foreground">Estado</span>
+                  <select value={assignment.status} onChange={(e) => updateStatus(assignment.id, e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="active">Activo</option>
+                    <option value="pending">Pendiente</option>
+                    <option value="expired">Vencido</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

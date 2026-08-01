@@ -27,6 +27,7 @@
       { "name": "title", "type": "text", "options": { "max": 255 } },
       { "name": "description", "type": "text", "options": { "max": null } },
       { "name": "due_date", "type": "date" },
+      { "name": "due_time", "type": "text", "options": { "max": 5 } },
       { "name": "completed", "type": "bool" },
       { "name": "reminded_today", "type": "bool" }
     ]

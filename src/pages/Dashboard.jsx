@@ -13,14 +13,6 @@ import { getPaymentsByUserService } from "@/utils/paymentUtils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import CredentialsModal from "@/components/CredentialsModal"
 import { Button } from "@/components/ui/button"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 
 import { Badge } from "@/components/ui/badge"
@@ -411,7 +403,8 @@ export default function Dashboard() {
                     return Object.entries(grouped).map(([clientId, group]) => (
                       <div key={clientId} className="space-y-2">
                         <h3 className="text-sm font-bold text-foreground px-1">{group.name}</h3>
-                        {group.items.map((item) => {
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {group.items.map((item, index) => {
                           const days = getDaysRemaining(item.expires_at)
                           const status = getPaymentStatus(item.expires_at)
                           const ownerLabel = item.owner === 1 ? "Cliente paga" : "Lo administro"
@@ -422,7 +415,7 @@ export default function Dashboard() {
                             catch (e) { return item.url_dominio }
                           })()
                           return (
-                            <div key={item.id} className="group relative overflow-hidden rounded-lg border bg-card p-3 hover:border-primary/50 transition-all">
+                            <div key={item.id} className={`group relative overflow-hidden rounded-lg border bg-card p-3 hover:border-primary/50 transition-all h-full ${index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"}`}>
                               <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5 mb-1 flex-wrap">
@@ -478,6 +471,7 @@ export default function Dashboard() {
                             </div>
                           )
                         })}
+                        </div>
                       </div>
                     ))
                   })()}
@@ -486,49 +480,53 @@ export default function Dashboard() {
             </TabsContent>
 
             <TabsContent value="all" className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Cliente</th>
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs font-semibold uppercase text-muted-foreground hidden md:table-cell">Dominio</th>
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Servicio</th>
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs font-semibold uppercase text-muted-foreground hidden sm:table-cell">Vencimiento</th>
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Días</th>
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Estado</th>
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs font-semibold uppercase text-muted-foreground hidden md:table-cell">Precio</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {filteredServicesList.length === 0 ? (
-                      <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No hay datos para mostrar</td></tr>
-                    ) : (
-                      filteredServicesList.map((item) => {
-                        const days = getDaysRemaining(item.expires_at)
-                        const status = getPaymentStatus(item.expires_at)
-                        return (
-                          <tr key={item.id} className="hover:bg-muted/50 transition-colors">
-                            <td className="px-3 md:px-4 py-2 md:py-3">
-                              <div className="flex items-center gap-2">
-                                <div className="w-7 h-7 md:w-8 md:h-8 rounded-md bg-primary/10 flex items-center justify-center text-sm font-bold shrink-0 text-primary">
-                                  {item.expand?.user_id?.name?.charAt(0).toUpperCase() || "U"}
-                                </div>
-                                <span className="font-medium text-foreground truncate text-sm">{item.expand?.user_id?.name}</span>
-                              </div>
-                            </td>
-                            <td className="px-3 md:px-4 py-2 md:py-3 hidden md:table-cell"><span className="px-2 py-1 rounded bg-blue-500/10 text-blue-500 text-xs">{item.url_dominio || "-"}</span></td>
-                            <td className="px-3 md:px-4 py-2 md:py-3 text-sm text-muted-foreground">{item.expand?.service_id?.name || "-"}</td>
-                            <td className="px-3 md:px-4 py-2 md:py-3 text-sm text-muted-foreground hidden sm:table-cell">{item.expires_at ? formatDate(item.expires_at) : "-"}</td>
-                            <td className="px-3 md:px-4 py-2 md:py-3"><span className={`font-medium text-sm ${days < 0 ? "text-destructive" : days <= 20 ? "text-orange-500" : "text-green-500"}`}>{days !== null ? (days < 0 ? `${Math.abs(days)}d` : `${days}d`) : "-"}</span></td>
-                            <td className="px-3 md:px-4 py-2 md:py-3"><Badge variant={status.color}>{status.label}</Badge></td>
-                            <td className="px-3 md:px-4 py-2 md:py-3 font-bold text-primary text-sm hidden md:table-cell">{formatCurrency(item.price || 0)}</td>
-                          </tr>
-                        )
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              {filteredServicesList.length === 0 ? (
+                <div className="px-4 py-8 text-center text-muted-foreground text-sm">No hay datos para mostrar</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-4">
+                  {filteredServicesList.map((item, index) => {
+                    const days = getDaysRemaining(item.expires_at)
+                    const status = getPaymentStatus(item.expires_at)
+                    return (
+                      <div key={item.id} className={`rounded-lg border bg-card p-3 space-y-2 h-full ${index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"}`}>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-sm font-bold shrink-0 text-primary">
+                              {item.expand?.user_id?.name?.charAt(0).toUpperCase() || "U"}
+                            </div>
+                            <span className="font-medium text-foreground truncate text-sm">{item.expand?.user_id?.name}</span>
+                          </div>
+                          <Badge variant={status.color} className="shrink-0">{status.label}</Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {item.expand?.service_id?.name || "-"}
+                        </div>
+                        {item.url_dominio && (
+                          <div className="inline-block max-w-full px-2 py-1 rounded bg-blue-500/10 text-blue-500 text-xs truncate">
+                            {item.url_dominio}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between gap-3 pt-2 border-t">
+                          {item.expires_at ? (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground min-w-0">
+                              <Calendar className="w-3 h-3 shrink-0" />
+                              <span className="truncate">{formatDate(item.expires_at)}</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Sin vencimiento</span>
+                          )}
+                          <span className={`font-medium text-sm shrink-0 ${days < 0 ? "text-destructive" : days <= 20 ? "text-orange-500" : "text-green-500"}`}>
+                            {days !== null ? (days < 0 ? `${Math.abs(days)}d` : `${days}d`) : "-"}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t">
+                          <span className="text-sm font-bold text-primary">{formatCurrency(item.price || 0)}</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </Card>
@@ -571,58 +569,46 @@ export default function Dashboard() {
               <p className="text-muted-foreground/60 text-sm mt-1">Contacta al administrador para agregar servicios</p>
             </div>
           ) : (
-            <div className="rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Servicio</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Precio</TableHead>
-                    <TableHead>Vencimiento</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {services.map((service) => {
-                    const status = getServiceStatus(service)
-                    const days = getDaysRemaining(service.expires_at)
-                    return (
-                      <TableRow key={service.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-foreground truncate">
-                                {service.expand?.service_id?.name}
-                              </p>
-                              {service.expand?.service_id?.description && (
-                                <p className="text-xs text-muted-foreground truncate">
-                                  {service.expand?.service_id?.description}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <StatusBadge status={status} />
-                            {service.owner === 0 && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border whitespace-nowrap">
-                                Lo administro
-                              </span>
-                            )}
-                            {service.owner === 1 && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-500 border border-blue-500/20 whitespace-nowrap">
-                                Cliente paga
-                              </span>
-                            )}
-                            {service.billing_type === "one_time" && service.requiere_abono && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-500/10 text-orange-500 border border-orange-500/20 whitespace-nowrap">
-                                Parcial
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {services.map((service, index) => {
+                  const status = getServiceStatus(service)
+                  const days = getDaysRemaining(service.expires_at)
+                  return (
+                    <div key={service.id} className={`rounded-lg border bg-card p-3 space-y-2 h-full ${index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-foreground text-sm truncate">
+                            {service.expand?.service_id?.name}
+                          </p>
+                          {service.expand?.service_id?.description && (
+                            <p className="text-xs text-muted-foreground truncate mt-0.5">
+                              {service.expand?.service_id?.description}
+                            </p>
+                          )}
+                        </div>
+                        <div className="shrink-0">
+                          <StatusBadge status={status} />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {service.owner === 0 && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border whitespace-nowrap">
+                            Lo administro
+                          </span>
+                        )}
+                        {service.owner === 1 && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-500 border border-blue-500/20 whitespace-nowrap">
+                            Cliente paga
+                          </span>
+                        )}
+                        {service.billing_type === "one_time" && service.requiere_abono && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-500/10 text-orange-500 border border-orange-500/20 whitespace-nowrap">
+                            Parcial
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between pt-2 border-t">
+                        <div className="min-w-0">
                           <div className="text-sm font-semibold text-primary">
                             {formatCurrency(service.price ?? 0)}
                           </div>
@@ -636,54 +622,45 @@ export default function Dashboard() {
                               )}
                             </div>
                           )}
-                        </TableCell>
-                        <TableCell>
-                          {service.expires_at && service.billing_type !== "one_time" ? (
-                            <div>
-                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <Calendar className="w-3 h-3 shrink-0" />
-                                {formatDate(service.expires_at)}
-                              </div>
-                              {days !== null && (
-                                <span className={`text-xs font-medium ${
-                                  days < 0 ? "text-destructive" : days <= 5 ? "text-orange-500" : "text-green-500"
-                                }`}>
-                                  {days < 0 ? `${Math.abs(days)} días vencido` : `${days} días`}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setCredentialsService(service)}
+                            className="h-8 px-2.5 text-xs"
+                          >
+                            <Key className="w-3 h-3 mr-1" />
+                            Accesos
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRenew(service)}
+                            className="h-8 px-2.5 text-xs"
+                          >
+                            <Zap className="w-3 h-3 mr-1" />
+                            Renovar
+                          </Button>
+                        </div>
+                      </div>
+                      {service.expires_at && service.billing_type !== "one_time" ? (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Calendar className="w-3 h-3 shrink-0" />
+                          {formatDate(service.expires_at)}
+                          {days !== null && (
+                            <span className={`font-medium ${days < 0 ? "text-destructive" : days <= 5 ? "text-orange-500" : "text-green-500"}`}>
+                              · {days < 0 ? `${Math.abs(days)} días vencido` : `${days} días`}
+                            </span>
                           )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setCredentialsService(service)}
-                              className="h-8 px-2.5 text-xs"
-                            >
-                              <Key className="w-3 h-3 mr-1" />
-                              Accesos
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRenew(service)}
-                              className="h-8 px-2.5 text-xs"
-                            >
-                              <Zap className="w-3 h-3 mr-1" />
-                              Renovar
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-muted-foreground">Sin vencimiento</div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
           )}
         </CardContent>
       </Card>
@@ -804,11 +781,11 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {pendingPayments.slice(0, 5).map((payment) => (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {pendingPayments.slice(0, 5).map((payment, index) => (
                 <div
                   key={payment.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-orange-500/5 border border-orange-500/10"
+                  className={`flex items-center justify-between gap-3 p-3 rounded-lg bg-orange-500/5 border border-orange-500/10 h-full ${index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"}`}
                 >
                   <div>
                     <p className="font-semibold text-foreground text-sm">

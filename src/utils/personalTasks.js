@@ -10,11 +10,12 @@ export async function fetchTasks() {
   })
 }
 
-export async function createTask({ title, description, due_date }) {
+export async function createTask({ title, description, due_date, due_time }) {
   return pb.collection(COLLECTION).create({
     title,
     description,
     due_date,
+    due_time: due_time || null,
     user_id: pb.authStore.model?.id,
     completed: false,
     reminded_today: false,
@@ -33,8 +34,8 @@ export async function completeTask(id, completed = true) {
   return pb.collection(COLLECTION).update(id, { completed })
 }
 
-export async function rescheduleTask(id, due_date) {
-  return pb.collection(COLLECTION).update(id, { due_date, reminded_today: false, completed: false })
+export async function rescheduleTask(id, due_date, due_time) {
+  return pb.collection(COLLECTION).update(id, { due_date, due_time: due_time || null, reminded_today: false, completed: false })
 }
 
 export function toLocalDate(dateStr) {

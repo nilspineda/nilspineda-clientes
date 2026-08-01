@@ -34,7 +34,9 @@ export function usePersonalTasks() {
 
     if (todaysTasks.length === 0) return
 
-    const titles = todaysTasks.map((t) => t.title).join(', ')
+    const titles = todaysTasks
+      .map((t) => (t.due_time ? `${t.title} · ${t.due_time}` : t.title))
+      .join(', ')
     const count = todaysTasks.length
 
     toast.info(`Tienes ${count} tarea${count > 1 ? 's' : ''} para hoy`, {

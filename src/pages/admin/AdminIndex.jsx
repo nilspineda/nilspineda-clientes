@@ -322,100 +322,98 @@ export default function AdminIndex() {
             )}
           </div>
 
-          <TabsContent value="renewals" className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Cliente</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Dominio</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Servicio</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Vencimiento</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Días</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Estado</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Precio</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {upcomingRenewals.length === 0 ? (
-                    <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No hay renovaciones próximas</td></tr>
-                  ) : (
-                    upcomingRenewals.map((item) => {
-                      const days = getDaysRemaining(item.expires_at)
-                      const status = getPaymentStatus(item.expires_at)
-                      return (
-                        <tr key={item.id} className="hover:bg-muted/50 transition-colors">
-                          <td className="px-4 py-3">
-                            <button onClick={() => openClientModal(item.expand?.user_id)} className="flex items-center gap-2 hover:opacity-80 transition-opacity text-left">
-                              <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center text-sm font-bold shrink-0 text-primary">
-                                {item.expand?.user_id?.name?.charAt(0).toUpperCase() || "U"}
-                              </div>
-                              <span className="font-medium text-foreground truncate">{item.expand?.user_id?.name}</span>
-                            </button>
-                          </td>
-                          <td className="px-4 py-3"><span className="px-2 py-1 rounded bg-blue-500/10 text-blue-500 text-xs">{item.url_dominio || "-"}</span></td>
-                          <td className="px-4 py-3 text-sm text-muted-foreground">{item.expand?.service_id?.name || "-"}</td>
-                          <td className="px-4 py-3 text-sm text-muted-foreground">{item.expires_at ? formatDate(item.expires_at) : "-"}</td>
-                          <td className="px-4 py-3">
-                            <span className={`font-medium text-sm ${days < 0 ? "text-destructive" : days <= 20 ? "text-orange-500" : "text-green-500"}`}>
-                              {days !== null ? (days < 0 ? `${Math.abs(days)} días vencido` : `${days} días`) : "-"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3"><Badge variant={status.color}>{status.label}</Badge></td>
-                          <td className="px-4 py-3 font-bold text-primary text-sm">{formatCurrency(item.price || 0)}</td>
-                        </tr>
-                      )
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+          <TabsContent value="renewals" className="p-4">
+            {upcomingRenewals.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground">No hay renovaciones próximas</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {upcomingRenewals.map((item, index) => {
+                  const days = getDaysRemaining(item.expires_at)
+                  const status = getPaymentStatus(item.expires_at)
+                  return (
+                    <button key={item.id} onClick={() => openClientModal(item.expand?.user_id)} className={`group text-left p-3 rounded-xl border bg-card hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer h-full ${index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"}`}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0">
+                          {item.expand?.user_id?.name?.charAt(0).toUpperCase() || "U"}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-foreground truncate">{item.expand?.user_id?.name}</p>
+                          <p className="text-sm text-muted-foreground truncate">{item.expand?.service_id?.name || "-"}</p>
+                        </div>
+                        <Badge variant={status.color}>{status.label}</Badge>
+                      </div>
+                      <div className="mt-3 space-y-1.5 text-sm">
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">Dominio</span>
+                          <span className="text-foreground font-medium truncate max-w-[60%]">{item.url_dominio || "-"}</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">Vencimiento</span>
+                          <span className="text-foreground font-medium">{item.expires_at ? formatDate(item.expires_at) : "-"}</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">Días</span>
+                          <span className={`font-medium ${days < 0 ? "text-destructive" : days <= 20 ? "text-orange-500" : "text-green-500"}`}>
+                            {days !== null ? (days < 0 ? `${Math.abs(days)} días vencido` : `${days} días`) : "-"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">Precio</span>
+                          <span className="font-bold text-primary">{formatCurrency(item.price || 0)}</span>
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </TabsContent>
 
-          <TabsContent value="all" className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Cliente</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Dominio</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Servicio</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Vencimiento</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Días</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Estado</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Precio</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {filteredServicesList.length === 0 ? (
-                    <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No hay datos para mostrar</td></tr>
-                  ) : (
-                    filteredServicesList.map((item) => {
-                      const days = getDaysRemaining(item.expires_at)
-                      const status = getPaymentStatus(item.expires_at)
-                      return (
-                        <tr key={item.id} className="hover:bg-muted/50 transition-colors">
-                          <td className="px-4 py-3">
-                            <button onClick={() => openClientModal(item.expand?.user_id)} className="flex items-center gap-2 hover:opacity-80 transition-opacity text-left">
-                              <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center text-sm font-bold shrink-0 text-primary">
-                                {item.expand?.user_id?.name?.charAt(0).toUpperCase() || "U"}
-                              </div>
-                              <span className="font-medium text-foreground truncate">{item.expand?.user_id?.name}</span>
-                            </button>
-                          </td>
-                          <td className="px-4 py-3"><span className="px-2 py-1 rounded bg-blue-500/10 text-blue-500 text-xs">{item.url_dominio || "-"}</span></td>
-                          <td className="px-4 py-3 text-sm text-muted-foreground">{item.expand?.service_id?.name || "-"}</td>
-                          <td className="px-4 py-3 text-sm text-muted-foreground">{item.expires_at ? formatDate(item.expires_at) : "-"}</td>
-                          <td className="px-4 py-3"><span className={`font-medium text-sm ${days < 0 ? "text-destructive" : days <= 20 ? "text-orange-500" : "text-green-500"}`}>{days !== null ? (days < 0 ? `${Math.abs(days)} días vencido` : `${days} días`) : "-"}</span></td>
-                          <td className="px-4 py-3"><Badge variant={status.color}>{status.label}</Badge></td>
-                          <td className="px-4 py-3 font-bold text-primary text-sm">{formatCurrency(item.price || 0)}</td>
-                        </tr>
-                      )
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+          <TabsContent value="all" className="p-4">
+            {filteredServicesList.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground">No hay datos para mostrar</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {filteredServicesList.map((item, index) => {
+                  const days = getDaysRemaining(item.expires_at)
+                  const status = getPaymentStatus(item.expires_at)
+                  return (
+                    <button key={item.id} onClick={() => openClientModal(item.expand?.user_id)} className={`group text-left p-3 rounded-xl border bg-card hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer h-full ${index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"}`}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0">
+                          {item.expand?.user_id?.name?.charAt(0).toUpperCase() || "U"}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-foreground truncate">{item.expand?.user_id?.name}</p>
+                          <p className="text-sm text-muted-foreground truncate">{item.expand?.service_id?.name || "-"}</p>
+                        </div>
+                        <Badge variant={status.color}>{status.label}</Badge>
+                      </div>
+                      <div className="mt-3 space-y-1.5 text-sm">
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">Dominio</span>
+                          <span className="text-foreground font-medium truncate max-w-[60%]">{item.url_dominio || "-"}</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">Vencimiento</span>
+                          <span className="text-foreground font-medium">{item.expires_at ? formatDate(item.expires_at) : "-"}</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">Días</span>
+                          <span className={`font-medium ${days < 0 ? "text-destructive" : days <= 20 ? "text-orange-500" : "text-green-500"}`}>
+                            {days !== null ? (days < 0 ? `${Math.abs(days)} días vencido` : `${days} días`) : "-"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">Precio</span>
+                          <span className="font-bold text-primary">{formatCurrency(item.price || 0)}</span>
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </Card>

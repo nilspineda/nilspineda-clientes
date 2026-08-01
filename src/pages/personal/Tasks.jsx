@@ -11,9 +11,11 @@ export default function Tasks() {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [newTitle, setNewTitle] = useState('')
+  const [newTime, setNewTime] = useState('')
   const [adding, setAdding] = useState(false)
   const [rescheduleTaskId, setRescheduleTaskId] = useState(null)
   const [rescheduleDate, setRescheduleDate] = useState('')
+  const [rescheduleTime, setRescheduleTime] = useState('')
 
   const loadTasks = useCallback(async () => {
     try {
@@ -37,11 +39,18 @@ export default function Tasks() {
     end: endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 0 }),
   })
 
-  const dayTasks = tasks.filter((t) => {
-    const d = toLocalDate(t.due_date)
-    if (!d) return false
-    return isSameDay(d, selectedDate)
-  })
+  const dayTasks = tasks
+    .filter((t) => {
+      const d = toLocalDate(t.due_date)
+      if (!d) return false
+      return isSameDay(d, selectedDate)
+    })
+    .sort((a, b) => {
+      if (!a.due_time && !b.due_time) return 0
+      if (!a.due_time) return 1
+      if (!b.due_time) return -1
+      return a.due_time.localeCompare(b.due_time)
+    })
 
   const hasTasksOn = (day) => {
     if (day.getMonth() !== currentMonth.getMonth()) return false
@@ -70,9 +79,11 @@ export default function Tasks() {
       const task = await createTask({
         title,
         due_date: format(selectedDate, 'yyyy-MM-dd'),
+        due_time: newTime || null,
       })
       setTasks((prev) => [...prev, task])
       setNewTitle('')
+      setNewTime('')
       setAdding(false)
     } catch (e) {
       console.error(e)
@@ -102,16 +113,17 @@ export default function Tasks() {
   const handleReschedule = async () => {
     if (!rescheduleTaskId || !rescheduleDate) return
     try {
-      await rescheduleTask(rescheduleTaskId, rescheduleDate)
+      await rescheduleTask(rescheduleTaskId, rescheduleDate, rescheduleTime)
       setTasks((prev) =>
         prev.map((t) =>
           t.id === rescheduleTaskId
-            ? { ...t, due_date: rescheduleDate, completed: false, reminded_today: false }
+            ? { ...t, due_date: rescheduleDate, due_time: rescheduleTime || null, completed: false, reminded_today: false }
             : t
         )
       )
       setRescheduleTaskId(null)
       setRescheduleDate('')
+      setRescheduleTime('')
     } catch (e) {
       console.error(e)
     }
@@ -193,6 +205,7 @@ export default function Tasks() {
                       setSelectedDate(day)
                       if (!isSameMonth(day, currentMonth)) setCurrentMonth(day)
                       setNewTitle('')
+                      setNewTime('')
                       setAdding(true)
                     }}
                     aria-label={`Crear tarea el ${format(day, 'd')}`}
@@ -262,6 +275,13 @@ export default function Tasks() {
               className="flex-1 px-3 py-2 text-sm bg-background border border-border/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/40"
               autoFocus
             />
+            <input
+              type="time"
+              value={newTime}
+              onChange={(e) => setNewTime(e.target.value)}
+              className="px-3 py-2 text-sm bg-background border border-border/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-muted-foreground"
+              title="Hora (opcional)"
+            />
             <button
               onClick={handleAddTask}
               className="px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors"
@@ -269,7 +289,7 @@ export default function Tasks() {
               Añadir
             </button>
             <button
-              onClick={() => { setAdding(false); setNewTitle('') }}
+              onClick={() => { setAdding(false); setNewTitle(''); setNewTime('') }}
               className="px-3 py-2 border border-border/50 rounded-lg text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               Cancelar
@@ -312,9 +332,17 @@ export default function Tasks() {
                   </button>
 
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm ${task.completed ? 'line-through text-muted-foreground/60' : ''}`}>
-                      {task.title}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className={`text-sm min-w-0 truncate ${task.completed ? 'line-through text-muted-foreground/60' : ''}`}>
+                        {task.title}
+                      </p>
+                      {task.due_time && (
+                        <span className="flex items-center gap-1 text-[10px] font-medium text-primary/80 shrink-0">
+                          <Clock className="w-3 h-3" />
+                          {task.due_time}
+                        </span>
+                      )}
+                    </div>
                     {task.description && (
                       <p className="text-xs text-muted-foreground/60 mt-0.5 line-clamp-1">
                         {task.description}
@@ -333,6 +361,7 @@ export default function Tasks() {
                         const d = task.due_date ? format(toLocalDate(task.due_date), 'yyyy-MM-dd') : ''
                         setRescheduleTaskId(task.id)
                         setRescheduleDate(d)
+                        setRescheduleTime(task.due_time || '')
                       }}
                       className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                       title="Reprogramar"
@@ -364,6 +393,14 @@ export default function Tasks() {
               type="date"
               value={rescheduleDate}
               onChange={(e) => setRescheduleDate(e.target.value)}
+              className="w-full px-3 py-2 text-sm bg-background border border-border/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary mb-4"
+            />
+
+            <label className="block text-xs text-muted-foreground mb-1.5">Hora (opcional)</label>
+            <input
+              type="time"
+              value={rescheduleTime}
+              onChange={(e) => setRescheduleTime(e.target.value)}
               className="w-full px-3 py-2 text-sm bg-background border border-border/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary mb-4"
             />
 

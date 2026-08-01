@@ -176,17 +176,17 @@ export default function AdminServices() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
             <Package className="w-6 h-6 text-primary" />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Servicios Base</h1>
+          <div className="min-w-0">
+            <h1 className="text-xl md:text-2xl font-bold text-foreground">Servicios Base</h1>
             <p className="text-sm text-muted-foreground">{filteredServices.length} servicios</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" onClick={() => { resetTypeForm(); setShowTypesModal(true) }}>
             <Tags className="w-4 h-4 mr-2" />
             Tipos
@@ -275,50 +275,40 @@ export default function AdminServices() {
         </div>
       </Modal>
 
-      <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-muted/50 border-b">
-              <tr>
-                <th className="px-3 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground">Nombre</th>
-                <th className="px-3 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground hidden sm:table-cell">Tipo</th>
-                <th className="px-3 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground hidden sm:table-cell">Clientes</th>
-                <th className="px-3 md:px-6 py-2 md:py-4 text-left text-sm font-medium text-muted-foreground">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {services.length === 0 ? (
-                <tr><td colSpan={4} className="px-6 py-12 text-center text-muted-foreground">No hay servicios creados.</td></tr>
-              ) : (
-                services.map((service) => {
-                  const typeInfo = getTypeInfo(service.type, serviceTypes)
-                  return (
-                    <tr key={service.id} className="hover:bg-muted/50 transition-all">
-                      <td className="px-3 md:px-6 py-2 md:py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <Zap className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-                          </div>
-                          <span className="text-foreground font-semibold text-sm md:text-base">{service.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-3 md:px-6 py-2 md:py-4 hidden sm:table-cell">
+      <Card className="p-3">
+        {services.length === 0 ? (
+          <div className="px-6 py-12 text-center text-muted-foreground text-sm">No hay servicios creados.</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {services.map((service, index) => {
+              const typeInfo = getTypeInfo(service.type, serviceTypes)
+              return (
+                <div key={service.id} className={`rounded-lg border bg-card p-3 flex items-center justify-between gap-3 h-full ${index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"}`}>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <Zap className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-foreground font-semibold text-sm truncate">{service.name}</p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
                         {typeInfo ? <Badge variant={typeInfo.color}>{typeInfo.name}</Badge> : <Badge variant="outline">{service.type}</Badge>}
-                      </td>
-                      <td className="px-3 md:px-6 py-2 md:py-4 hidden sm:table-cell"><span className="px-2 md:px-3 py-1 md:py-1.5 rounded-md bg-muted text-muted-foreground font-medium text-xs md:text-sm">{serviceUsage[service.id] || 0} clientes</span></td>
-                      <td className="px-3 md:px-6 py-2 md:py-4">
-                        <div className="flex items-center gap-1 md:gap-2">
-                          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => handleEdit(service)}><Edit3 className="w-3.5 h-3.5 mr-1" />Editar</Button>
-                          <Button variant="ghost" size="sm" className="h-8 text-xs text-destructive hover:text-destructive" onClick={() => handleDelete(service.id)}><Trash2 className="w-3.5 h-3.5 mr-1" />Eliminar</Button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                        <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-medium text-[10px] whitespace-nowrap">{serviceUsage[service.id] || 0} clientes</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(service)}>
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(service.id)}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </Card>
     </div>
   )
