@@ -4,7 +4,7 @@ import pb from '@/lib/pocketbaseClient'
 import { subscribeToPush, subscriptionToJSON } from '@/lib/pushNotifications'
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY
-const COLLECTION = 'push notifications'
+const COLLECTION = 'push_notifications'
 
 async function saveSubscription(subscriptionJSON, userId) {
   try {

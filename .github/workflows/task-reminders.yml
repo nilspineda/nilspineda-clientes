@@ -16,6 +16,6 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         if: env.CRON_URL != '' && env.CRON_SECRET != ''
         run: |
-          curl -sS -X POST "$CRON_URL" \
+          curl -sfS -X POST "$CRON_URL" \
             -H "Authorization: Bearer $CRON_SECRET" \
             -H "Content-Type: application/json"

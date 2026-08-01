@@ -9,8 +9,15 @@ const VAPID_PUBLIC_KEY = process.env.VITE_VAPID_PUBLIC_KEY
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:admin@nilspineda.com'
 const CRON_SECRET = process.env.CRON_SECRET
 
+function normalizeVapidSubject(subject) {
+  const trimmed = String(subject || '').trim()
+  if (!trimmed) return 'mailto:admin@nilspineda.com'
+  if (/^mailto:/i.test(trimmed) || /^https?:\/\//i.test(trimmed)) return trimmed
+  return `mailto:${trimmed}`
+}
+
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
+  webpush.setVapidDetails(normalizeVapidSubject(VAPID_SUBJECT), VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 }
 
 function getColombiaDate() {
@@ -230,7 +237,7 @@ export default async function handler(request, response) {
     return response.status(200).json({ notified: false, reason: 'no content to notify' })
   }
 
-  const subscriptions = await pb.collection('push notifications').getFullList({
+  const subscriptions = await pb.collection('push_notifications').getFullList({
     requestKey: null,
   })
 
@@ -260,7 +267,7 @@ export default async function handler(request, response) {
         sentCount++
       } catch (err) {
         if (err.statusCode === 404 || err.statusCode === 410) {
-          await pb.collection('push notifications').delete(sub.id)
+          await pb.collection('push_notifications').delete(sub.id)
           deletedCount++
         } else {
           console.error('Error sending push:', err)
