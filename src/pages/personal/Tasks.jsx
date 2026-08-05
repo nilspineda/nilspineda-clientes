@@ -11,6 +11,7 @@ export default function Tasks() {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [newTitle, setNewTitle] = useState('')
+  const [newDescription, setNewDescription] = useState('')
   const [newDate, setNewDate] = useState('')
   const [newTime, setNewTime] = useState('')
   const [adding, setAdding] = useState(false)
@@ -79,11 +80,13 @@ export default function Tasks() {
     try {
       const task = await createTask({
         title,
+        description: newDescription.trim() || null,
         due_date: newDate || format(selectedDate, 'yyyy-MM-dd'),
         due_time: newTime || null,
       })
       setTasks((prev) => [...prev, task])
       setNewTitle('')
+      setNewDescription('')
       setNewDate('')
       setNewTime('')
       setAdding(false)
@@ -207,6 +210,7 @@ export default function Tasks() {
                       setSelectedDate(day)
                       if (!isSameMonth(day, currentMonth)) setCurrentMonth(day)
                       setNewTitle('')
+                      setNewDescription('')
                       setNewDate(format(day, 'yyyy-MM-dd'))
                       setNewTime('')
                       setAdding(true)
@@ -279,6 +283,14 @@ export default function Tasks() {
               autoFocus
             />
             <input
+              type="text"
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleAddTask() }}
+              placeholder="Descripción (opcional)..."
+              className="w-full px-3 py-2 text-sm bg-background border border-border/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/40"
+            />
+            <input
               type="date"
               value={newDate}
               onChange={(e) => setNewDate(e.target.value)}
@@ -299,7 +311,7 @@ export default function Tasks() {
               Añadir
             </button>
             <button
-              onClick={() => { setAdding(false); setNewTitle(''); setNewDate(''); setNewTime('') }}
+              onClick={() => { setAdding(false); setNewTitle(''); setNewDescription(''); setNewDate(''); setNewTime('') }}
               className="px-3 py-2 border border-border/50 rounded-lg text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               Cancelar
