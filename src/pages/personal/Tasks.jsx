@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, Plus, Trash2, CheckCircle2, Circle, Calendar, Clock, ListTodo } from 'lucide-react'
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isToday, addMonths, subMonths } from 'date-fns'
+import { ChevronLeft, ChevronRight, Plus, Trash2, CheckCircle2, Circle, Calendar, Clock, ListTodo, AlertTriangle, ArrowLeft } from 'lucide-react'
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isToday, addMonths, subMonths, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { fetchTasks, createTask, deleteTask, completeTask, rescheduleTask, toLocalDate } from '@/utils/personalTasks'
 import { usePersonalTasks } from '@/hooks/usePersonalTasks'
@@ -8,6 +8,7 @@ import { usePersonalTasks } from '@/hooks/usePersonalTasks'
 export default function Tasks() {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(new Date())
+  const [view, setView] = useState('pending')
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [newTitle, setNewTitle] = useState('')
@@ -54,6 +55,48 @@ export default function Tasks() {
       return a.due_time.localeCompare(b.due_time)
     })
 
+  const pendingTasks = tasks.filter((t) => !t.completed)
+
+  const pendingOverdue = pendingTasks.filter((t) => {
+    const d = toLocalDate(t.due_date)
+    if (!d) return false
+    const taskDate = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    const todayDate = new Date()
+    const todayOnly = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate())
+    return taskDate < todayOnly
+  }).sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''))
+
+  const pendingToday = pendingTasks.filter((t) => {
+    const d = toLocalDate(t.due_date)
+    if (!d) return false
+    return isToday(d)
+  }).sort((a, b) => {
+    if (!a.due_time && !b.due_time) return 0
+    if (!a.due_time) return 1
+    if (!b.due_time) return -1
+    return a.due_time.localeCompare(b.due_time)
+  })
+
+  const pendingTomorrow = pendingTasks.filter((t) => {
+    const d = toLocalDate(t.due_date)
+    if (!d) return false
+    return isSameDay(d, addDays(new Date(), 1))
+  }).sort((a, b) => {
+    if (!a.due_time && !b.due_time) return 0
+    if (!a.due_time) return 1
+    if (!b.due_time) return -1
+    return a.due_time.localeCompare(b.due_time)
+  })
+
+  const pendingUpcoming = pendingTasks.filter((t) => {
+    const d = toLocalDate(t.due_date)
+    if (!d) return false
+    const taskDate = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    const todayOnly = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())
+    const tomorrowOnly = addDays(todayOnly, 1)
+    return taskDate > tomorrowOnly
+  }).sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''))
+
   const hasTasksOn = (day) => {
     if (day.getMonth() !== currentMonth.getMonth()) return false
     return tasks.some((t) => {
@@ -73,6 +116,12 @@ export default function Tasks() {
 
   const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1))
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1))
+
+  const handleDayClick = (day) => {
+    setSelectedDate(day)
+    if (!isSameMonth(day, currentMonth)) setCurrentMonth(day)
+    setView('day')
+  }
 
   const handleAddTask = async () => {
     const title = newTitle.trim()
@@ -142,6 +191,107 @@ export default function Tasks() {
     }).length
   }
 
+  const renderTaskItem = (task, showDate = false) => {
+    const dd = toLocalDate(task.due_date)
+    const overdue = dd && !task.completed && dd < new Date() && !isSameDay(dd, new Date())
+
+    let daysLeft = null
+    let daysLeftColor = ''
+    if (dd && !task.completed) {
+      const now = new Date()
+      const todayOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const taskOnly = new Date(dd.getFullYear(), dd.getMonth(), dd.getDate())
+      daysLeft = Math.round((taskOnly - todayOnly) / (1000 * 60 * 60 * 24))
+      if (daysLeft < 0) daysLeftColor = 'bg-red-500/10 text-red-500 border-red-500/20'
+      else if (daysLeft === 0) daysLeftColor = 'bg-red-500/10 text-red-500 border-red-500/20'
+      else if (daysLeft <= 3) daysLeftColor = 'bg-orange-500/10 text-orange-500 border-orange-500/20'
+      else if (daysLeft <= 7) daysLeftColor = 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
+      else daysLeftColor = 'bg-green-500/10 text-green-500 border-green-500/20'
+    }
+
+    return (
+      <div
+        key={task.id}
+        className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${
+          task.completed
+            ? 'bg-muted/20 border-border/30 opacity-60'
+            : overdue
+            ? 'bg-red-500/5 border-red-500/20'
+            : 'bg-card border-border/50 hover:border-border'
+        }`}
+      >
+        <button
+          onClick={() => handleToggleComplete(task.id, task.completed)}
+          className="mt-0.5 shrink-0 transition-colors"
+        >
+          {task.completed ? (
+            <CheckCircle2 className="w-5 h-5 text-primary" />
+          ) : (
+            <Circle className="w-5 h-5 text-muted-foreground/40 hover:text-primary/60 transition-colors" />
+          )}
+        </button>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className={`text-sm min-w-0 truncate ${task.completed ? 'line-through text-muted-foreground/60' : ''}`}>
+              {task.title}
+            </p>
+            {task.due_time && (
+              <span className="flex items-center gap-1 text-[10px] font-medium text-primary/80 shrink-0">
+                <Clock className="w-3 h-3" />
+                {task.due_time}
+              </span>
+            )}
+          </div>
+          {task.description && (
+            <p className="text-xs text-muted-foreground/60 mt-0.5 line-clamp-1">
+              {task.description}
+            </p>
+          )}
+          {overdue && (
+            <p className="text-[10px] text-red-400/70 mt-1 font-medium">
+              Vencida · {format(toLocalDate(task.due_date), "d 'de' MMM", { locale: es })}
+            </p>
+          )}
+          {showDate && dd && !overdue && (
+            <p className="text-[10px] text-muted-foreground/50 mt-1">
+              {format(dd, "d 'de' MMM", { locale: es })}
+            </p>
+          )}
+        </div>
+
+        {daysLeft !== null && !task.completed && (
+          <div className={`flex items-center justify-center w-12 h-12 rounded-lg text-base font-extrabold border shrink-0 ${daysLeftColor}`}>
+            <span>{Math.abs(daysLeft)}</span>
+            <span className="text-[9px] font-normal ml-0.5">{Math.abs(daysLeft) === 1 ? 'd' : 'd'}</span>
+          </div>
+        )}
+
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => {
+              const d = task.due_date ? format(toLocalDate(task.due_date), 'yyyy-MM-dd') : ''
+              setRescheduleTaskId(task.id)
+              setRescheduleDate(d)
+              setRescheduleTime(task.due_time || '')
+            }}
+            className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            title="Reprogramar"
+          >
+            <Calendar className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => handleDelete(task.id)}
+            className="p-1.5 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-400 transition-colors"
+            title="Eliminar"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -149,6 +299,8 @@ export default function Tasks() {
       </div>
     )
   }
+
+  const pendingCount = pendingTasks.length
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-8rem)]">
@@ -176,7 +328,7 @@ export default function Tasks() {
             {monthDays.map((day, idx) => {
               const inMonth = isSameMonth(day, currentMonth)
               const today = isToday(day)
-              const selected = isSameDay(day, selectedDate)
+              const selected = view === 'day' && isSameDay(day, selectedDate)
               const hasTasks = hasTasksOn(day)
               const hasDone = hasCompletedOn(day) && !hasTasks
               const count = getTaskCount(day)
@@ -196,17 +348,15 @@ export default function Tasks() {
                 >
                   <button
                     className="absolute inset-0 cursor-pointer"
-                    onClick={() => {
-                      setSelectedDate(day)
-                      if (!isSameMonth(day, currentMonth)) setCurrentMonth(day)
-                    }}
+                    onClick={() => handleDayClick(day)}
                     aria-label={`Ver tareas del ${format(day, 'd')}`}
                   />
                   <button
                     className={`absolute top-1 right-1 z-10 w-4 h-4 flex items-center justify-center rounded-full text-primary hover:bg-primary hover:text-primary-foreground transition-opacity ${
                       selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                     }`}
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation()
                       setSelectedDate(day)
                       if (!isSameMonth(day, currentMonth)) setCurrentMonth(day)
                       setNewTitle('')
@@ -251,7 +401,10 @@ export default function Tasks() {
 
         <div className="mt-2 text-center">
           <span className="text-[10px] text-muted-foreground/40">
-            {format(selectedDate, "EEEE d 'de' MMMM yyyy", { locale: es })}
+            {view === 'day'
+              ? format(selectedDate, "EEEE d 'de' MMMM yyyy", { locale: es })
+              : `${pendingCount} pendiente${pendingCount !== 1 ? 's' : ''}`
+            }
           </span>
         </div>
       </div>
@@ -259,11 +412,26 @@ export default function Tasks() {
       <div className="flex-1 flex flex-col">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold flex items-center gap-2">
-            <ListTodo className="w-4 h-4 text-primary" />
-            Tareas del día
+            {view === 'day' ? (
+              <>
+                <button onClick={() => setView('pending')} className="p-1 rounded-lg hover:bg-accent transition-colors">
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+                <Calendar className="w-4 h-4 text-primary" />
+                Tareas del día
+              </>
+            ) : (
+              <>
+                <ListTodo className="w-4 h-4 text-primary" />
+                Tareas pendientes
+                {pendingCount > 0 && (
+                  <span className="text-[10px] font-normal text-muted-foreground/50">({pendingCount})</span>
+                )}
+              </>
+            )}
           </h3>
           <button
-            onClick={() => { setNewDate(format(selectedDate, 'yyyy-MM-dd')); setAdding(true) }}
+            onClick={() => { setNewDate(format(view === 'day' ? selectedDate : new Date(), 'yyyy-MM-dd')); setAdding(true) }}
             className="flex items-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -278,7 +446,7 @@ export default function Tasks() {
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleAddTask() }}
-              placeholder={`Nueva tarea para ${newDate ? format(toLocalDate(newDate), "d 'de' MMM", { locale: es }) : format(selectedDate, "d 'de' MMM", { locale: es })}...`}
+              placeholder={`Nueva tarea para ${newDate ? format(toLocalDate(newDate), "d 'de' MMM", { locale: es }) : format(view === 'day' ? selectedDate : new Date(), "d 'de' MMM", { locale: es })}...`}
               className="flex-1 min-w-[140px] px-3 py-2 text-sm bg-background border border-border/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/40"
               autoFocus
             />
@@ -320,87 +488,63 @@ export default function Tasks() {
         )}
 
         <div className="flex-1 overflow-y-auto space-y-1.5">
-          {dayTasks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-              <Calendar className="w-10 h-10 mb-2 opacity-20" />
-              <p className="text-sm">No hay tareas para este día</p>
-              <p className="text-xs opacity-60 mt-1">Agrega una tarea nueva</p>
-            </div>
+          {view === 'day' ? (
+            dayTasks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <Calendar className="w-10 h-10 mb-2 opacity-20" />
+                <p className="text-sm">No hay tareas para este día</p>
+                <p className="text-xs opacity-60 mt-1">Agrega una tarea nueva</p>
+              </div>
+            ) : (
+              dayTasks.map((task) => renderTaskItem(task))
+            )
           ) : (
-            dayTasks.map((task) => {
-              const dd = toLocalDate(task.due_date)
-              const overdue = dd && !task.completed && dd < new Date() && !isSameDay(dd, new Date())
-
-              return (
-                <div
-                  key={task.id}
-                  className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${
-                    task.completed
-                      ? 'bg-muted/20 border-border/30 opacity-60'
-                      : overdue
-                      ? 'bg-red-500/5 border-red-500/20'
-                      : 'bg-card border-border/50 hover:border-border'
-                  }`}
-                >
-                  <button
-                    onClick={() => handleToggleComplete(task.id, task.completed)}
-                    className="mt-0.5 shrink-0 transition-colors"
+            pendingCount === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <CheckCircle2 className="w-10 h-10 mb-2 text-green-500/30" />
+                <p className="text-sm">No hay tareas pendientes</p>
+                <p className="text-xs opacity-60 mt-1">Todo al día</p>
+              </div>
+            ) : (
+              <>
+                {pendingOverdue.length > 0 && (
+                  <PendingSection
+                    title="Vencidas"
+                    icon={<AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
+                    count={pendingOverdue.length}
                   >
-                    {task.completed ? (
-                      <CheckCircle2 className="w-5 h-5 text-primary" />
-                    ) : (
-                      <Circle className="w-5 h-5 text-muted-foreground/40 hover:text-primary/60 transition-colors" />
-                    )}
-                  </button>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className={`text-sm min-w-0 truncate ${task.completed ? 'line-through text-muted-foreground/60' : ''}`}>
-                        {task.title}
-                      </p>
-                      {task.due_time && (
-                        <span className="flex items-center gap-1 text-[10px] font-medium text-primary/80 shrink-0">
-                          <Clock className="w-3 h-3" />
-                          {task.due_time}
-                        </span>
-                      )}
-                    </div>
-                    {task.description && (
-                      <p className="text-xs text-muted-foreground/60 mt-0.5 line-clamp-1">
-                        {task.description}
-                      </p>
-                    )}
-                    {overdue && (
-                      <p className="text-[10px] text-red-400/70 mt-1 font-medium">
-                        Vencida · {format(toLocalDate(task.due_date), "d 'de' MMM", { locale: es })}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => {
-                        const d = task.due_date ? format(toLocalDate(task.due_date), 'yyyy-MM-dd') : ''
-                        setRescheduleTaskId(task.id)
-                        setRescheduleDate(d)
-                        setRescheduleTime(task.due_time || '')
-                      }}
-                      className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                      title="Reprogramar"
-                    >
-                      <Calendar className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(task.id)}
-                      className="p-1.5 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-400 transition-colors"
-                      title="Eliminar"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              )
-            })
+                    {pendingOverdue.map((task) => renderTaskItem(task, true))}
+                  </PendingSection>
+                )}
+                {pendingToday.length > 0 && (
+                  <PendingSection
+                    title="Hoy"
+                    icon={<Calendar className="w-3.5 h-3.5 text-primary" />}
+                    count={pendingToday.length}
+                  >
+                    {pendingToday.map((task) => renderTaskItem(task))}
+                  </PendingSection>
+                )}
+                {pendingTomorrow.length > 0 && (
+                  <PendingSection
+                    title="Mañana"
+                    icon={<Clock className="w-3.5 h-3.5 text-blue-500" />}
+                    count={pendingTomorrow.length}
+                  >
+                    {pendingTomorrow.map((task) => renderTaskItem(task))}
+                  </PendingSection>
+                )}
+                {pendingUpcoming.length > 0 && (
+                  <PendingSection
+                    title="Próximas"
+                    icon={<ListTodo className="w-3.5 h-3.5 text-muted-foreground" />}
+                    count={pendingUpcoming.length}
+                  >
+                    {pendingUpcoming.map((task) => renderTaskItem(task, true))}
+                  </PendingSection>
+                )}
+              </>
+            )
           )}
         </div>
       </div>
@@ -444,6 +588,21 @@ export default function Tasks() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function PendingSection({ title, icon, count, children }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1.5 px-1 pt-1">
+        {icon}
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {title}
+        </span>
+        <span className="text-[10px] text-muted-foreground/50">({count})</span>
+      </div>
+      {children}
     </div>
   )
 }
