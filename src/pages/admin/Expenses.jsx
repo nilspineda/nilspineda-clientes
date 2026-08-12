@@ -4,6 +4,7 @@ import { es } from 'date-fns/locale'
 import {
   Wallet, Plus, Trash2, Pencil, ChevronLeft, ChevronRight,
   Tag, TrendingUp, PiggyBank, Receipt, Search, Save,
+  ShoppingCart, Store, Utensils, Car, Home, Zap, Wifi, Shirt, Pill, CreditCard, Gift,
 } from 'lucide-react'
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip as ReTooltip,
@@ -30,7 +31,21 @@ import {
 } from '@/utils/expenses'
 
 const PALETTE = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16']
-const CATEGORY_ICONS = ['ShoppingCart', 'Food', 'Utensils', 'Car', 'Home', 'Zap', 'Wifi', 'Shirt', 'Pill', 'CreditCard', 'Gift', 'Tag']
+const CATEGORY_ICONS = [
+  { name: 'ShoppingCart', Icon: ShoppingCart },
+  { name: 'Store', Icon: Store },
+  { name: 'Utensils', Icon: Utensils },
+  { name: 'Car', Icon: Car },
+  { name: 'Home', Icon: Home },
+  { name: 'Zap', Icon: Zap },
+  { name: 'Wifi', Icon: Wifi },
+  { name: 'Shirt', Icon: Shirt },
+  { name: 'Pill', Icon: Pill },
+  { name: 'CreditCard', Icon: CreditCard },
+  { name: 'Gift', Icon: Gift },
+  { name: 'Tag', Icon: Tag },
+]
+const iconFor = (name) => CATEGORY_ICONS.find((i) => i.name === name)?.Icon || Tag
 
 export default function Expenses() {
   const [viewDate, setViewDate] = useState(new Date())
@@ -420,6 +435,7 @@ export default function Expenses() {
                     <SelectItem key={c.id} value={c.id}>
                       <span className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full" style={{ background: c.color }} />
+                        {(() => { const Icon = iconFor(c.icon); return <Icon className="w-4 h-4" /> })()}
                         {c.name}
                       </span>
                     </SelectItem>
@@ -588,8 +604,13 @@ export default function Expenses() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {CATEGORY_ICONS.map((i) => (
-                    <SelectItem key={i} value={i}>{i}</SelectItem>
+                  {CATEGORY_ICONS.map(({ name, Icon }) => (
+                    <SelectItem key={name} value={name}>
+                      <span className="flex items-center gap-2">
+                        <Icon className="w-4 h-4" />
+                        {name}
+                      </span>
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -601,6 +622,7 @@ export default function Expenses() {
               {categories.map((c) => (
                 <div key={c.id} className="flex items-center gap-3 rounded-lg border border-border/50 p-2.5">
                   <span className="w-3 h-3 rounded-full shrink-0" style={{ background: c.color }} />
+                  {(() => { const Icon = iconFor(c.icon); return <Icon className="w-4 h-4 text-muted-foreground shrink-0" /> })()}
                   <span className="text-sm font-medium flex-1">{c.name}</span>
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openCategoryModal(c)}>
                     <Pencil className="w-3.5 h-3.5" />
