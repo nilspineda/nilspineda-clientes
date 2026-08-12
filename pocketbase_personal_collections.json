@@ -45,5 +45,51 @@
       { "name": "name", "type": "text", "options": { "max": 255 } },
       { "name": "color", "type": "text", "options": { "max": 20 } }
     ]
+  },
+  {
+    "name": "expenses_categories",
+    "type": "base",
+    "listRule": "@request.auth.role = \"admin\"",
+    "viewRule": "@request.auth.role = \"admin\"",
+    "createRule": "@request.auth.role = \"admin\"",
+    "updateRule": "@request.auth.role = \"admin\"",
+    "deleteRule": "@request.auth.role = \"admin\"",
+    "fields": [
+      { "name": "user_id", "type": "relation", "options": { "collectionId": "_pb_users_auth_", "maxSelect": 1 } },
+      { "name": "name", "type": "text", "options": { "max": 255 } },
+      { "name": "color", "type": "text", "options": { "max": 20 } },
+      { "name": "icon", "type": "text", "options": { "max": 50 } }
+    ]
+  },
+  {
+    "name": "expenses",
+    "type": "base",
+    "listRule": "@request.auth.role = \"admin\"",
+    "viewRule": "@request.auth.role = \"admin\"",
+    "createRule": "@request.auth.role = \"admin\"",
+    "updateRule": "@request.auth.role = \"admin\"",
+    "deleteRule": "@request.auth.role = \"admin\"",
+    "fields": [
+      { "name": "user_id", "type": "relation", "options": { "collectionId": "_pb_users_auth_", "maxSelect": 1 } },
+      { "name": "category", "type": "relation", "options": { "collectionId": "expenses_categories", "maxSelect": 1 } },
+      { "name": "amount", "type": "number", "options": { "min": 0 } },
+      { "name": "expense_date", "type": "date" },
+      { "name": "expense_time", "type": "text", "options": { "max": 5 } },
+      { "name": "description", "type": "text", "options": { "max": 500 } }
+    ]
+  },
+  {
+    "name": "expense_budgets",
+    "type": "base",
+    "listRule": "@request.auth.role = \"admin\"",
+    "viewRule": "@request.auth.role = \"admin\"",
+    "createRule": "@request.auth.role = \"admin\"",
+    "updateRule": "@request.auth.role = \"admin\"",
+    "deleteRule": "@request.auth.role = \"admin\"",
+    "fields": [
+      { "name": "user_id", "type": "relation", "options": { "collectionId": "_pb_users_auth_", "maxSelect": 1 } },
+      { "name": "month", "type": "text", "options": { "max": 7 } },
+      { "name": "budget", "type": "number", "options": { "min": 0 } }
+    ]
   }
 ]

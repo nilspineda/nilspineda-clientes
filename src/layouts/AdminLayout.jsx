@@ -48,6 +48,7 @@ const navItems = [
   { path: null, label: "Personal", divider: true },
   { path: "/admin/personal/notes", label: "Notas", icon: StickyNote },
   { path: "/admin/personal/tasks", label: "Tareas", icon: ListTodo },
+  { path: "/admin/expenses", label: "Gastos", icon: Wallet },
 ];
 
 function SidebarNav({ collapsed, onClose }) {

@@ -16,6 +16,7 @@ const AdminServices = lazy(() => import("./pages/admin/AdminServices"));
 const AdminPayments = lazy(() => import("./pages/admin/AdminPayments"));
 const PersonalNotes = lazy(() => import("./pages/personal/Notes"));
 const PersonalTasks = lazy(() => import("./pages/personal/Tasks"));
+const Expenses = lazy(() => import("./pages/admin/Expenses"));
 const Payments = lazy(() => import("./pages/Payments"));
 const Profile = lazy(() => import("./pages/Profile"));
 
@@ -64,6 +65,7 @@ function AppRoutes() {
             <Route path="/admin/payments" element={<AdminPayments />} />
             <Route path="/admin/personal/notes" element={<PersonalNotes />} />
             <Route path="/admin/personal/tasks" element={<PersonalTasks />} />
+            <Route path="/admin/expenses" element={<Expenses />} />
           </Route>
         </Route>
 
