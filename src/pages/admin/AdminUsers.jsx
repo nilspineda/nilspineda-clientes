@@ -325,8 +325,8 @@ export default function AdminUsers() {
     const message = encodeURIComponent(
       `Hola ${formData.name || ""}, bienvenido/a.\n\n` +
         `Tu portal de cliente: https://clientes.nilspineda.com\n` +
-        `Email: ${formData.email}\n\n` +
-        `Para establecer tu contraseña, usa la opción "¿Olvidaste tu contraseña?" en la pantalla de inicio de sesión.\n\n` +
+        `Email: ${formData.email}\n` +
+        `Contraseña: ${formData.password}\n\n` +
         `Gracias por confiar en nuestros servicios.`,
     );
     const whatsappNum = newUserWhatsapp.replace(/\D/g, "");
@@ -1845,7 +1845,7 @@ export default function AdminUsers() {
       )}
 
       <Card className="p-3">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {users.length === 0 ? (
             <div className="px-6 py-12 text-center text-muted-foreground text-sm">
               No hay usuarios registrados.
@@ -1854,9 +1854,7 @@ export default function AdminUsers() {
             users.map((user, index) => (
               <div
                 key={user.id}
-                className={`p-3 cursor-pointer hover:border-primary/50 transition-all rounded-xl border bg-card shadow-sm h-full ${
-                  index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"
-                }`}
+                className="p-3 cursor-pointer hover:border-primary/50 transition-all rounded-xl border bg-card shadow-sm h-full"
                 onClick={() => viewUserDetails(user)}
               >
                 <div className="flex items-start justify-between gap-3">

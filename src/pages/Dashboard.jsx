@@ -5,7 +5,6 @@ import pb from "@/lib/pocketbaseClient"
 import { formatDate, getDaysRemaining } from "@/utils/dateUtils"
 import {
   normalizeWhatsapp,
-  formatWhatsapp,
   formatCurrency,
   normalizeUrl,
 } from "@/utils/formatUtils"
@@ -21,9 +20,6 @@ import StatusBadge from "@/components/StatusBadge"
 
 import {
   Package,
-  Globe,
-  Phone,
-  Mail,
   Calendar,
   AlertTriangle,
   CreditCard,
@@ -31,7 +27,6 @@ import {
   Zap,
   User,
   ChevronLeft,
-  Info,
   BarChart3,
   AlertCircle,
   Loader2,
@@ -221,11 +216,6 @@ export default function Dashboard() {
         },
         { active: 0, pending: 0, expired: 0, warning: 0 },
       ),
-    [services],
-  )
-
-  const dominiosArray = useMemo(
-    () => [...new Set(services.map((s) => s.url_dominio).filter(Boolean))],
     [services],
   )
 
@@ -569,21 +559,39 @@ export default function Dashboard() {
               <p className="text-muted-foreground/60 text-sm mt-1">Contacta al administrador para agregar servicios</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 auto-rows-fr gap-3">
               {services.map((service, index) => {
                   const status = getServiceStatus(service)
                   const days = getDaysRemaining(service.expires_at)
+                  const websiteName = (() => {
+                    if (!service.url_dominio) return null
+                    try { return new URL(normalizeUrl(service.url_dominio)).hostname }
+                    catch (e) { return String(service.url_dominio).replace(/^https?:\/\//i, "") }
+                  })()
                   return (
-                    <div key={service.id} className={`rounded-lg border bg-card p-3 space-y-2 h-full ${index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"}`}>
+                    <div key={service.id} className="rounded-xl border bg-card p-4 space-y-2 flex flex-col">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-foreground text-sm truncate">
-                            {service.expand?.service_id?.name}
-                          </p>
-                          {service.expand?.service_id?.description && (
-                            <p className="text-xs text-muted-foreground truncate mt-0.5">
-                              {service.expand?.service_id?.description}
+                          {websiteName ? (
+                            <a href={normalizeUrl(service.url_dominio)} target="_blank" rel="noopener noreferrer" className="font-semibold text-foreground text-sm truncate hover:underline inline-flex items-center gap-1">
+                              {websiteName}
+                              <ExternalLink className="w-3 h-3 shrink-0" />
+                            </a>
+                          ) : (
+                            <p className="font-medium text-foreground text-sm truncate">
+                              {service.expand?.service_id?.name}
                             </p>
+                          )}
+                          {websiteName ? (
+                            <p className="text-xs text-muted-foreground truncate mt-0.5">
+                              {service.expand?.service_id?.name}
+                            </p>
+                          ) : (
+                            service.expand?.service_id?.description && (
+                              <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                {service.expand?.service_id?.description}
+                              </p>
+                            )
                           )}
                         </div>
                         <div className="shrink-0">
@@ -607,7 +615,7 @@ export default function Dashboard() {
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center justify-between pt-2 border-t">
+                      <div className="flex items-center justify-between pt-2 border-t mt-auto">
                         <div className="min-w-0">
                           <div className="text-sm font-semibold text-primary">
                             {formatCurrency(service.price ?? 0)}
@@ -665,82 +673,7 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Info className="w-5 h-5 text-primary" />
-              Información
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 border">
-              <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                <Globe className="w-5 h-5 text-blue-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground">Dominios</p>
-                {dominiosArray.length > 0 ? (
-                  <div className="flex flex-col gap-0.5">
-                    {dominiosArray.map((d, i) => (
-                      <a
-                        key={i}
-                        href={normalizeUrl(String(d))}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sm font-medium text-foreground truncate hover:underline"
-                      >
-                        {String(d).replace(/^https?:\/\//i, "")}
-                      </a>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No registrado</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 border">
-              <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                <Phone className="w-5 h-5 text-green-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground">WhatsApp</p>
-                <p className="text-sm font-medium text-foreground truncate">
-                  {formatWhatsapp(profile?.whatsapp) || "No registrado"}
-                </p>
-              </div>
-              {profile?.whatsapp && (
-                <a
-                  href={`https://wa.me/${normalizeWhatsapp(profile.whatsapp)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <ExternalLink className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-                </a>
-              )}
-            </div>
-
-            <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 border">
-              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                <Mail className="w-5 h-5 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground">Email</p>
-                <p className="text-sm font-medium text-foreground truncate">
-                  {profile?.email || "No registrado"}
-                </p>
-              </div>
-              {profile?.email && (
-                <a href={`mailto:${profile.email}`}>
-                  <ExternalLink className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-                </a>
-              )}
-            </div>
-
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -770,9 +703,8 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {pendingPayments.length > 0 && (
+        {pendingPayments.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -781,11 +713,11 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {pendingPayments.slice(0, 5).map((payment, index) => (
+            <div className="grid grid-cols-1 gap-3">
+              {pendingPayments.slice(0, 5).map((payment) => (
                 <div
                   key={payment.id}
-                  className={`flex items-center justify-between gap-3 p-3 rounded-lg bg-orange-500/5 border border-orange-500/10 h-full ${index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"}`}
+                  className="flex items-center justify-between gap-3 p-3 rounded-lg bg-orange-500/5 border border-orange-500/10 h-full"
                 >
                   <div>
                     <p className="font-semibold text-foreground text-sm">
@@ -808,7 +740,8 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
-      )}
+        )}
+      </div>
 
       <CredentialsModal
         service={credentialsService}
