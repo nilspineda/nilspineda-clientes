@@ -59,6 +59,20 @@ export function usePushNotifications() {
 
     let cancelled = false
 
+    const delay = (ms) => new Promise((r) => setTimeout(r, ms))
+
+    // FCM (Chrome Android) a menudo falla el primer intento con
+    // "Registration failed - push service error". Reintentamos con esperas.
+    async function subscribeWithRetry(reg, attempts = 3) {
+      for (let i = 0; i < attempts; i++) {
+        if (cancelled) return null
+        const sub = await subscribeToPush(reg, VAPID_PUBLIC_KEY)
+        if (sub) return sub
+        await delay(2500 * (i + 1))
+      }
+      return null
+    }
+
     async function init() {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
 
@@ -83,14 +97,14 @@ export function usePushNotifications() {
           return
         }
 
-        const newSub = await subscribeToPush(reg, VAPID_PUBLIC_KEY)
+        const newSub = await subscribeWithRetry(reg)
         if (newSub && !cancelled) {
           const subJSON = subscriptionToJSON(newSub)
           await saveSubscription(subJSON, pb.authStore.model?.id)
           subscribedRef.current = true
         }
       } catch (err) {
-        console.warn('Push subscription failed:', err)
+        console.warn('Push subscription failed:', err?.message || err)
         console.warn('Push notifications require HTTPS. If testing locally, the app must be deployed to Vercel or accessed via localhost.')
       }
     }

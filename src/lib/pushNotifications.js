@@ -17,7 +17,7 @@ export async function subscribeToPush(swRegistration, vapidPublicKey) {
       applicationServerKey,
     })
   } catch (err) {
-    console.error('Failed to subscribe to push:', err)
+    console.warn('Failed to subscribe to push:', err?.message || err)
     if (err.name === 'AbortError' || err.name === 'InvalidStateError') {
       try {
         const stale = await swRegistration.pushManager.getSubscription()
@@ -27,7 +27,7 @@ export async function subscribeToPush(swRegistration, vapidPublicKey) {
           applicationServerKey,
         })
       } catch (retryErr) {
-        console.error('Failed to resubscribe to push:', retryErr)
+        console.warn('Failed to resubscribe to push:', retryErr?.message || retryErr)
         return null
       }
     }

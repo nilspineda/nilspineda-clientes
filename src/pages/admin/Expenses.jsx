@@ -58,14 +58,12 @@ export default function Expenses() {
   const [category, setCategory] = useState('')
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState('')
-  const [time, setTime] = useState('')
   const [description, setDescription] = useState('')
 
   const [editing, setEditing] = useState(null)
   const [editCategory, setEditCategory] = useState('')
   const [editAmount, setEditAmount] = useState('')
   const [editDate, setEditDate] = useState('')
-  const [editTime, setEditTime] = useState('')
   const [editDescription, setEditDescription] = useState('')
 
   const [showCategories, setShowCategories] = useState(false)
@@ -136,7 +134,6 @@ export default function Expenses() {
     setCategory('')
     setAmount('')
     setDate('')
-    setTime('')
     setDescription('')
   }
 
@@ -147,8 +144,7 @@ export default function Expenses() {
     if (!date) return toast.error('Ingresa la fecha')
     try {
       await createExpense({
-        category, amount: amt, expense_date: date,
-        expense_time: time || null, description,
+        category, amount: amt, expense_date: date, description,
       })
       toast.success('Gasto registrado')
       resetForm()
@@ -164,7 +160,6 @@ export default function Expenses() {
     setEditCategory(e.category || '')
     setEditAmount(String(e.amount ?? ''))
     setEditDate((e.expense_date || '').slice(0, 10))
-    setEditTime(e.expense_time || '')
     setEditDescription(e.description || '')
   }
 
@@ -175,8 +170,7 @@ export default function Expenses() {
     if (!editDate) return toast.error('Ingresa la fecha')
     try {
       await updateExpense(editing.id, {
-        category: editCategory, amount: amt, expense_date: editDate,
-        expense_time: editTime || null, description: editDescription,
+        category: editCategory, amount: amt, expense_date: editDate, description: editDescription,
       })
       toast.success('Gasto actualizado')
       setEditing(null)
@@ -450,15 +444,9 @@ export default function Expenses() {
               <Label>Monto</Label>
               <Input type="number" min="0" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-2">
-                <Label>Fecha</Label>
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Hora</Label>
-                <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
-              </div>
+            <div className="space-y-2">
+              <Label>Fecha</Label>
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Descripción</Label>
@@ -506,7 +494,7 @@ export default function Expenses() {
                           {e.expand?.category?.name || 'Sin categoría'}
                         </p>
                         <p className="text-xs text-muted-foreground truncate">
-                          {e.description || 'Sin descripción'} · {format(new Date(`${e.expense_date}${e.expense_time ? 'T' + e.expense_time : ''}`), 'dd MMM', { locale: es })}{e.expense_time ? ` · ${e.expense_time}` : ''}
+                          {e.description || 'Sin descripción'} · {format(new Date(e.expense_date), 'dd MMM', { locale: es })}
                         </p>
                       </div>
                       <span className="text-sm font-bold">{formatCurrency(e.amount)}</span>
@@ -549,15 +537,9 @@ export default function Expenses() {
               <Label>Monto</Label>
               <Input type="number" min="0" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-2">
-                <Label>Fecha</Label>
-                <Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Hora</Label>
-                <Input type="time" value={editTime} onChange={(e) => setEditTime(e.target.value)} />
-              </div>
+            <div className="space-y-2">
+              <Label>Fecha</Label>
+              <Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Descripción</Label>
