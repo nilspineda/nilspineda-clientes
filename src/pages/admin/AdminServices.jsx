@@ -279,11 +279,11 @@ export default function AdminServices() {
         {services.length === 0 ? (
           <div className="px-6 py-12 text-center text-muted-foreground text-sm">No hay servicios creados.</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {services.map((service, index) => {
               const typeInfo = getTypeInfo(service.type, serviceTypes)
               return (
-                <div key={service.id} className={`rounded-lg border bg-card p-3 flex items-center justify-between gap-3 h-full ${index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"}`}>
+                <div key={service.id} className="rounded-lg border bg-card p-3 flex items-center justify-between gap-3 h-full">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                       <Zap className="w-4 h-4 text-primary" />

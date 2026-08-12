@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import pb from "@/lib/pocketbaseClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -68,6 +68,7 @@ export default function AdminUsers() {
   const [showSendCreds, setShowSendCreds] = useState(false);
   const [newUserWhatsapp, setNewUserWhatsapp] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
+  const listScrollRef = useRef(0);
   const [userServices, setUserServices] = useState([]);
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [editingService, setEditingService] = useState(null);
@@ -138,6 +139,14 @@ export default function AdminUsers() {
     fetchUsers();
   }, []);
 
+  useEffect(() => {
+    if (!selectedUser && listScrollRef.current) {
+      const pos = listScrollRef.current;
+      listScrollRef.current = 0;
+      requestAnimationFrame(() => window.scrollTo(0, pos));
+    }
+  }, [selectedUser]);
+
   async function fetchUsers() {
     setLoading(true);
     try {
@@ -194,6 +203,7 @@ export default function AdminUsers() {
   }
 
   async function viewUserDetails(user) {
+    listScrollRef.current = window.scrollY;
     setSelectedUser(user);
     try {
       const data = await pb.collection("user_services").getFullList({
@@ -378,6 +388,9 @@ export default function AdminUsers() {
       await pb.collection("users").update(user.id, { status: newStatus });
       setUsers(
         users.map((u) => (u.id === user.id ? { ...u, status: newStatus } : u)),
+      );
+      setSelectedUser((prev) =>
+        prev && prev.id === user.id ? { ...prev, status: newStatus } : prev,
       );
     } catch (err) {
       console.error("Error al cambiar estado:", err);
@@ -799,6 +812,18 @@ export default function AdminUsers() {
                 <Lock className="w-4 h-4" />
                 Cambiar Pass
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => toggleUserStatus(selectedUser)}
+                className={`gap-2 ${selectedUser.status === "active" ? "text-destructive border-destructive/30 hover:bg-destructive/10" : "text-green-500 border-green-500/30 hover:bg-green-500/10"}`}
+              >
+                {selectedUser.status === "active" ? (
+                  <><EyeOff className="w-4 h-4" /> Suspender</>
+                ) : (
+                  <><Eye className="w-4 h-4" /> Activar</>
+                )}
+              </Button>
             </div>
 
             <Card>
@@ -836,7 +861,7 @@ export default function AdminUsers() {
                         />
                       </div>
                     )}
-                    <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 max-h-[600px] overflow-y-auto pr-1">
                       {(serviceSearch
                         ? userServices.filter((s) => {
                             const term = serviceSearch.toLowerCase();
@@ -874,7 +899,7 @@ export default function AdminUsers() {
                         return (
                           <div
                             key={service.id}
-                            className="group relative overflow-hidden rounded-lg border bg-card p-3 hover:border-primary/50 transition-all"
+                            className="group relative overflow-hidden rounded-lg border bg-card p-4 hover:border-primary/50 transition-all h-full"
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1 min-w-0">
@@ -908,7 +933,7 @@ export default function AdminUsers() {
                                     {paymentStatus.label}
                                   </Badge>
                                 </div>
-                                <p className="text-sm font-semibold text-foreground truncate">
+                                <p className="text-lg font-extrabold text-foreground truncate">
                                   {websiteName ? (
                                     <a
                                       href={normalizeUrl(service.url_dominio)}
@@ -917,7 +942,7 @@ export default function AdminUsers() {
                                       className="hover:underline inline-flex items-center gap-1"
                                     >
                                       {websiteName}
-                                      <ExternalLink className="w-3 h-3 shrink-0" />
+                                      <ExternalLink className="w-4 h-4 shrink-0" />
                                     </a>
                                   ) : (
                                     displayName
@@ -925,7 +950,7 @@ export default function AdminUsers() {
                                 </p>
                                 {websiteName &&
                                   service.expand?.service_id?.name && (
-                                    <p className="text-xs text-muted-foreground truncate">
+                                    <p className="text-sm text-muted-foreground truncate">
                                       {service.expand.service_id.name}
                                     </p>
                                   )}
@@ -1845,7 +1870,7 @@ export default function AdminUsers() {
       )}
 
       <Card className="p-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {users.length === 0 ? (
             <div className="px-6 py-12 text-center text-muted-foreground text-sm">
               No hay usuarios registrados.
@@ -1854,46 +1879,46 @@ export default function AdminUsers() {
             users.map((user, index) => (
               <div
                 key={user.id}
-                className="p-3 cursor-pointer hover:border-primary/50 transition-all rounded-xl border bg-card shadow-sm h-full"
+                className={`p-5 cursor-pointer hover:border-primary/50 transition-all rounded-xl border bg-card shadow-sm h-full ${user.status !== "active" ? "opacity-60 grayscale" : ""}`}
                 onClick={() => viewUserDetails(user)}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold text-xl shrink-0">
                       {user.name?.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-semibold text-foreground text-sm truncate">
+                      <p className="font-bold text-foreground text-lg truncate">
                         {user.name}
                       </p>
-                      <p className="text-xs text-muted-foreground truncate">
+                      <p className="text-sm text-muted-foreground truncate">
                         {user.email}
                       </p>
                     </div>
                   </div>
                   <div className="shrink-0">
                     {user.status === "active" ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-green-500/10 text-green-500">
-                        <Activity className="w-3 h-3" />
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-sm font-medium bg-green-500/10 text-green-500">
+                        <Activity className="w-4 h-4" />
                         Activo
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-destructive/10 text-destructive">
-                        <EyeOff className="w-3 h-3" />
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-sm font-medium bg-destructive/10 text-destructive">
+                        <EyeOff className="w-4 h-4" />
                         Suspendido
                       </span>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center justify-between gap-3 mt-4 pt-2 border-t">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="font-semibold text-foreground">
+                <div className="flex items-center justify-between gap-3 mt-5 pt-3 border-t">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className="font-bold text-foreground text-base">
                       {user.service_count}
                     </span>{" "}
                     servicios
                     {user.min_days_to_renewal !== null && (
                       <span
-                        className={`font-medium ${user.min_days_to_renewal < 0 ? "text-destructive" : user.min_days_to_renewal <= 7 ? "text-orange-500" : "text-green-500"}`}
+                        className={`font-semibold ${user.min_days_to_renewal < 0 ? "text-destructive" : user.min_days_to_renewal <= 7 ? "text-orange-500" : "text-green-500"}`}
                       >
                         ·{" "}
                         {user.min_days_to_renewal < 0
@@ -1911,26 +1936,26 @@ export default function AdminUsers() {
                         variant="ghost"
                         size="sm"
                         onClick={() => sendUserCredentials(user)}
-                        className="text-green-500 hover:text-green-600 h-8 px-2 text-xs"
+                        className="text-green-500 hover:text-green-600 h-9 px-3 text-sm"
                       >
-                        <MessageCircle className="w-3.5 h-3.5" />
+                        <MessageCircle className="w-4 h-4" />
                       </Button>
                     )}
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-9 w-9"
                       onClick={() => handleEdit(user)}
                     >
-                      <Edit3 className="w-3.5 h-3.5" />
+                      <Edit3 className="w-4 h-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      className="h-9 w-9 text-destructive hover:text-destructive"
                       onClick={() => handleDelete(user)}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>

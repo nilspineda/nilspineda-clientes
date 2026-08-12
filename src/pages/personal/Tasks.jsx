@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, Plus, Trash2, CheckCircle2, Circle, Calendar, Clock, ListTodo, AlertTriangle, ArrowLeft } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Trash2, CheckCircle2, Circle, Calendar, Clock, ListTodo, AlertTriangle, ArrowLeft, Pencil } from 'lucide-react'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isToday, addMonths, subMonths, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { fetchTasks, createTask, deleteTask, completeTask, rescheduleTask, toLocalDate } from '@/utils/personalTasks'
+import { fetchTasks, createTask, updateTask, deleteTask, completeTask, rescheduleTask, toLocalDate } from '@/utils/personalTasks'
 import { usePersonalTasks } from '@/hooks/usePersonalTasks'
 
 export default function Tasks() {
@@ -19,6 +19,11 @@ export default function Tasks() {
   const [rescheduleTaskId, setRescheduleTaskId] = useState(null)
   const [rescheduleDate, setRescheduleDate] = useState('')
   const [rescheduleTime, setRescheduleTime] = useState('')
+  const [editingTask, setEditingTask] = useState(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editDate, setEditDate] = useState('')
+  const [editTime, setEditTime] = useState('')
 
   const loadTasks = useCallback(async () => {
     try {
@@ -183,6 +188,39 @@ export default function Tasks() {
     }
   }
 
+  const handleEditTask = async () => {
+    if (!editingTask || !editTitle.trim()) return
+    try {
+      const title = editTitle.trim()
+      const description = editDescription.trim() || null
+      await updateTask(editingTask.id, {
+        title,
+        description,
+        due_date: editDate,
+        due_time: editTime || null,
+      })
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === editingTask.id
+            ? { ...t, title, description, due_date: editDate, due_time: editTime || null }
+            : t
+        )
+      )
+      setEditingTask(null)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const openEditTask = (task) => {
+    const dd = task.due_date ? toLocalDate(task.due_date) : null
+    setEditingTask(task)
+    setEditTitle(task.title || '')
+    setEditDescription(task.description || '')
+    setEditDate(dd ? format(dd, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'))
+    setEditTime(task.due_time || '')
+  }
+
   const getTaskCount = (day) => {
     return tasks.filter((t) => {
       const d = toLocalDate(t.due_date)
@@ -269,6 +307,13 @@ export default function Tasks() {
 
         <div className="flex items-center gap-1 shrink-0">
           <button
+            onClick={() => openEditTask(task)}
+            className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            title="Editar"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+          <button
             onClick={() => {
               const d = task.due_date ? format(toLocalDate(task.due_date), 'yyyy-MM-dd') : ''
               setRescheduleTaskId(task.id)
@@ -303,8 +348,8 @@ export default function Tasks() {
   const pendingCount = pendingTasks.length
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-8rem)]">
-      <div className="w-full lg:w-[400px] shrink-0">
+    <div className="flex flex-col lg:flex-row gap-4 lg:h-[calc(100vh-8rem)]">
+      <div className="w-full lg:w-[40%] shrink-0">
         <div className="border border-border/50 rounded-xl bg-card overflow-hidden">
           <div className="flex items-center justify-between p-3 border-b border-border/50">
             <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-1.5 rounded-lg hover:bg-accent transition-colors">
@@ -409,7 +454,7 @@ export default function Tasks() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col">
+      <div className="w-full lg:w-[60%] flex flex-col">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold flex items-center gap-2">
             {view === 'day' ? (
@@ -580,6 +625,68 @@ export default function Tasks() {
               </button>
               <button
                 onClick={() => setRescheduleTaskId(null)}
+                className="flex-1 px-4 py-2 border border-border/50 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    {editingTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setEditingTask(null)}>
+          <div className="bg-card border border-border/50 rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold mb-4">Editar tarea</h3>
+
+            <label className="block text-xs text-muted-foreground mb-1.5">Título</label>
+            <input
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleEditTask() }}
+              className="w-full px-3 py-2 text-sm bg-background border border-border/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary mb-4"
+              autoFocus
+            />
+
+            <label className="block text-xs text-muted-foreground mb-1.5">Descripción</label>
+            <input
+              type="text"
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              className="w-full px-3 py-2 text-sm bg-background border border-border/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary mb-4"
+            />
+
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1.5">Fecha</label>
+                <input
+                  type="date"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-background border border-border/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-muted-foreground"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1.5">Hora</label>
+                <input
+                  type="time"
+                  value={editTime}
+                  onChange={(e) => setEditTime(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-background border border-border/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-muted-foreground"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleEditTask}
+                disabled={!editTitle.trim()}
+                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                Guardar
+              </button>
+              <button
+                onClick={() => setEditingTask(null)}
                 className="flex-1 px-4 py-2 border border-border/50 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 Cancelar

@@ -100,7 +100,17 @@ export default function Dashboard() {
           allPayments.push(...result.data)
         }
       })
-      const pendingFromDb = allPayments.filter((p) => p.status === "pending")
+      const pendingFromDb = allPayments
+        .filter((p) => p.status === "pending")
+        .map((p) => {
+          const svc = servicesData?.find((s) => s.id === p.user_service_id)
+          return {
+            ...p,
+            service_name: svc?.expand?.service_id?.name || svc?.name || "Servicio",
+            url_dominio: svc?.url_dominio || "",
+            expires_at: svc?.expires_at || p.payment_date,
+          }
+        })
 
       const oneTimeSvcs = (servicesData || []).filter((s) => s.billing_type === "one_time")
       const pendingFromOneTime = oneTimeSvcs
@@ -115,6 +125,8 @@ export default function Dashboard() {
           id: `one_time_pending_${s.id}`,
           amount: price - totalPaid,
           service_name: s.expand?.service_id?.name || s.name || "Servicio",
+          url_dominio: s.url_dominio || "",
+          expires_at: s.expires_at || s.start_date || new Date().toISOString(),
           payment_date: s.expires_at || s.start_date || new Date().toISOString(),
           status: "pending",
           billing_type: "one_time",
@@ -241,6 +253,40 @@ export default function Dashboard() {
   )
 
   const supportWa = normalizeWhatsapp(whatsappNumber || "3167195500")
+
+  const upcomingPayments = useMemo(() => {
+    const items = (pendingPayments || []).map((p) => ({
+      id: p.id,
+      name: p.url_dominio
+        ? String(p.url_dominio).replace(/^https?:\/\//i, "")
+        : p.service_name,
+      service_name: p.service_name || "",
+      amount: p.amount,
+      expires_at: p.expires_at,
+      days: getDaysRemaining(p.expires_at),
+      isPending: true,
+    }))
+    ;(services || []).forEach((s) => {
+      if (s.billing_type === "one_time") return
+      if (s.no_expiry) return
+      if (!s.expires_at) return
+      if (s.expand?.service_id?.type !== "membresia") return
+      items.push({
+        id: `membresia_${s.id}`,
+        name: s.url_dominio
+          ? String(s.url_dominio).replace(/^https?:\/\//i, "")
+          : s.expand?.service_id?.name || s.name,
+        service_name: s.expand?.service_id?.name || s.name || "",
+        amount: s.price,
+        expires_at: s.expires_at,
+        days: getDaysRemaining(s.expires_at),
+        isPending: false,
+      })
+    })
+    return items
+      .sort((a, b) => (a.days ?? 9999) - (b.days ?? 9999))
+      .slice(0, 3)
+  }, [pendingPayments, services])
 
   if (profile?.status === "suspended") {
     return (
@@ -393,7 +439,7 @@ export default function Dashboard() {
                     return Object.entries(grouped).map(([clientId, group]) => (
                       <div key={clientId} className="space-y-2">
                         <h3 className="text-sm font-bold text-foreground px-1">{group.name}</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         {group.items.map((item, index) => {
                           const days = getDaysRemaining(item.expires_at)
                           const status = getPaymentStatus(item.expires_at)
@@ -405,7 +451,7 @@ export default function Dashboard() {
                             catch (e) { return item.url_dominio }
                           })()
                           return (
-                            <div key={item.id} className={`group relative overflow-hidden rounded-lg border bg-card p-3 hover:border-primary/50 transition-all h-full ${index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"}`}>
+                            <div key={item.id} className="group relative overflow-hidden rounded-lg border bg-card p-3 hover:border-primary/50 transition-all h-full">
                               <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5 mb-1 flex-wrap">
@@ -473,12 +519,12 @@ export default function Dashboard() {
               {filteredServicesList.length === 0 ? (
                 <div className="px-4 py-8 text-center text-muted-foreground text-sm">No hay datos para mostrar</div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
                   {filteredServicesList.map((item, index) => {
                     const days = getDaysRemaining(item.expires_at)
                     const status = getPaymentStatus(item.expires_at)
                     return (
-                      <div key={item.id} className={`rounded-lg border bg-card p-3 space-y-2 h-full ${index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"}`}>
+                      <div key={item.id} className="rounded-lg border bg-card p-3 space-y-2 h-full">
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2 min-w-0">
                             <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-sm font-bold shrink-0 text-primary">
@@ -573,22 +619,22 @@ export default function Dashboard() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           {websiteName ? (
-                            <a href={normalizeUrl(service.url_dominio)} target="_blank" rel="noopener noreferrer" className="font-semibold text-foreground text-sm truncate hover:underline inline-flex items-center gap-1">
+                            <a href={normalizeUrl(service.url_dominio)} target="_blank" rel="noopener noreferrer" className="font-extrabold text-foreground text-xl leading-tight truncate hover:underline inline-flex items-center gap-1.5">
                               {websiteName}
-                              <ExternalLink className="w-3 h-3 shrink-0" />
+                              <ExternalLink className="w-4 h-4 shrink-0 text-primary" />
                             </a>
                           ) : (
-                            <p className="font-medium text-foreground text-sm truncate">
+                            <p className="font-bold text-foreground text-xl leading-tight truncate">
                               {service.expand?.service_id?.name}
                             </p>
                           )}
                           {websiteName ? (
-                            <p className="text-xs text-muted-foreground truncate mt-0.5">
+                            <p className="text-sm text-muted-foreground truncate mt-1">
                               {service.expand?.service_id?.name}
                             </p>
                           ) : (
                             service.expand?.service_id?.description && (
-                              <p className="text-xs text-muted-foreground truncate mt-0.5">
+                              <p className="text-sm text-muted-foreground truncate mt-1">
                                 {service.expand?.service_id?.description}
                               </p>
                             )
@@ -704,7 +750,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {pendingPayments.length > 0 && (
+        {upcomingPayments.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -714,29 +760,39 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-3">
-              {pendingPayments.slice(0, 5).map((payment) => (
+              {upcomingPayments.map((payment) => (
                 <div
                   key={payment.id}
                   className="flex items-center justify-between gap-3 p-3 rounded-lg bg-orange-500/5 border border-orange-500/10 h-full"
                 >
-                  <div>
-                    <p className="font-semibold text-foreground text-sm">
-                      {formatCurrency(payment.amount)}
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground text-sm truncate">
+                      {payment.name}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {payment.service_name} - {formatDate(payment.payment_date)}
-                    </p>
+                    {payment.service_name && payment.service_name !== payment.name && (
+                      <p className="text-xs text-muted-foreground truncate">{payment.service_name}</p>
+                    )}
+                    <p className="text-sm font-bold text-primary">{formatCurrency(payment.amount)}</p>
+                    <p className="text-xs text-muted-foreground">Vence: {formatDate(payment.expires_at)}</p>
                   </div>
-                  <span className="px-2.5 py-1 rounded bg-orange-500/10 text-orange-500 text-xs font-medium">
-                    Pendiente
-                  </span>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    {payment.days !== null && (
+                      <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${
+                        payment.days < 0
+                          ? "bg-destructive/10 text-destructive"
+                          : payment.days <= 5
+                            ? "bg-orange-500/10 text-orange-500"
+                            : "bg-green-500/10 text-green-500"
+                      }`}>
+                        {payment.days < 0 ? `${Math.abs(payment.days)}d vencido` : `${payment.days} días`}
+                      </span>
+                    )}
+                    <span className="px-2.5 py-1 rounded bg-orange-500/10 text-orange-500 text-xs font-medium">
+                      {payment.isPending ? "Pendiente" : "Renovación"}
+                    </span>
+                  </div>
                 </div>
               ))}
-              {pendingPayments.length > 5 && (
-                <p className="text-center text-sm text-muted-foreground">
-                  + {pendingPayments.length - 5} pagos más
-                </p>
-              )}
             </div>
           </CardContent>
         </Card>

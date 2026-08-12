@@ -183,12 +183,12 @@ export default function AdminAssignments() {
         </form>
       </Modal>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {assignments.map((assignment, index) => {
           const daysLeft = getDaysRemaining(assignment.expires_at)
           const isRecurring = assignment.owner === 1
           return (
-            <div key={assignment.id} className={`p-4 rounded-xl border bg-card hover:border-primary/50 transition-all h-full ${index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"}`}>
+            <div key={assignment.id} className="p-4 rounded-xl border bg-card hover:border-primary/50 transition-all h-full">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold shrink-0">
                   {assignment.expand?.user_id?.name?.charAt(0).toUpperCase()}

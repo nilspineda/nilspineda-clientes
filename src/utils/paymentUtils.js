@@ -1,5 +1,6 @@
 import pb from '../lib/pocketbaseClient'
 import { notify } from './notify'
+import { colombiaNow } from './dateUtils'
 
 export async function createRecurringPayments(userServiceId, months = 12) {
   try {
@@ -171,7 +172,7 @@ export async function createPendingPayment(userServiceId) {
       user_service_id: userServiceId,
       user_id: us.user_id,
       amount,
-      payment_date: new Date().toISOString(),
+      payment_date: colombiaNow().toISOString(),
       status: 'pending',
     })
     return { success: true, data: record }

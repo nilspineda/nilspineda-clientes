@@ -120,7 +120,8 @@ export default async function handler(request, response) {
   if (CRON_SECRET) {
     const auth = request.headers?.authorization || ''
     const expected = `Bearer ${CRON_SECRET}`
-    if (auth !== expected) {
+    const isVercelCron = request.headers?.['x-vercel-cron'] === '1'
+    if (auth !== expected && !isVercelCron) {
       return response.status(401).json({ error: 'Unauthorized' })
     }
   }

@@ -326,12 +326,12 @@ export default function AdminIndex() {
             {upcomingRenewals.length === 0 ? (
               <p className="text-center py-8 text-muted-foreground">No hay renovaciones próximas</p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {upcomingRenewals.map((item, index) => {
                   const days = getDaysRemaining(item.expires_at)
                   const status = getPaymentStatus(item.expires_at)
                   return (
-                    <button key={item.id} onClick={() => openClientModal(item.expand?.user_id)} className={`group text-left p-3 rounded-xl border bg-card hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer h-full ${index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"}`}>
+                    <button key={item.id} onClick={() => openClientModal(item.expand?.user_id)} className="group text-left p-3 rounded-xl border bg-card hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer h-full">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0">
                           {item.expand?.user_id?.name?.charAt(0).toUpperCase() || "U"}
@@ -373,12 +373,12 @@ export default function AdminIndex() {
             {filteredServicesList.length === 0 ? (
               <p className="text-center py-8 text-muted-foreground">No hay datos para mostrar</p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {filteredServicesList.map((item, index) => {
                   const days = getDaysRemaining(item.expires_at)
                   const status = getPaymentStatus(item.expires_at)
                   return (
-                    <button key={item.id} onClick={() => openClientModal(item.expand?.user_id)} className={`group text-left p-3 rounded-xl border bg-card hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer h-full ${index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"}`}>
+                    <button key={item.id} onClick={() => openClientModal(item.expand?.user_id)} className="group text-left p-3 rounded-xl border bg-card hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer h-full">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0">
                           {item.expand?.user_id?.name?.charAt(0).toUpperCase() || "U"}

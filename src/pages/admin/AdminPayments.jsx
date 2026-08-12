@@ -438,7 +438,7 @@ export default function AdminPayments() {
             {groupedByClient.length === 0 ? (
               <div className="px-6 py-12 text-center text-muted-foreground text-sm">No hay pagos registrados.</div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {groupedByClient.map((group, index) => {
                   const isExpanded = expandedId === group.userId
                   const totalPendingAmount = group.payments
@@ -450,7 +450,7 @@ export default function AdminPayments() {
                     p.expand?.user_service_id?.name || p.expand?.user_service_id?.expand?.service_id?.name || null
                   ).filter(Boolean))].slice(0, 3)
                   return (
-                    <div key={group.userId} className={`rounded-lg border bg-card p-3 h-full ${index % 3 === 0 ? "md:col-span-2" : "md:col-span-1"}`}>
+                    <div key={group.userId} className="rounded-lg border bg-card p-3 h-full">
                       <div className="flex items-start justify-between gap-3 cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : group.userId)}>
                         <div className="flex items-center gap-2 min-w-0">
                           {group.whatsapp && (
@@ -485,7 +485,7 @@ export default function AdminPayments() {
                               ? h.payment_account?.name
                               : h.expand?.payment_account?.name || ""
                             const hDesc = h.payment_date
-                              ? new Date(h.payment_date).toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" })
+                              ? formatDate(h.payment_date)
                               : "—"
                             const svc = h.user_service_id ? serviceMap[h.user_service_id] : null
                             const isPartial = h.status === "pending" && svc && svc.monto_abonado > 0
