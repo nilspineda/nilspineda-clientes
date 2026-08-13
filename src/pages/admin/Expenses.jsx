@@ -23,6 +23,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import { formatCurrency } from '@/utils/formatUtils'
+import { formatDate, colombiaNow } from '@/utils/dateUtils'
 import {
   fetchCategories, createCategory, updateCategory, deleteCategory,
   fetchExpenses, createExpense, updateExpense, deleteExpense,
@@ -48,7 +49,7 @@ const CATEGORY_ICONS = [
 const iconFor = (name) => CATEGORY_ICONS.find((i) => i.name === name)?.Icon || Tag
 
 export default function Expenses() {
-  const [viewDate, setViewDate] = useState(new Date())
+  const [viewDate, setViewDate] = useState(() => colombiaNow())
   const [expenses, setExpenses] = useState([])
   const [categories, setCategories] = useState([])
   const [budgets, setBudgets] = useState([])
@@ -494,7 +495,7 @@ export default function Expenses() {
                           {e.expand?.category?.name || 'Sin categoría'}
                         </p>
                         <p className="text-xs text-muted-foreground truncate">
-                          {e.description || 'Sin descripción'} · {format(new Date(e.expense_date), 'dd MMM', { locale: es })}
+                          {e.description || 'Sin descripción'} · {formatDate(e.expense_date)}
                         </p>
                       </div>
                       <span className="text-sm font-bold">{formatCurrency(e.amount)}</span>
