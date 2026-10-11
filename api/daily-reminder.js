@@ -1,5 +1,6 @@
 import PocketBase from 'pocketbase'
 import webpush from 'web-push'
+import { getTodaysRestrictions } from '../src/utils/picoPlaca.js'
 
 const PB_URL = process.env.VITE_POCKETBASE_URL || process.env.PB_URL || 'http://localhost:8090'
 const PB_EMAIL = process.env.PB_SUPERUSER_EMAIL
@@ -34,46 +35,7 @@ function getColombiaDate() {
   return new Date(year, month, day)
 }
 
-function getColombiaDayOfWeek() {
-  const formatter = new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', weekday: 'long' })
-  const map = { domingo: 0, lunes: 1, martes: 2, miércoles: 3, jueves: 4, viernes: 5, sábado: 6 }
-  return map[formatter.format(new Date())] ?? 0
-}
-
-const SCHEDULES = [
-  {
-    id: 'carro', label: 'Carro', plates: '3-4', weekday: 4,
-    specificSaturdays: [
-      new Date(2026, 6, 11),
-      new Date(2026, 7, 15),
-      new Date(2026, 8, 19),
-    ],
-  },
-  {
-    id: 'moto', label: 'Moto', plates: '9-0', weekday: 2,
-    specificSaturdays: [
-      new Date(2026, 7, 1),
-      new Date(2026, 8, 5),
-    ],
-  },
-]
-const PERIOD = { start: new Date(2026, 6, 6), end: new Date(2026, 9, 3) }
 const RENEWAL_WINDOW_DAYS = 10
-
-function isSameDate(a, b) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
-}
-
-function getTodaysRestrictions() {
-  const today = getColombiaDate()
-  const dayOfWeek = getColombiaDayOfWeek()
-  if (!(today >= PERIOD.start && today <= PERIOD.end)) return []
-  return SCHEDULES.filter((s) => {
-    const isWeekday = dayOfWeek === s.weekday
-    const isSaturday = dayOfWeek === 6 && s.specificSaturdays?.some((d) => isSameDate(d, today))
-    return isWeekday || isSaturday
-  })
-}
 
 function formatTodayUTC() {
   const d = getColombiaDate()
@@ -145,9 +107,11 @@ export default async function handler(request, response) {
       if (lastNotified !== todayStr) {
         const vehicleList = restrictions.map((r) => r.label).join(' y ')
         const platesList = restrictions.map((r) => `placas ${r.plates}`).join(', ')
+        const hours = restrictions[0]?.hours
+        const hoursPart = hours ? ` (${hours.label})` : ''
         messages.push({
           title: 'Pico y Placa',
-          body: `Hoy te toca: ${vehicleList} (${platesList})`,
+          body: `Hoy te toca: ${vehicleList} (${platesList})${hoursPart}`,
           tag: 'pico-placa',
           data: { url: '/dashboard' },
         })

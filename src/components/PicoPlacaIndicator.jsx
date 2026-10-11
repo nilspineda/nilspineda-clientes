@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Car, Bike, AlertTriangle, Calendar, X } from 'lucide-react'
 import { usePicoPlaca } from '../hooks/usePicoPlaca'
-import { getAllSaturdayRestrictions } from '../utils/picoPlaca'
+import { getAllSaturdayRestrictions, formatPeriodLabel } from '../utils/picoPlaca'
 
 export default function PicoPlacaIndicator() {
   const { restrictions, hasRestriction, isCarroRestricted, isMotoRestricted } = usePicoPlaca()
@@ -67,6 +67,7 @@ export default function PicoPlacaIndicator() {
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-primary" />
                 <h3 className="font-semibold text-sm">Sábados de Pico y Placa</h3>
+                <span className="text-[11px] text-muted-foreground">(9am–1pm)</span>
               </div>
               <button
                 onClick={() => setShowSaturdays(false)}
@@ -103,7 +104,7 @@ export default function PicoPlacaIndicator() {
 
               <div className="pt-3 border-t border-border/50">
                 <p className="text-[11px] text-muted-foreground/60">
-                  Periodo: 6 de julio al 3 de octubre de 2026
+                  Periodo: {formatPeriodLabel()}
                 </p>
               </div>
             </div>

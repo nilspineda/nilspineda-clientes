@@ -14,8 +14,10 @@ export function usePicoPlaca() {
 
     const vehicleList = restrictions.map((r) => r.label).join(' y ')
     const platesList = restrictions.map((r) => `placas ${r.plates}`).join(', ')
+    const hours = restrictions[0]?.hours
+    const hoursPart = hours ? ` de ${hours.label}` : ''
 
-    toast.warning(`Hoy es Pico y Placa para ${vehicleList} (${platesList})`, {
+    toast.warning(`Hoy es Pico y Placa para ${vehicleList} (${platesList})${hoursPart}`, {
       duration: 8000,
       description: 'Sácale el carro de la casa o usa transporte alternativo.',
     })

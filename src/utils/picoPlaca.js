@@ -1,30 +1,32 @@
 const TZ = 'America/Bogota'
 
+const SATURDAY_HOURS = { start: 9, end: 13, label: '9am–1pm' }
+
 const SCHEDULES = [
   {
     id: 'carro',
     label: 'Carro',
     plates: '3-4',
-    weekday: 4,
+    weekday: 5,
     specificSaturdays: [
-      new Date(2026, 6, 11),
-      new Date(2026, 7, 15),
-      new Date(2026, 8, 19),
+      new Date(2026, 9, 24),
+      new Date(2026, 10, 28),
     ],
   },
   {
     id: 'moto',
     label: 'Moto',
     plates: '9-0',
-    weekday: 2,
+    weekday: 3,
     specificSaturdays: [
-      new Date(2026, 7, 1),
-      new Date(2026, 8, 5),
+      new Date(2026, 9, 10),
+      new Date(2026, 10, 14),
+      new Date(2026, 11, 19),
     ],
   },
 ]
 
-const PERIOD = { start: new Date(2026, 6, 6), end: new Date(2026, 9, 3) }
+const PERIOD = { start: new Date(2026, 9, 5), end: new Date(2027, 0, 11) }
 
 function getColombiaDate() {
   const formatter = new Intl.DateTimeFormat('es-CO', {
@@ -71,7 +73,7 @@ export function getTodaysRestrictions() {
       dayOfWeek === 6 &&
       s.specificSaturdays.some((d) => isSameDate(d, today))
     return isWeekdayRestriction || isSaturdayRestriction
-  })
+  }).map((s) => (dayOfWeek === 6 ? { ...s, hours: SATURDAY_HOURS } : s))
 }
 
 export function isRestrictedToday(id) {
@@ -115,7 +117,19 @@ export function getAllSaturdayRestrictions() {
     label: s.label,
     plates: s.plates,
     saturdays: s.specificSaturdays,
+    hours: SATURDAY_HOURS,
   }))
 }
 
-export { SCHEDULES, PERIOD }
+export function formatPeriodLabel() {
+  const fmt = (d) =>
+    d.toLocaleDateString('es-CO', {
+      timeZone: TZ,
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    })
+  return `${fmt(PERIOD.start)} al ${fmt(PERIOD.end)}`
+}
+
+export { SCHEDULES, PERIOD, SATURDAY_HOURS }
